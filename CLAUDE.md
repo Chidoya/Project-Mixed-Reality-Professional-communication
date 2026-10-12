@@ -148,7 +148,7 @@ Code (C#)
 - 2026-10-12: Notion hub, subpagina's en taakdatabase aangemaakt; database nog leeg.
   In Notion zijn enkel Liam en Jalil lid. GitHub repo met leeg Unity 6.3 URP project
   (branches `main`, `Jalil`, `Liam`). Jalil zette `instructie.md` (Git workflow voor Claude Code)
-  op `main`; `Jalil` en `Liam` moeten `main` nog binnenhalen. Nog geen `.gitattributes`/LFS,
+  op `main`; `Jalil` en `Liam` zijn op 2026-10-12 bijgewerkt naar `main`. Nog geen `.gitattributes`/LFS,
   geen XR packages, geen README, geen branch protection gecontroleerd.
   Scenario, rollen en data nog niet beslist.
 
