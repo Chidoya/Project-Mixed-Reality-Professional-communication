@@ -16,6 +16,7 @@ namespace ProCommVR.Editor
     /// <summary>
     /// Configures the project for Meta Quest 3: Android player settings, OpenXR as the XR loader,
     /// and the Meta Quest feature with the Quest controller interaction profiles.
+    /// OpenXR is also enabled for Windows (Standalone) so Play mode works via Quest Link.
     /// Safe to run more than once. Batchmode: -executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest
     /// </summary>
     public static class XRProjectSetup
@@ -27,10 +28,11 @@ namespace ProCommVR.Editor
         public static void ConfigureForQuest()
         {
             ConfigurePlayerSettings();
-            ConfigureXRLoader();
+            ConfigureXRLoader(BuildTargetGroup.Android);
+            ConfigureXRLoader(BuildTargetGroup.Standalone);
             ConfigureOpenXRFeatures();
             AssetDatabase.SaveAssets();
-            Debug.Log("[ProCommVR] Project configured for Meta Quest 3 (Android, OpenXR).");
+            Debug.Log("[ProCommVR] Project configured for Meta Quest 3 (Android, OpenXR) and Quest Link (Windows, OpenXR).");
         }
 
         private static void ConfigurePlayerSettings()
@@ -43,20 +45,20 @@ namespace ProCommVR.Editor
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan });
         }
 
-        private static void ConfigureXRLoader()
+        private static void ConfigureXRLoader(BuildTargetGroup group)
         {
             var perTarget = GetOrCreateXRSettings();
-            if (!perTarget.HasManagerSettingsForBuildTarget(BuildTargetGroup.Android))
-                perTarget.CreateDefaultManagerSettingsForBuildTarget(BuildTargetGroup.Android);
+            if (!perTarget.HasManagerSettingsForBuildTarget(group))
+                perTarget.CreateDefaultManagerSettingsForBuildTarget(group);
 
-            var generalSettings = perTarget.SettingsForBuildTarget(BuildTargetGroup.Android);
+            var generalSettings = perTarget.SettingsForBuildTarget(group);
             generalSettings.InitManagerOnStart = true;
 
-            var manager = perTarget.ManagerSettingsForBuildTarget(BuildTargetGroup.Android);
+            var manager = perTarget.ManagerSettingsForBuildTarget(group);
             if (!manager.activeLoaders.Any(l => l != null && l.GetType().FullName == OpenXRLoaderType)
-                && !XRPackageMetadataStore.AssignLoader(manager, OpenXRLoaderType, BuildTargetGroup.Android))
+                && !XRPackageMetadataStore.AssignLoader(manager, OpenXRLoaderType, group))
             {
-                throw new System.InvalidOperationException("[ProCommVR] Could not assign the OpenXR loader for Android.");
+                throw new System.InvalidOperationException($"[ProCommVR] Could not assign the OpenXR loader for {group}.");
             }
 
             EditorUtility.SetDirty(generalSettings);
@@ -89,14 +91,26 @@ namespace ProCommVR.Editor
 
         private static void ConfigureOpenXRFeatures()
         {
-            var openXR = OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Android);
-            if (openXR == null)
-                throw new System.InvalidOperationException("[ProCommVR] No OpenXR settings found for Android.");
+            var android = GetOpenXRSettings(BuildTargetGroup.Android);
+            EnableFeature<MetaQuestFeature>(android);
+            EnableFeature<OculusTouchControllerProfile>(android);
+            EnableFeature<MetaQuestTouchPlusControllerProfile>(android);
+            EditorUtility.SetDirty(android);
 
-            EnableFeature<MetaQuestFeature>(openXR);
-            EnableFeature<OculusTouchControllerProfile>(openXR);
-            EnableFeature<MetaQuestTouchPlusControllerProfile>(openXR);
-            EditorUtility.SetDirty(openXR);
+            // Quest Link on Windows: only the controller profiles. The Meta Quest feature is for
+            // the standalone (Android) headset and does not exist for Standalone.
+            var standalone = GetOpenXRSettings(BuildTargetGroup.Standalone);
+            EnableFeature<OculusTouchControllerProfile>(standalone);
+            EnableFeature<MetaQuestTouchPlusControllerProfile>(standalone);
+            EditorUtility.SetDirty(standalone);
+        }
+
+        private static OpenXRSettings GetOpenXRSettings(BuildTargetGroup group)
+        {
+            var settings = OpenXRSettings.GetSettingsForBuildTargetGroup(group);
+            if (settings == null)
+                throw new System.InvalidOperationException($"[ProCommVR] No OpenXR settings found for {group}.");
+            return settings;
         }
 
         private static void EnableFeature<T>(OpenXRSettings settings) where T : OpenXRFeature

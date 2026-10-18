@@ -11,7 +11,7 @@ wat er is, hoe het werkt en hoe je het uitbreidt. Zie ook `GAME_BRIEF.md` voor h
 | Unity | 6000.3.9f1 (Unity 6.3), URP |
 | Doeltoestel | Meta Quest 3, standalone |
 | Build | Android, ARM64, IL2CPP, min. API 32, Vulkan, Linear color space |
-| XR runtime | OpenXR via XR Plug-in Management |
+| XR runtime | OpenXR via XR Plug-in Management (Android voor de headset, Windows voor Play mode via Quest Link) |
 
 ## 2. Packages
 
@@ -28,9 +28,14 @@ Dependencies zoals `com.unity.xr.core-utils` en `com.unity.inputsystem` komen au
 
 ## 3. XR-configuratie
 
-- **Loader:** OpenXR voor Android, "Initialize XR on Startup" aan (`Assets/XR/`).
+- **Loader:** OpenXR voor Android en voor Windows (Standalone), telkens met
+  "Initialize XR on Startup" aan (`Assets/XR/`).
 - **OpenXR features (Android):** Meta Quest Support, Oculus Touch Controller Profile,
   Meta Quest Touch Plus Controller Profile (de controllers van de Quest 3).
+- **OpenXR features (Windows):** enkel Oculus Touch Controller Profile en Meta Quest Touch Plus
+  Controller Profile. Meta Quest Support bestaat alleen voor Android (de standalone headset).
+  Windows dient enkel om in de editor op Play te drukken met de headset via Quest Link; we
+  bouwen geen Windows-versie.
 - Alle instellingen zijn opnieuw toe te passen via het menu
   **ProCommVR > Setup > Configure Project for Quest 3** (`XRProjectSetup.cs`).
 - Het actieve build platform wordt lokaal bewaard (in `Library/`), niet in Git. Na een verse
@@ -88,7 +93,18 @@ dient enkel om de rig te testen, het is geen content:
   trigger indrukt (`RayTestTarget.cs`, namespace `ProCommVR.XRTest`)
 - **Test Canvas:** een world-space knop die dezelfde kubus van kleur doet wisselen (test voor UI-interactie)
 
-**Testen op de Quest 3:** zet het platform op Android, sluit de headset aan (developer mode),
+**Testen via Quest Link (Play mode, sneller):**
+
+1. Installeer op de pc de **Meta Horizon Link**-app (vroeger "Oculus"-app) en log in.
+2. In die app: **Settings > General > OpenXR Runtime > Set Meta Horizon Link as active**.
+3. Verbind de Quest 3 met een USB-C-kabel (of Air Link) en start **Quest Link** in de headset.
+4. Druk in de Unity Editor op **Play**. Het build platform mag op Android blijven staan: de
+   editor draait zelf op Windows en gebruikt dus de Windows-instellingen van OpenXR.
+
+Link draait op de pc, dus performance (72 fps) en uitzicht moet je altijd nog op de headset zelf
+controleren met een Android-build.
+
+**Testen op de Quest 3 (build):** zet het platform op Android, sluit de headset aan (developer mode),
 zet XRTest bovenaan in de Build Settings (of vink ScenarioTest uit) en kies **Build and Run**. Werkt het: beide controllers tonen een laser,
 trigger op de kubus en op de knop wisselt de kleur, grip doet niets op de kubus.
 
@@ -157,7 +173,8 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
    - **Options:** voor elk van de 4 opties de **Text**, **Score** en **Feedback**
 4. Alle tekst in het Engels (`GAME_BRIEF.md`).
 5. Testen: open `ScenarioTest`, selecteer **Scenario Presenter** en sleep je nieuwe asset in het
-   veld **Scenario**. Druk op Play (met een Quest via Link) of maak een build.
+   veld **Scenario**. Druk op Play met de headset via Quest Link (zie sectie 6) of maak een
+   Android-build.
 6. Commit het asset samen met zijn `.meta`-bestand.
 
 ### Placeholder
