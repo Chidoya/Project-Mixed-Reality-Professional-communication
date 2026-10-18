@@ -117,15 +117,16 @@ De setup is volledig gescript (`Assets/_Project/Editor/`), dus reproduceerbaar:
 3. **ProCommVR > Setup > 2. Build XR Test Scene** (overschrijft de testscene en de rig variant)
 4. **ProCommVR > Setup > 3. Import TMP Essentials**
 5. **ProCommVR > Setup > 4. Build Dialogue Bubble Prefab**
-6. **ProCommVR > Setup > 5. Build Scenario Test Scene** (overschrijft de scene, het placeholder-scenario
-   blijft behouden als het al bestaat)
+6. **ProCommVR > Setup > 5. Build Results Screen Prefab**
+7. **ProCommVR > Setup > 6. Build Scenario Test Scene** (overschrijft de scene, de placeholder-scenario's
+   blijven behouden als ze al bestaan)
 
 In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`, daarna
 `ProCommVR.Editor.XRTestSceneBuilder.ImportStarterAssets` en
 `ProCommVR.Editor.XRTestSceneBuilder.BuildTestScene` (elk in een aparte run). Voor het
 scenario-systeem: `ProCommVR.Editor.ScenarioTestSceneBuilder.ImportTmpEssentialsAndExit`
-(zonder `-quit`, want de package-import is asynchroon), daarna `BuildBubblePrefab` en
-`BuildScenarioTestScene`.
+(zonder `-quit`, want de package-import is asynchroon), daarna `BuildBubblePrefab`,
+`BuildResultsScreenPrefab` en `BuildScenarioTestScene`.
 
 ## 8. Scenario's
 
@@ -163,8 +164,9 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 - De speler kiest met **laser + trigger**. De opties verdwijnen, de feedback verschijnt op hun
   plaats, en de presenter stuurt het event `OptionChosen(scenario, option)`. Scoring en het
   eindscherm kunnen daarop aansluiten (nog niet gebouwd).
-- Tijdens het testen verschijnt na de feedback een ballon "Try again" (uit te zetten via
-  `Allow Restart` op de presenter).
+- Onder de feedback verschijnt een **verderknop** (ballon). Met een `ScenarioSequence` (sectie 9)
+  heet die "Next scenario" of, bij het laatste scenario, "See results". Zonder sequence heet hij
+  "Try again" (`Continue Label`) en speelt hij hetzelfde scenario opnieuw.
 - `DialogueBubble` (`Assets/_Project/Prefabs/UI/DialogueBubble.prefab`) is één ballon: een
   world-space canvas van 60 x 22 cm met een TextMeshPro-tekst die automatisch kleiner wordt
   bij lange tekst. Wordt hergebruikt voor NPC-zin, opties en feedback.
@@ -181,17 +183,42 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
    - **Title**, **Mood**, **Npc Name** en **Npc Line** (wat de NPC zegt)
    - **Options:** voor elk van de 4 opties de **Text**, **Score** en **Feedback**
 4. Alle tekst in het Engels (`GAME_BRIEF.md`).
-5. Testen: open `ScenarioTest`, selecteer **Scenario Presenter** en sleep je nieuwe asset in het
-   veld **Scenario**. Druk op Play met de headset via Quest Link (zie sectie 6) of maak een
+5. Testen: open `ScenarioTest`, selecteer **Scenario Sequence** en sleep je nieuwe asset in de
+   lijst **Scenarios** (de volgorde van de lijst is de speelvolgorde). Druk op Play met de headset via Quest Link (zie sectie 6) of maak een
    Android-build.
 6. Commit het asset samen met zijn `.meta`-bestand.
 
 ### Placeholder
 
-`Placeholder_Scenario.asset` bevat **verzonnen** testtekst ("The waiting patient"), enkel om het
-systeem te testen. Echte scenario's komen van het content-team en de inhoudsexpert.
+`Placeholder_Scenario.asset` ("The waiting patient", mood Neutral) en `Placeholder_Scenario2.asset`
+("The upset relative", mood Tense) bevatten **verzonnen** testtekst, enkel om het systeem te testen. Echte scenario's komen van het content-team en de inhoudsexpert.
 
 ### Nog niet gebouwd
 
-NPC-reactie (animatie, stem), scoring en
-eindscherm, meerdere scenario's na elkaar, en het mood-systeem dat licht en muziek aanstuurt.
+NPC-reactie (animatie, stem), een eigen omgeving per scenario (kamer, gang: nu speelt alles in
+`ScenarioTest` met dezelfde NPC), en het mood-systeem dat licht en muziek aanstuurt.
+
+## 9. Scoring en eindscherm
+
+Volgens `GAME_BRIEF.md` loopt de score verborgen mee en ziet de speler die pas op het eindscherm.
+Niets wordt bewaard na het afsluiten.
+
+| Klasse | Wat |
+| --- | --- |
+| `ScenarioSequence` | Speelt de scenario's uit zijn lijst **Scenarios** na elkaar via de presenter, bewaart elke keuze en toont na het laatste scenario het eindscherm |
+| `SessionScore` | De score van één sessie in het geheugen: per scenario een `ScenarioResult` (gekozen optie, score, beste score), plus `Total` en `BestTotal` |
+| `ResultsScreen` | Het eindscherm in de wereld (`Assets/_Project/Prefabs/UI/ResultsScreen.prefab`) |
+
+**Verloop:** scenario 1 > keuze > feedback > "Next scenario" > scenario 2 > ... > "See results" >
+eindscherm > "Start again" (score terug op 0, eerste scenario).
+
+**Eindscherm:** verschijnt 1,3 m voor de speler, in de kijkrichting. Bovenaan de totaalscore
+(bijvoorbeeld `4 / 6`), daaronder per scenario de titel, de score tegenover de beste score, wat
+de speler zei, en de feedback bij die keuze. Daaronder een ballon "Start again".
+
+- De beste score per scenario is de hoogste score van zijn 4 opties (`Scenario.BestScore`), dus
+  de schaal (nu 3/1/0/-2) kan veranderen zonder code aan te passen.
+- Andere scripts kunnen inhaken via `ScenarioPresenter.ScenarioStarted`, `OptionChosen`,
+  `Continued` en `ScenarioSequence.Finished`.
+- Een scenario toevoegen aan de sessie: sleep het asset in de lijst **Scenarios** van de
+  **Scenario Sequence** in de scene.

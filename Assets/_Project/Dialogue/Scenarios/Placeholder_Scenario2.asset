@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfd3b5a78723a44387dd9647a3eafe1, type: 3}
+  m_Name: Placeholder_Scenario2
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Scenarios.Scenario
+  _id: placeholder-upset-relative
+  _title: '[PLACEHOLDER] The upset relative'
+  _mood: 1
+  _npcName: Relative (placeholder)
+  _npcLine: My father rang the bell twenty minutes ago and nobody came. Is this how
+    you treat people here?
+  _options:
+  - _text: You're right to be upset, twenty minutes is too long. I'll go to your
+      father now, and afterwards we can talk about what happened.
+    _score: 3
+    _feedback: 'Good choice: you acknowledge the anger, act on the urgent need first
+      and offer a follow-up.'
+  - _text: We have a lot of patients today, we're doing our best.
+    _score: 1
+    _feedback: 'Partly right: it explains the situation, but it sounds defensive
+      and does not help the father.'
+  - _text: I'll tell my colleague who is responsible for his room.
+    _score: 0
+    _feedback: 'Low: you pass the problem on, so the relative feels nobody takes
+      ownership.'
+  - _text: Please lower your voice, or I'll have to ask you to leave.
+    _score: -2
+    _feedback: 'Critical error: you escalate before listening. A boundary can be
+      needed, but not as the first reaction.'
