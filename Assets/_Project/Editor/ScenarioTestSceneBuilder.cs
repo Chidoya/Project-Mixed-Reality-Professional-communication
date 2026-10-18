@@ -137,11 +137,13 @@ namespace ProCommVR.Editor
         [MenuItem("ProCommVR/Setup/5. Build Scenario Test Scene")]
         public static void BuildScenarioTestScene()
         {
-            var rigVariant = LoadRequired<GameObject>(RigVariantPath, "Run 'Build XR Test Scene' first.");
-            var bubblePrefab = LoadRequired<DialogueBubble>(BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.");
-            var scenario = GetOrCreatePlaceholderScenario();
-
+            // Create the scene first: NewScene unloads assets that were loaded before it.
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            var rigVariant = LoadRequired<GameObject>(RigVariantPath, "Run 'Build XR Test Scene' first.");
+            var bubblePrefab = LoadRequired<GameObject>(BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.")
+                .GetComponent<DialogueBubble>();
+            var scenario = GetOrCreatePlaceholderScenario();
 
             var lightObject = new GameObject("Directional Light");
             lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
