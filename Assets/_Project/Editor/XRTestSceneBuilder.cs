@@ -251,7 +251,7 @@ namespace ProCommVR.Editor
             label.color = Color.black;
         }
 
-        private static Material GetOrCreateMaterial(string path, Color color)
+        internal static Material GetOrCreateMaterial(string path, Color color)
         {
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material != null)
@@ -263,7 +263,7 @@ namespace ProCommVR.Editor
             return material;
         }
 
-        private static void EnsureFolder(string folder)
+        internal static void EnsureFolder(string folder)
         {
             folder = folder.Replace('\\', '/');
             if (AssetDatabase.IsValidFolder(folder))
