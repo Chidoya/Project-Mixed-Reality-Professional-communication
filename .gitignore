@@ -70,3 +70,6 @@ crashlytics-build.properties
 # OS files
 .DS_Store
 Thumbs.db
+
+# Accidental nested clone of this repository (keep it out of Git)
+/Project-Mixed-Reality-Professional-communication/
