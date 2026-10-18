@@ -159,21 +159,22 @@ namespace ProCommVR.Editor
             PrefabUtility.InstantiatePrefab(rigVariant, scene);
             new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
 
-            // Placeholder NPC: a capsule about 2.2 m in front of the player start.
+            // Placeholder NPC: a capsule 2.5 m in front of the player start (GAME_BRIEF.md). The options
+            // appear once the player walks within 1.5 m.
             var npc = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             npc.name = "Placeholder NPC";
-            npc.transform.position = new Vector3(0f, 0.9f, 2.2f);
+            npc.transform.position = new Vector3(0f, 0.9f, 2.5f);
             npc.transform.localScale = new Vector3(0.5f, 0.9f, 0.5f);
             npc.GetComponent<Renderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial(NpcMaterialPath, new Color(0.45f, 0.6f, 0.8f));
 
             var presenterObject = new GameObject("Scenario Presenter");
             var npcAnchor = new GameObject("NPC Bubble Anchor").transform;
             npcAnchor.SetParent(presenterObject.transform, false);
-            npcAnchor.position = new Vector3(0f, 2.15f, 2.2f);
+            npcAnchor.position = new Vector3(0f, 2.15f, 2.5f);
             npcAnchor.localScale = Vector3.one * 1.3f;
             var optionsAnchor = new GameObject("Options Anchor").transform;
             optionsAnchor.SetParent(presenterObject.transform, false);
-            optionsAnchor.position = new Vector3(0f, 1.15f, 1.1f);
+            optionsAnchor.position = new Vector3(0f, 1.15f, 1.6f);
 
             var presenter = presenterObject.AddComponent<ScenarioPresenter>();
             var serialized = new SerializedObject(presenter);
@@ -181,6 +182,7 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_bubblePrefab").objectReferenceValue = bubblePrefab;
             serialized.FindProperty("_npcBubbleAnchor").objectReferenceValue = npcAnchor;
             serialized.FindProperty("_optionsAnchor").objectReferenceValue = optionsAnchor;
+            serialized.FindProperty("_npc").objectReferenceValue = npc.transform;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(ScenePath));

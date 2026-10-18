@@ -6,8 +6,9 @@ namespace ProCommVR.Scenarios
 {
     /// <summary>
     /// Shows a <see cref="Scenario"/> in the world: the NPC line above the NPC and the four options
-    /// as clickable bubbles in front of the player. After a choice the options disappear and the
-    /// feedback is shown. Scoring and scenario flow listen to <see cref="OptionChosen"/>.
+    /// as clickable bubbles in front of the player. The options only appear once the player is within
+    /// Options Range of the NPC. After a choice the options disappear and the feedback is shown.
+    /// Scoring and scenario flow listen to <see cref="OptionChosen"/>.
     /// </summary>
     public class ScenarioPresenter : MonoBehaviour
     {
@@ -29,12 +30,32 @@ namespace ProCommVR.Scenarios
         [Tooltip("Shuffle the options so the best answer is not always in the same place.")]
         [SerializeField] private bool _shuffleOptions = true;
 
+        [Header("Proximity")]
+        [Tooltip("The NPC. The options appear once the player is within Options Range of it. Leave empty to show them immediately.")]
+        [SerializeField] private Transform _npc;
+
+        [Tooltip("Horizontal distance (meters) between the player's head and the NPC at which the options appear.")]
+        [SerializeField, Min(0f)] private float _optionsRange = 1.5f;
+
+        [Tooltip("The player's head. Leave empty to use the main camera.")]
+        [SerializeField] private Transform _player;
+
+        [Tooltip("Move the options between the player and the NPC when they appear. Off: they stay at the Options Anchor.")]
+        [SerializeField] private bool _placeOptionsInFrontOfPlayer = true;
+
+        [Tooltip("How far in front of the player's head the options appear, in meters.")]
+        [SerializeField, Min(0.3f)] private float _optionsDistance = 0.7f;
+
+        [Tooltip("Height of the options relative to the player's eyes, in meters (negative is lower).")]
+        [SerializeField] private float _optionsHeightOffset = -0.25f;
+
         [Header("Testing")]
         [Tooltip("Show a bubble after the feedback to play the scenario again. Handy while testing.")]
         [SerializeField] private bool _allowRestart = true;
         [SerializeField] private string _restartLabel = "Try again";
 
         private readonly List<DialogueBubble> _bubbles = new List<DialogueBubble>();
+        private bool _optionsPending;
         private bool _waitingForChoice;
 
         public event Action<Scenario, DialogueOption> OptionChosen;
@@ -43,8 +64,17 @@ namespace ProCommVR.Scenarios
 
         private void Start()
         {
+            if (_player == null && Camera.main != null)
+                _player = Camera.main.transform;
+
             if (_playOnStart && _scenario != null)
                 Play(_scenario);
+        }
+
+        private void Update()
+        {
+            if (_optionsPending && PlayerInRange())
+                ShowOptions();
         }
 
         public void Play(Scenario scenario)
@@ -55,7 +85,19 @@ namespace ProCommVR.Scenarios
             var npcBubble = CreateBubble(_npcBubbleAnchor, Vector3.zero, false);
             npcBubble.SetText($"<b>{scenario.NpcName}</b>\n{scenario.NpcLine}");
 
-            var options = new List<DialogueOption>(scenario.Options);
+            _waitingForChoice = false;
+            _optionsPending = true;
+            if (PlayerInRange())
+                ShowOptions();
+        }
+
+        private void ShowOptions()
+        {
+            _optionsPending = false;
+            if (_placeOptionsInFrontOfPlayer)
+                PlaceOptionsAnchor();
+
+            var options = new List<DialogueOption>(_scenario.Options);
             if (_shuffleOptions)
                 Shuffle(options);
 
@@ -90,6 +132,38 @@ namespace ProCommVR.Scenarios
             }
 
             OptionChosen?.Invoke(_scenario, option);
+        }
+
+        private bool PlayerInRange()
+        {
+            if (_npc == null || _player == null)
+                return true;
+            return HorizontalOffset(_player.position, _npc.position).magnitude <= _optionsRange;
+        }
+
+        /// <summary>
+        /// Puts the option grid between the player and the NPC, facing the player, slightly below eye height.
+        /// </summary>
+        private void PlaceOptionsAnchor()
+        {
+            if (_npc == null || _player == null)
+                return;
+
+            var toNpc = HorizontalOffset(_player.position, _npc.position);
+            if (toNpc.sqrMagnitude < 0.0001f)
+                return;
+
+            var distance = Mathf.Min(_optionsDistance, toNpc.magnitude * 0.6f);
+            var direction = toNpc.normalized;
+            _optionsAnchor.position = _player.position + direction * distance + Vector3.up * _optionsHeightOffset;
+            _optionsAnchor.rotation = Quaternion.LookRotation(direction, Vector3.up);
+        }
+
+        private static Vector3 HorizontalOffset(Vector3 from, Vector3 to)
+        {
+            var offset = to - from;
+            offset.y = 0f;
+            return offset;
         }
 
         private Vector3 GridOffset(int index)

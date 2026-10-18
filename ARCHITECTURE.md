@@ -151,6 +151,15 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 
 - `ScenarioPresenter` (in de scene) toont een `Scenario`: de NPC-zin in een ballon boven de NPC
   en de 4 opties als ballonnen in een 2x2-raster voor de speler, in **willekeurige volgorde**.
+- **Opties pas dichtbij:** de NPC-zin is meteen zichtbaar, de 4 opties verschijnen pas als het
+  hoofd van de speler binnen **1,5 m** (horizontaal) van de NPC staat (`GAME_BRIEF.md`). Ze
+  verschijnen dan tussen de speler en de NPC: 0,7 m voor het hoofd, 25 cm onder ooghoogte, naar
+  de speler gericht. Daarna blijven ze staan, ook als de speler terugstapt.
+  Instelbaar op de presenter onder **Proximity**: `Npc` (leeg = opties meteen tonen),
+  `Options Range`, `Player` (leeg = de main camera, dus de headset), `Place Options In Front Of
+  Player` (uit = opties blijven op de `Options Anchor`), `Options Distance` en `Options Height Offset`.
+  In `ScenarioTest` staat de NPC (capsule) 2,5 m van het startpunt: stap ongeveer 1 m naar voren
+  (of gebruik de linker thumbstick) om de opties te zien.
 - De speler kiest met **laser + trigger**. De opties verdwijnen, de feedback verschijnt op hun
   plaats, en de presenter stuurt het event `OptionChosen(scenario, option)`. Scoring en het
   eindscherm kunnen daarop aansluiten (nog niet gebouwd).
@@ -184,5 +193,5 @@ systeem te testen. Echte scenario's komen van het content-team en de inhoudsexpe
 
 ### Nog niet gebouwd
 
-Dialoogopties pas tonen binnen 1,5 m van de NPC, NPC-reactie (animatie, stem), scoring en
+NPC-reactie (animatie, stem), scoring en
 eindscherm, meerdere scenario's na elkaar, en het mood-systeem dat licht en muziek aanstuurt.
