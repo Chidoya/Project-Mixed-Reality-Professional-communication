@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace ProCommVR.Scenarios
@@ -36,6 +37,11 @@ namespace ProCommVR.Scenarios
         public string NpcName => _npcName;
         public string NpcLine => _npcLine;
         public IReadOnlyList<DialogueOption> Options => _options;
+
+        /// <summary>
+        /// Score of the best option: the maximum a player can get in this scenario.
+        /// </summary>
+        public int BestScore => _options.Max(o => o.Score);
 
         private void OnValidate()
         {

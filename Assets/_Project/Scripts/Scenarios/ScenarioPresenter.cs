@@ -8,7 +8,8 @@ namespace ProCommVR.Scenarios
     /// Shows a <see cref="Scenario"/> in the world: the NPC line above the NPC and the four options
     /// as clickable bubbles in front of the player. The options only appear once the player is within
     /// Options Range of the NPC. After a choice the options disappear and the feedback is shown.
-    /// Scoring and scenario flow listen to <see cref="OptionChosen"/>.
+    /// Below the feedback a continue bubble appears. Scoring and scenario flow (<see cref="ScenarioSequence"/>)
+    /// listen to <see cref="OptionChosen"/> and <see cref="Continued"/>.
     /// </summary>
     public class ScenarioPresenter : MonoBehaviour
     {
@@ -49,24 +50,42 @@ namespace ProCommVR.Scenarios
         [Tooltip("Height of the options relative to the player's eyes, in meters (negative is lower).")]
         [SerializeField] private float _optionsHeightOffset = -0.25f;
 
-        [Header("Testing")]
-        [Tooltip("Show a bubble after the feedback to play the scenario again. Handy while testing.")]
-        [SerializeField] private bool _allowRestart = true;
-        [SerializeField] private string _restartLabel = "Try again";
+        [Header("After the choice")]
+        [Tooltip("Label of the bubble below the feedback. A ScenarioSequence overrides it. Without a sequence, the bubble replays the scenario.")]
+        [SerializeField] private string _continueLabel = "Try again";
 
         private readonly List<DialogueBubble> _bubbles = new List<DialogueBubble>();
         private bool _optionsPending;
         private bool _waitingForChoice;
 
+        public event Action<Scenario> ScenarioStarted;
         public event Action<Scenario, DialogueOption> OptionChosen;
+
+        /// <summary>
+        /// Raised when the player clicks the continue bubble below the feedback.
+        /// </summary>
+        public event Action Continued;
 
         public Scenario CurrentScenario => _scenario;
 
+        public string ContinueLabel
+        {
+            get => _continueLabel;
+            set => _continueLabel = value;
+        }
+
+        private Transform Player
+        {
+            get
+            {
+                if (_player == null && Camera.main != null)
+                    _player = Camera.main.transform;
+                return _player;
+            }
+        }
+
         private void Start()
         {
-            if (_player == null && Camera.main != null)
-                _player = Camera.main.transform;
-
             if (_playOnStart && _scenario != null)
                 Play(_scenario);
         }
@@ -87,8 +106,19 @@ namespace ProCommVR.Scenarios
 
             _waitingForChoice = false;
             _optionsPending = true;
+            ScenarioStarted?.Invoke(scenario);
             if (PlayerInRange())
                 ShowOptions();
+        }
+
+        /// <summary>
+        /// Removes all bubbles, e.g. before the results screen.
+        /// </summary>
+        public void Clear()
+        {
+            ClearBubbles();
+            _optionsPending = false;
+            _waitingForChoice = false;
         }
 
         private void ShowOptions()
@@ -124,21 +154,26 @@ namespace ProCommVR.Scenarios
             var feedbackBubble = CreateBubble(_optionsAnchor, new Vector3(0f, _optionSpacing.y * 0.5f, 0f), false);
             feedbackBubble.SetText(option.Feedback);
 
-            if (_allowRestart)
-            {
-                var restartBubble = CreateBubble(_optionsAnchor, new Vector3(0f, -_optionSpacing.y * 0.5f, 0f), true);
-                restartBubble.SetText(_restartLabel);
-                restartBubble.Clicked += () => Play(_scenario);
-            }
-
             OptionChosen?.Invoke(_scenario, option);
+
+            var continueBubble = CreateBubble(_optionsAnchor, new Vector3(0f, -_optionSpacing.y * 0.5f, 0f), true);
+            continueBubble.SetText(_continueLabel);
+            continueBubble.Clicked += OnContinueClicked;
+        }
+
+        private void OnContinueClicked()
+        {
+            if (Continued != null)
+                Continued.Invoke();
+            else
+                Play(_scenario);
         }
 
         private bool PlayerInRange()
         {
-            if (_npc == null || _player == null)
+            if (_npc == null || Player == null)
                 return true;
-            return HorizontalOffset(_player.position, _npc.position).magnitude <= _optionsRange;
+            return HorizontalOffset(Player.position, _npc.position).magnitude <= _optionsRange;
         }
 
         /// <summary>
@@ -146,16 +181,16 @@ namespace ProCommVR.Scenarios
         /// </summary>
         private void PlaceOptionsAnchor()
         {
-            if (_npc == null || _player == null)
+            if (_npc == null || Player == null)
                 return;
 
-            var toNpc = HorizontalOffset(_player.position, _npc.position);
+            var toNpc = HorizontalOffset(Player.position, _npc.position);
             if (toNpc.sqrMagnitude < 0.0001f)
                 return;
 
             var distance = Mathf.Min(_optionsDistance, toNpc.magnitude * 0.6f);
             var direction = toNpc.normalized;
-            _optionsAnchor.position = _player.position + direction * distance + Vector3.up * _optionsHeightOffset;
+            _optionsAnchor.position = Player.position + direction * distance + Vector3.up * _optionsHeightOffset;
             _optionsAnchor.rotation = Quaternion.LookRotation(direction, Vector3.up);
         }
 
