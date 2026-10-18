@@ -129,6 +129,24 @@ Code (C#)
 - Test op de Quest 3 zelf, niet alleen in de editor. Doel: stabiel 72 fps.
   Kan er niet op de headset getest worden, zeg dat dan expliciet in het eindrapport.
 
+## Build validatie
+
+Voor elke commit (zie `instructie.md`, sectie 5, stap 3) draai je een Unity batchmode
+compile-check, niet enkel vertrouwen op wat de editor toont:
+
+```bash
+"/mnt/c/Program Files/Unity/Hub/Editor/6000.3.9f1/Editor/Unity.exe" \
+  -batchmode -quit -nographics \
+  -projectPath "<pad naar dit project>" \
+  -logFile "<pad naar dit project>/build.log"
+```
+
+- Commit enkel als het logbestand geen compile-errors bevat.
+- Kan Unity in deze omgeving niet draaien (geen toegang tot het Windows-bestandssysteem
+  of de Unity-installatie), zeg dat dan expliciet in plaats van te doen alsof er gecheckt is.
+- Dit is een compile-check, geen volledige Android-build. Een Android-build testen
+  (bijvoorbeeld voor een demo) gebeurt apart en enkel na overleg, want dat duurt langer.
+
 ## Hoe Claude moet helpen
 
 - Antwoord in het Nederlands, code, commits en PR-beschrijvingen in het Engels.
@@ -160,6 +178,7 @@ Code (C#)
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
+
 
 ## Open vragen
 
