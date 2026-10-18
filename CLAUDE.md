@@ -151,10 +151,7 @@ Code (C#)
   op `main`; `Jalil` en `Liam` zijn op 2026-10-12 bijgewerkt naar `main`. Nog geen `.gitattributes`/LFS,
   geen XR packages, geen README, geen branch protection gecontroleerd.
   Scenario, rollen en data nog niet beslist.
-- 2026-10-18: Jalil installeerde per ongeluk Unity 6000.6.6f1. Bevestigd dat het project bij
-  de afgesproken versie 6000.3.9f1 blijft, zodat het bestaande lege project niet geüpgraded
-  moet worden. Jalil installeert 6000.3.9f1 ernaast via Unity Hub (beide versies kunnen
-  naast elkaar bestaan).
+
 
 ## Beslissingen
 
@@ -163,7 +160,6 @@ Code (C#)
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
-| 2026-10-18 | Unity 6000.3.9f1 bevestigd, geen upgrade naar 6000.6.6f1 | Bestaand leeg project staat al in 6000.3.9f1, voorkomt onnodige project-upgrade |
 
 ## Open vragen
 
