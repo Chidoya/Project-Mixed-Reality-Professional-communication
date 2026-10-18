@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfd3b5a78723a44387dd9647a3eafe1, type: 3}
+  m_Name: Placeholder_Scenario
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Scenarios.Scenario
+  _id: placeholder-waiting-patient
+  _title: '[PLACEHOLDER] The waiting patient'
+  _mood: 0
+  _npcName: Patient (placeholder)
+  _npcLine: I've been waiting all morning and nobody tells me anything. When can
+    I finally go home?
+  _options:
+  - _text: I understand the waiting is frustrating. I'll check with the doctor and
+      come back to you within fifteen minutes.
+    _score: 3
+    _feedback: 'Good choice: you acknowledge the feeling and make a concrete commitment
+      you can keep.'
+  - _text: The doctor is very busy today, so you'll have to be patient.
+    _score: 1
+    _feedback: 'Partly right: it is honest, but it ignores how the patient feels
+      and offers no next step.'
+  - _text: I'm not sure. I'll ask someone later.
+    _score: 1
+    _feedback: 'Partly right: you don''t promise anything false, but ''later'' is
+      vague and leaves the patient uncertain.'
+  - _text: Don't worry, you'll definitely go home today.
+    _score: -2
+    _feedback: 'Critical error: you give a certainty you cannot guarantee. If it
+      turns out differently, trust is damaged.'
