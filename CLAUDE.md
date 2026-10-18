@@ -105,10 +105,12 @@ Taak in Notion naast de Git workflow
 - GitHub repo: https://github.com/Chidoya/Project-Mixed-Reality-Professional-communication
 - Unity versie: 6000.3.9f1 (Unity 6.3). Beide developers exact deze versie, geen upgrade zonder akkoord.
 - Render pipeline: URP (aanbevolen voor Quest)
-- XR: nog te installeren (XR Interaction Toolkit + OpenXR, of Meta XR SDK)
+- XR: XR Interaction Toolkit 3.6.1 + OpenXR 1.18.0 (XR Plug-in Management 4.7.0),
+  Meta Quest feature, profielen Oculus Touch en Meta Quest Touch Plus. Details: `ARCHITECTURE.md`.
+- Interactie: laserpointer op beide controllers, trigger = select, grip = activate, geen gaze-select.
 - Dialoogsysteem: TODO (Yarn Spinner / Ink / eigen JSON of ScriptableObjects)
 - Spraak (optioneel): TODO
-- Build target: Android, ARM64, IL2CPP
+- Build target: Android, ARM64, IL2CPP, min. API 32, Vulkan, Linear color space
 
 ## Unity en code conventies
 
@@ -118,8 +120,11 @@ Unity
   (zie `instructie.md`, sectie 4): fbx, blend, png, jpg, psd, wav, mp3, mp4.
 - Eén persoon tegelijk in een scene; werk zoveel mogelijk in prefabs. Scene-eigenaar staat in Notion.
 - Mappenstructuur onder `Assets/_Project/`: `Scenes/`, `Scripts/`, `Prefabs/`,
-  `Art/`, `Audio/`, `Dialogue/`, `Materials/`, `Settings/`.
-- Third-party assets buiten `_Project/` laten.
+  `Art/`, `Audio/`, `Dialogue/`, `Materials/`, `Settings/`, `Editor/` (editor-scripts).
+- Third-party assets buiten `_Project/` laten. Package-samples staan in `Assets/Samples/` en
+  worden niet aangepast; wijzigingen aan de XR rig gebeuren in de prefab variant
+  `Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab`.
+- Houd `ARCHITECTURE.md` bij bij elke stap die iets opzet of verandert (zie `GAME_BRIEF.md`).
 
 Code (C#)
 - Namespace: `ProCommVR`.
@@ -169,6 +174,14 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   op `main`; `Jalil` en `Liam` zijn op 2026-10-12 bijgewerkt naar `main`. Nog geen `.gitattributes`/LFS,
   geen XR packages, geen README, geen branch protection gecontroleerd.
   Scenario, rollen en data nog niet beslist.
+- 2026-10-18: Jalil schreef `GAME_BRIEF.md` (MVP: 2 scenario's, keuze via laser + trigger,
+  tekst in het Engels). Op `feature/jalil/xr-setup`: XR packages, Quest 3 configuratie,
+  XR rig variant en testscene `XRTest`, plus `ARCHITECTURE.md`. Batchmode compile-check OK,
+  nog niet getest op de Quest 3 en nog niet gepusht. `GAME_BRIEF.md` staat op
+  `chore/jalil/game-brief`, ook nog niet gepusht.
+  Let op: op GitHub bestaan nu zowel `Jalil` als `jalil`. Op een Windows-schijf botsen die
+  (Git ziet ze als dezelfde ref), waardoor `git fetch` faalt. `jalil` bevat ook per ongeluk
+  een geneste kopie van de repo als gitlink. Nog te beslissen welke branch blijft.
 
 
 ## Beslissingen
@@ -178,14 +191,20 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
+| 2026-10-18 | XR Interaction Toolkit + OpenXR, geen Meta XR SDK | Gevraagd in `GAME_BRIEF.md`; open standaard, geen vendor lock-in |
+| 2026-10-18 | Trigger = select, grip = activate, geen gaze-select | Dialoogopties kiezen met laser + trigger, zonder tijdsdruk (`GAME_BRIEF.md`) |
+| 2026-10-18 | Projectsetup gescript via menu `ProCommVR > Setup` | Reproduceerbaar voor beide developers, ook in batchmode |
 
 
 ## Open vragen
 
-- Welk scenario kiezen we?
-- Hoe "praat" de student: keuzemenu, spraak naar tekst, of een combinatie?
-- Welke XR-aanpak: XR Interaction Toolkit + OpenXR of Meta XR SDK?
-- Branches hernoemen naar `jalil` en `liam` (kleine letters), zodat ze overeenkomen met `instructie.md`?
-- Git LFS instellen, en voor welke bestandstypes?
+- Scenario's: `GAME_BRIEF.md` kiest voor de MVP "de ontslagen patiënt" en "de boze dochter".
+  Nog te bevestigen door het hele team (inhoudsexpert, content).
+- Hoe "praat" de student: `GAME_BRIEF.md` kiest een keuzemenu (4 opties, laser + trigger).
+  Spraak eventueel later?
+- Persoonlijke branch van Jalil: `Jalil` of `jalil`? Er bestaan er nu twee op GitHub; één
+  verwijderen (door een mens), en dan ook `Liam` / `liam` gelijk trekken met `instructie.md`.
+- Git LFS instellen, en voor welke bestandstypes? (De XRI-sample, ongeveer 10 MB, staat nu zonder LFS in Git.)
+- Locomotion uit de Starter Assets (thumbstick, snap turn, teleport) houden, of enkel fysiek rondlopen?
 - Wie is de vijfde persoon en welke opleiding?
 - Hoe meten we "resilience" en communicatie in de ervaring (feedback, score, debrief)?
