@@ -1,0 +1,7 @@
+Hospital Bed
+Author: ansh_artis
+Source: https://sketchfab.com/3d-models/hospital-bed-0e974ea6eb9a4c069c56f152ae5162a4
+License: Creative Commons Attribution 4.0 (CC-BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution is required. See CREDITS.md in the repository root.
