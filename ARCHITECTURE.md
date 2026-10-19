@@ -69,7 +69,9 @@ Assets/
     Scenes/                 scenes
     Scripts/                runtime-code, namespace ProCommVR
     Scripts/Scenarios/      scenario-systeem, namespace ProCommVR.Scenarios
+    Scripts/Atmosphere/     mood-systeem, namespace ProCommVR.Atmosphere
     Settings/Input/         input actions
+    Settings/Moods/         mood-profielen (licht, ambient, muziek per mood), zie sectie 10
   Samples/                  geïmporteerde package-samples, niet aanpassen
   TextMesh Pro/             TMP Essential Resources (fonts, shaders), niet aanpassen
   XR/                       XR Plug-in Management en OpenXR settings (door Unity beheerd)
@@ -139,7 +141,7 @@ Scenario's zijn **data**, geen code: elk scenario is een asset (ScriptableObject
 | --- | --- |
 | `Scenario` | Eén gesprek: `Id`, `Title`, `Mood`, `NpcName`, `NpcLine` (openingszin van de NPC) en precies 4 `Options` |
 | `DialogueOption` | Eén antwoord van de speler: `Text`, `Score` (verborgen) en `Feedback` (uitleg na de keuze) |
-| `Mood` | Sfeer van het scenario: `Neutral`, `Tense`, `Somber`. Voorlopig enkel data; stuurt later licht en muziek aan |
+| `Mood` | Sfeer van het scenario: `Neutral`, `Tense`, `Somber`. Stuurt licht en muziek aan via het mood-systeem (sectie 10) |
 
 Een scenario heeft altijd precies 4 opties. Zijn het er meer of minder, dan geeft Unity een
 waarschuwing en past het de lijst aan naar 4.
@@ -196,7 +198,7 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 ### Nog niet gebouwd
 
 NPC-reactie (animatie, stem), een eigen omgeving per scenario (kamer, gang: nu speelt alles in
-`ScenarioTest` met dezelfde NPC), en het mood-systeem dat licht en muziek aanstuurt.
+`ScenarioTest` met dezelfde NPC), en echte muziek voor de moods.
 
 ## 9. Scoring en eindscherm
 
@@ -222,3 +224,36 @@ de speler zei, en de feedback bij die keuze. Daaronder een ballon "Start again".
   `Continued` en `ScenarioSequence.Finished`.
 - Een scenario toevoegen aan de sessie: sleep het asset in de lijst **Scenarios** van de
   **Scenario Sequence** in de scene.
+
+## 10. Mood-systeem
+
+Elk scenario heeft een `Mood` (`Neutral`, `Tense`, `Somber`). Bij de start van een scenario past
+de sfeer zich aan: licht, ambient licht en achtergrondmuziek vloeien in 1,5 s over naar het
+profiel van die mood (`GAME_BRIEF.md`, Sfeer en mood-systeem).
+
+| Klasse | Wat |
+| --- | --- |
+| `MoodProfile` | Asset per mood: `Mood`, `Light Color`, `Light Intensity`, `Ambient Color`, `Music` (optioneel, loopt) en `Music Volume` |
+| `MoodController` | In de scene: luistert naar `ScenarioPresenter.ScenarioStarted` en zet het hoofdlicht, het ambient licht en de muziek op het juiste profiel |
+
+- De profielen staan in `Assets/_Project/Settings/Moods/` (`Mood_Neutral`, `Mood_Tense`,
+  `Mood_Somber`). Het zijn **placeholders**: enkel licht, nog geen muziek.
+- In `ScenarioTest` staat een **Mood Controller** met een AudioSource (2D, loop). Het tweede
+  placeholder-scenario staat op `Tense`, dus bij "Next scenario" verandert het licht merkbaar.
+- Het ambient licht wordt op **Flat** gezet zodra er een mood wordt toegepast.
+- Een mood zonder profiel laat de sfeer ongewijzigd en geeft een waarschuwing in de Console.
+
+**Muziek toevoegen:** zet het audiobestand in `Assets/_Project/Audio/` (map aanmaken), selecteer
+het profiel in `Settings/Moods/` en sleep de clip in **Music**. Stel **Music Volume** in.
+Geen code nodig.
+
+**Een nieuwe mood toevoegen** (bijvoorbeeld `Hopeful`): voeg de waarde toe **achteraan** in
+`Mood.cs` (achteraan, anders schuiven de bestaande scenario's van mood), maak via
+**Create > ProCommVR > Mood Profile** een profiel, kies de nieuwe mood en sleep het profiel in
+de lijst **Profiles** van de Mood Controller.
+
+**Performance (Quest 3):** de mood verandert enkel kleur en intensiteit van bestaande lichten,
+er komen geen extra lichten of schaduwen bij. Als de scenes later baked lighting gebruiken,
+werkt de lichtkleur van de mood enkel op realtime of mixed lichten; dan kan een mood ook via
+post-processing (color grading) of light probes werken. Dat beslissen we samen met de echte
+omgevingen.

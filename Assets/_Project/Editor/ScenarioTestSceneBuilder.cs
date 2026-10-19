@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using ProCommVR.Atmosphere;
 using ProCommVR.Scenarios;
 using TMPro;
 using UnityEditor;
@@ -29,6 +30,7 @@ namespace ProCommVR.Editor
         private const string ResultsPrefabPath = "Assets/_Project/Prefabs/UI/ResultsScreen.prefab";
         private const string PlaceholderScenarioPath = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario.asset";
         private const string PlaceholderScenario2Path = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario2.asset";
+        private const string MoodProfileFolder = "Assets/_Project/Settings/Moods";
         private const string RigVariantPath = "Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab";
         private const string FloorMaterialPath = "Assets/_Project/Materials/Floor.mat";
         private const string NpcMaterialPath = "Assets/_Project/Materials/PlaceholderNpc.mat";
@@ -230,6 +232,7 @@ namespace ProCommVR.Editor
                 .GetComponent<DialogueBubble>();
             var resultsPrefab = LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
             var scenarios = new[] { GetOrCreatePlaceholderScenario(), GetOrCreatePlaceholderScenario2() };
+            var moodProfiles = GetOrCreateMoodProfiles();
 
             var lightObject = new GameObject("Directional Light");
             lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
@@ -282,6 +285,22 @@ namespace ProCommVR.Editor
             list.arraySize = scenarios.Length;
             for (var i = 0; i < scenarios.Length; i++)
                 list.GetArrayElementAtIndex(i).objectReferenceValue = scenarios[i];
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var moodObject = new GameObject("Mood Controller");
+            var music = moodObject.AddComponent<AudioSource>();
+            music.playOnAwake = false;
+            music.loop = true;
+            music.spatialBlend = 0f;
+            var mood = moodObject.AddComponent<MoodController>();
+            serialized = new SerializedObject(mood);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_light").objectReferenceValue = light;
+            serialized.FindProperty("_musicSource").objectReferenceValue = music;
+            var profiles = serialized.FindProperty("_profiles");
+            profiles.arraySize = moodProfiles.Length;
+            for (var i = 0; i < moodProfiles.Length; i++)
+                profiles.GetArrayElementAtIndex(i).objectReferenceValue = moodProfiles[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(ScenePath));
@@ -353,6 +372,41 @@ namespace ProCommVR.Editor
                     "Please lower your voice, or I'll have to ask you to leave.",
                     "Critical error: you escalate before listening. A boundary can be needed, but not as the first reaction.");
             });
+        }
+
+        /// <summary>
+        /// One placeholder profile per mood: only light and ambient color, no music yet.
+        /// </summary>
+        private static MoodProfile[] GetOrCreateMoodProfiles()
+        {
+            return new[]
+            {
+                GetOrCreateMoodProfile(Mood.Neutral, new Color(1f, 0.96f, 0.9f), 1f, new Color(0.5f, 0.5f, 0.52f)),
+                GetOrCreateMoodProfile(Mood.Tense, new Color(1f, 0.8f, 0.65f), 1.15f, new Color(0.42f, 0.34f, 0.32f)),
+                GetOrCreateMoodProfile(Mood.Somber, new Color(0.7f, 0.78f, 0.95f), 0.6f, new Color(0.25f, 0.28f, 0.36f)),
+            };
+        }
+
+        private static MoodProfile GetOrCreateMoodProfile(Mood mood, Color lightColor, float intensity, Color ambient)
+        {
+            var path = $"{MoodProfileFolder}/Mood_{mood}.asset";
+            var profile = AssetDatabase.LoadAssetAtPath<MoodProfile>(path);
+            if (profile != null)
+                return profile;
+
+            XRTestSceneBuilder.EnsureFolder(MoodProfileFolder);
+            profile = ScriptableObject.CreateInstance<MoodProfile>();
+            AssetDatabase.CreateAsset(profile, path);
+
+            var serialized = new SerializedObject(profile);
+            serialized.FindProperty("_mood").enumValueIndex = (int)mood;
+            serialized.FindProperty("_lightColor").colorValue = lightColor;
+            serialized.FindProperty("_lightIntensity").floatValue = intensity;
+            serialized.FindProperty("_ambientColor").colorValue = ambient;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            EditorUtility.SetDirty(profile);
+            return profile;
         }
 
         private static Scenario GetOrCreateScenario(string path, System.Action<SerializedObject> fill)
