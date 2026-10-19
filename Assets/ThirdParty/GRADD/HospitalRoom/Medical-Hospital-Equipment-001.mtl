@@ -1,0 +1,400 @@
+#
+## Alias OBJ Material File
+# Exported from SketchUp, (c) 2000-2012 Trimble Navigation Limited
+
+newmtl Tile_Ceramic_Natural
+Ka 0.000000 0.000000 0.000000
+Kd 0.866667 0.866667 0.866667
+Ks 0.330000 0.330000 0.330000
+
+newmtl INT_Walls_White_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.925490 0.925490 0.929412
+Ks 0.330000 0.330000 0.330000
+
+newmtl Noise_White_089485
+Ka 0.000000 0.000000 0.000000
+Kd 0.850980 0.854902 0.831373
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Noise_White_089485.jpg
+
+newmtl Xray_Light_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.901961 0.905882 0.890196
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Xray_Light_001.jpg
+
+newmtl Red_SemiGloss_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.615686 0.039216 0.050980
+Ks 0.330000 0.330000 0.330000
+
+newmtl Bio_Kit_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.745098 0.101961 0.101961
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Bio_Kit_001.jpg
+
+newmtl Chrome_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.580392 0.615686 0.615686
+Ks 0.330000 0.330000 0.330000
+
+newmtl Black_Semi_Gloss_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.058824 0.058824 0.058824
+Ks 0.330000 0.330000 0.330000
+
+newmtl Semi_Transparent_Plastic_002
+Ka 0.000000 0.000000 0.000000
+Kd 0.623529 0.721569 0.772549
+Ks 0.330000 0.330000 0.330000
+d 0.090000
+
+newmtl Semi_Transparent_Plastic_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.623529 0.721569 0.772549
+Ks 0.330000 0.330000 0.330000
+d 0.540000
+
+newmtl White_Semi_Gloss_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.898039 0.898039 0.898039
+Ks 0.330000 0.330000 0.330000
+
+newmtl Blue_SemiGloss_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.156863 0.443137 0.898039
+Ks 0.330000 0.330000 0.330000
+
+newmtl Cash_Register_BTEC_model_CR1206_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.694118 0.670588 0.607843
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Cash_Register_BTEC_model_CR1206_001.jpg
+
+newmtl FrontColor
+Ka 0.000000 0.000000 0.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.330000 0.330000 0.330000
+
+newmtl _CoolGray5_
+Ka 0.000000 0.000000 0.000000
+Kd 0.560784 0.568627 0.600000
+Ks 0.330000 0.330000 0.330000
+
+newmtl M_0136_Charcoal
+Ka 0.000000 0.000000 0.000000
+Kd 0.137255 0.137255 0.137255
+Ks 0.330000 0.330000 0.330000
+
+newmtl Tan_SemiGloss_002
+Ka 0.000000 0.000000 0.000000
+Kd 0.850980 0.807843 0.705882
+Ks 0.330000 0.330000 0.330000
+
+newmtl Noise_Tan_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.807843 0.756863 0.686275
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Noise_Tan_001.jpg
+
+newmtl Cloth_White_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.956863 0.956863 0.956863
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Cloth_White_001.jpg
+
+newmtl Metal_Rust_Color_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.384314 0.333333 0.298039
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Metal_Rust_Color_001.jpg
+
+newmtl Black_Semi_Gloss_3
+Ka 0.000000 0.000000 0.000000
+Kd 0.086275 0.086275 0.086275
+Ks 0.330000 0.330000 0.330000
+
+newmtl Metal_Stainless_Steel_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.678431 0.678431 0.678431
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Metal_Stainless_Steel_001.jpg
+
+newmtl BTEC_Med_Bed_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.800000 0.745098 0.678431
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/BTEC_Med_Bed_001.jpg
+
+newmtl Black_Flat_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.058824 0.058824 0.058824
+Ks 0.330000 0.330000 0.330000
+
+newmtl Black_Semi_Gloss_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.137255 0.137255 0.137255
+Ks 0.330000 0.330000 0.330000
+
+newmtl stainless_steel_001_90deg
+Ka 0.000000 0.000000 0.000000
+Kd 0.658824 0.658824 0.658824
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/stainless_steel_001_90deg.jpg
+
+newmtl Green_LED_Light_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.082353 0.600000 0.035294
+Ks 0.330000 0.330000 0.330000
+
+newmtl Noise_Tan_034
+Ka 0.000000 0.000000 0.000000
+Kd 0.847059 0.807843 0.760784
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Noise_Tan_034.jpg
+
+newmtl Screen_Off_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.050980 0.023529 0.043137
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Screen_Off_001.jpg
+
+newmtl ECG_Monitor_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.745098 0.705882 0.694118
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/ECG_Monitor_001.jpg
+
+newmtl Blinds_Cellular_White
+Ka 0.000000 0.000000 0.000000
+Kd 0.839216 0.839216 0.839216
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Blinds_Cellular_White.jpg
+
+newmtl Stainless_Steel_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.678431 0.678431 0.678431
+Ks 0.330000 0.330000 0.330000
+
+newmtl Stainless_Steel_2
+Ka 0.000000 0.000000 0.000000
+Kd 0.678431 0.678431 0.678431
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Stainless_Steel_2.jpg
+
+newmtl Blac_Flat_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.086275 0.086275 0.086275
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Blac_Flat_001.jpg
+
+newmtl Medical_BTEC_Defib_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.745098 0.733333 0.705882
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Medical_BTEC_Defib_001.jpg
+
+newmtl Noise_Tan_002
+Ka 0.000000 0.000000 0.000000
+Kd 0.878431 0.843137 0.800000
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Noise_Tan_002.jpg
+
+newmtl Fluorescent_Light_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.839216 0.913725 0.956863
+Ks 0.330000 0.330000 0.330000
+d 0.500000
+
+newmtl Noise_Black_SemiGloss_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.098039 0.098039 0.098039
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Noise_Black_SemiGloss_001.jpg
+
+newmtl _Blinds_Cellular_White_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1.jpg
+
+newmtl _Blinds_Cellular_White_1_1_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_1_.jpg
+
+newmtl _Blinds_Cellular_White_1_2_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_2_.jpg
+
+newmtl _Blinds_Cellular_White_1_3_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_3_.jpg
+
+newmtl _Blinds_Cellular_White_1_4_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_4_.jpg
+
+newmtl _Blinds_Cellular_White_1_5_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_5_.jpg
+
+newmtl _Blinds_Cellular_White_1_6_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_6_.jpg
+
+newmtl _Blinds_Cellular_White_1_7_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_7_.jpg
+
+newmtl _Blinds_Cellular_White_1_8_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_8_.jpg
+
+newmtl _Blinds_Cellular_White_1_9_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_9_.jpg
+
+newmtl _Blinds_Cellular_White_1_10_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_10_.jpg
+
+newmtl _Blinds_Cellular_White_1_11_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_11_.jpg
+
+newmtl _Blinds_Cellular_White_1_12_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_12_.jpg
+
+newmtl Black_Plexi_Glass_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.086275 0.086275 0.086275
+Ks 0.330000 0.330000 0.330000
+d 0.830000
+
+newmtl _Blinds_Cellular_White_1_13_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_13_.jpg
+
+newmtl _Blinds_Cellular_White_1_14_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_14_.jpg
+
+newmtl _Blinds_Cellular_White_1_15_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_15_.jpg
+
+newmtl _Blinds_Cellular_White_1_16_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_16_.jpg
+
+newmtl _Blinds_Cellular_White_1_17_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_17_.jpg
+
+newmtl _Blinds_Cellular_White_1_18_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_18_.jpg
+
+newmtl _Blinds_Cellular_White_1_19_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_19_.jpg
+
+newmtl _Blinds_Cellular_White_1_20_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_20_.jpg
+
+newmtl _Blinds_Cellular_White_1_21_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_21_.jpg
+
+newmtl _Blinds_Cellular_White_1_22_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_22_.jpg
+
+newmtl _Blinds_Cellular_White_1_23_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_23_.jpg
+
+newmtl _Blinds_Cellular_White_1_24_
+Ka 0.000000 0.000000 0.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/_Blinds_Cellular_White_1_24_.jpg
+
+newmtl Gray_Semi_Gloss_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.329412 0.329412 0.329412
+Ks 0.330000 0.330000 0.330000
+
+newmtl BTEC_BP_Monitor_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.611765 0.592157 0.556863
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/BTEC_BP_Monitor_001.jpg
+
+newmtl Gray_Semi_Gloss_2
+Ka 0.000000 0.000000 0.000000
+Kd 0.686275 0.686275 0.686275
+Ks 0.330000 0.330000 0.330000
+
+newmtl Bio_Waste_001
+Ka 0.000000 0.000000 0.000000
+Kd 0.733333 0.070588 0.074510
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/Bio_Waste_001.jpg
+
+newmtl stainless_steel_1
+Ka 0.000000 0.000000 0.000000
+Kd 0.678431 0.678431 0.678431
+Ks 0.330000 0.330000 0.330000
+map_Kd Medical-Hospital-Equipment-001/stainless_steel_1.jpg
+
