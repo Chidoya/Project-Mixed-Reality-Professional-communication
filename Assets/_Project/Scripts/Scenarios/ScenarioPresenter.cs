@@ -6,10 +6,11 @@ namespace ProCommVR.Scenarios
 {
     /// <summary>
     /// Shows a <see cref="Scenario"/> in the world: the NPC line above the NPC and the four options
-    /// as clickable bubbles in front of the player. The options only appear once the player is within
-    /// Options Range of the NPC. After a choice the options disappear and the feedback is shown.
-    /// Below the feedback a continue bubble appears. Scoring and scenario flow (<see cref="ScenarioSequence"/>)
-    /// listen to <see cref="OptionChosen"/> and <see cref="Continued"/>.
+    /// as clickable bubbles in front of the player. The options are only visible while the player is within
+    /// Options Range of the NPC. After a choice the options disappear, the NPC bubble shows the NPC's reaction
+    /// and a continue bubble appears. The feedback (why the choice was good or not) is only shown on the
+    /// <see cref="ResultsScreen"/>. Scoring, scenario flow (<see cref="ScenarioSequence"/>) and the NPC's body
+    /// language (<see cref="NpcReactor"/>) listen to <see cref="OptionChosen"/> and <see cref="Continued"/>.
     /// </summary>
     public class ScenarioPresenter : MonoBehaviour
     {
@@ -22,7 +23,7 @@ namespace ProCommVR.Scenarios
         [Tooltip("Where the NPC line appears, e.g. above the NPC's head.")]
         [SerializeField] private Transform _npcBubbleAnchor;
 
-        [Tooltip("Center of the 2x2 option grid, in front of the player. Feedback appears here too.")]
+        [Tooltip("Center of the 2x2 option grid, in front of the player. The continue bubble appears here too.")]
         [SerializeField] private Transform _optionsAnchor;
 
         [Tooltip("Distance between the centers of the option bubbles (x: columns, y: rows), in meters.")]
@@ -35,8 +36,11 @@ namespace ProCommVR.Scenarios
         [Tooltip("The NPC. The options appear once the player is within Options Range of it. Leave empty to show them immediately.")]
         [SerializeField] private Transform _npc;
 
-        [Tooltip("Horizontal distance (meters) between the player's head and the NPC at which the options appear.")]
+        [Tooltip("Horizontal distance (meters) between the player's head and the NPC within which the options are visible.")]
         [SerializeField, Min(0f)] private float _optionsRange = 1.5f;
+
+        [Tooltip("Extra distance (meters) before visible options hide again, so they don't flicker at the edge of the range.")]
+        [SerializeField, Min(0f)] private float _optionsHideMargin = 0.1f;
 
         [Tooltip("The player's head. Leave empty to use the main camera.")]
         [SerializeField] private Transform _player;
@@ -51,18 +55,20 @@ namespace ProCommVR.Scenarios
         [SerializeField] private float _optionsHeightOffset = -0.25f;
 
         [Header("After the choice")]
-        [Tooltip("Label of the bubble below the feedback. A ScenarioSequence overrides it. Without a sequence, the bubble replays the scenario.")]
+        [Tooltip("Label of the bubble shown after the choice. A ScenarioSequence overrides it. Without a sequence, the bubble replays the scenario.")]
         [SerializeField] private string _continueLabel = "Try again";
 
         private readonly List<DialogueBubble> _bubbles = new List<DialogueBubble>();
-        private bool _optionsPending;
+        private readonly List<DialogueBubble> _optionBubbles = new List<DialogueBubble>();
+        private DialogueBubble _npcBubble;
         private bool _waitingForChoice;
+        private bool _optionsVisible;
 
         public event Action<Scenario> ScenarioStarted;
         public event Action<Scenario, DialogueOption> OptionChosen;
 
         /// <summary>
-        /// Raised when the player clicks the continue bubble below the feedback.
+        /// Raised when the player clicks the continue bubble after the choice.
         /// </summary>
         public event Action Continued;
 
@@ -92,8 +98,8 @@ namespace ProCommVR.Scenarios
 
         private void Update()
         {
-            if (_optionsPending && PlayerInRange())
-                ShowOptions();
+            if (_waitingForChoice)
+                UpdateOptionsVisibility();
         }
 
         public void Play(Scenario scenario)
@@ -101,14 +107,13 @@ namespace ProCommVR.Scenarios
             ClearBubbles();
             _scenario = scenario;
 
-            var npcBubble = CreateBubble(_npcBubbleAnchor, Vector3.zero, false);
-            npcBubble.SetText($"<b>{scenario.NpcName}</b>\n{scenario.NpcLine}");
+            _npcBubble = CreateBubble(_npcBubbleAnchor, Vector3.zero, false);
+            SetNpcText(scenario.NpcLine);
 
-            _waitingForChoice = false;
-            _optionsPending = true;
+            _waitingForChoice = true;
+            _optionsVisible = false;
             ScenarioStarted?.Invoke(scenario);
-            if (PlayerInRange())
-                ShowOptions();
+            UpdateOptionsVisibility();
         }
 
         /// <summary>
@@ -117,16 +122,46 @@ namespace ProCommVR.Scenarios
         public void Clear()
         {
             ClearBubbles();
-            _optionsPending = false;
             _waitingForChoice = false;
+            _optionsVisible = false;
+        }
+
+        /// <summary>
+        /// Shows the options when the player walks into range and hides them again when the player walks away.
+        /// </summary>
+        private void UpdateOptionsVisibility()
+        {
+            var range = _optionsVisible ? _optionsRange + _optionsHideMargin : _optionsRange;
+            var inRange = PlayerInRange(range);
+            if (inRange && !_optionsVisible)
+                ShowOptions();
+            else if (!inRange && _optionsVisible)
+                HideOptions();
         }
 
         private void ShowOptions()
         {
-            _optionsPending = false;
             if (_placeOptionsInFrontOfPlayer)
                 PlaceOptionsAnchor();
 
+            if (_optionBubbles.Count == 0)
+                CreateOptionBubbles();
+            else
+                SetOptionsActive(true);
+            _optionsVisible = true;
+        }
+
+        private void HideOptions()
+        {
+            SetOptionsActive(false);
+            _optionsVisible = false;
+        }
+
+        /// <summary>
+        /// Created once per scenario, so the shuffled order stays the same when the options reappear.
+        /// </summary>
+        private void CreateOptionBubbles()
+        {
             var options = new List<DialogueOption>(_scenario.Options);
             if (_shuffleOptions)
                 Shuffle(options);
@@ -137,28 +172,38 @@ namespace ProCommVR.Scenarios
                 var bubble = CreateBubble(_optionsAnchor, GridOffset(i), true);
                 bubble.SetText(option.Text);
                 bubble.Clicked += () => Choose(option);
+                _optionBubbles.Add(bubble);
             }
-            _waitingForChoice = true;
+        }
+
+        private void SetOptionsActive(bool active)
+        {
+            foreach (var bubble in _optionBubbles)
+                bubble.gameObject.SetActive(active);
         }
 
         private void Choose(DialogueOption option)
         {
-            if (!_waitingForChoice)
+            if (!_waitingForChoice || !_optionsVisible)
                 return;
             _waitingForChoice = false;
+            _optionsVisible = false;
 
-            // Keep the NPC line (first bubble), replace the options with the feedback.
-            for (var i = _bubbles.Count - 1; i >= 1; i--)
-                DestroyBubble(i);
-
-            var feedbackBubble = CreateBubble(_optionsAnchor, new Vector3(0f, _optionSpacing.y * 0.5f, 0f), false);
-            feedbackBubble.SetText(option.Feedback);
+            // No feedback text here: the player only sees the NPC's reaction. The explanation is on the results screen.
+            DestroyOptionBubbles();
+            if (!string.IsNullOrWhiteSpace(option.NpcReaction))
+                SetNpcText($"<i>{option.NpcReaction}</i>");
 
             OptionChosen?.Invoke(_scenario, option);
 
-            var continueBubble = CreateBubble(_optionsAnchor, new Vector3(0f, -_optionSpacing.y * 0.5f, 0f), true);
+            var continueBubble = CreateBubble(_optionsAnchor, Vector3.zero, true);
             continueBubble.SetText(_continueLabel);
             continueBubble.Clicked += OnContinueClicked;
+        }
+
+        private void SetNpcText(string line)
+        {
+            _npcBubble.SetText($"<b>{_scenario.NpcName}</b>\n{line}");
         }
 
         private void OnContinueClicked()
@@ -169,11 +214,11 @@ namespace ProCommVR.Scenarios
                 Play(_scenario);
         }
 
-        private bool PlayerInRange()
+        private bool PlayerInRange(float range)
         {
             if (_npc == null || Player == null)
                 return true;
-            return HorizontalOffset(Player.position, _npc.position).magnitude <= _optionsRange;
+            return HorizontalOffset(Player.position, _npc.position).magnitude <= range;
         }
 
         /// <summary>
@@ -218,16 +263,23 @@ namespace ProCommVR.Scenarios
             return bubble;
         }
 
-        private void DestroyBubble(int index)
+        private void DestroyOptionBubbles()
         {
-            Destroy(_bubbles[index].gameObject);
-            _bubbles.RemoveAt(index);
+            foreach (var bubble in _optionBubbles)
+            {
+                _bubbles.Remove(bubble);
+                Destroy(bubble.gameObject);
+            }
+            _optionBubbles.Clear();
         }
 
         private void ClearBubbles()
         {
-            for (var i = _bubbles.Count - 1; i >= 0; i--)
-                DestroyBubble(i);
+            foreach (var bubble in _bubbles)
+                Destroy(bubble.gameObject);
+            _bubbles.Clear();
+            _optionBubbles.Clear();
+            _npcBubble = null;
         }
 
         private static void Shuffle<T>(IList<T> list)

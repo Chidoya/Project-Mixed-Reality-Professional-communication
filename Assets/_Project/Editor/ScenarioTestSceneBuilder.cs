@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit.UI;
 
@@ -31,7 +32,7 @@ namespace ProCommVR.Editor
         private const string PlaceholderScenarioPath = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario.asset";
         private const string PlaceholderScenario2Path = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario2.asset";
         private const string MoodProfileFolder = "Assets/_Project/Settings/Moods";
-        private const string RigVariantPath = "Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab";
+        internal const string RigVariantPath = "Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab";
         private const string FloorMaterialPath = "Assets/_Project/Materials/Floor.mat";
         private const string NpcMaterialPath = "Assets/_Project/Materials/PlaceholderNpc.mat";
         private const string ScenePath = "Assets/_Project/Scenes/ScenarioTest.unity";
@@ -228,11 +229,7 @@ namespace ProCommVR.Editor
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var rigVariant = LoadRequired<GameObject>(RigVariantPath, "Run 'Build XR Test Scene' first.");
-            var bubblePrefab = LoadRequired<GameObject>(BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.")
-                .GetComponent<DialogueBubble>();
-            var resultsPrefab = LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
             var scenarios = new[] { GetOrCreatePlaceholderScenario(), GetOrCreatePlaceholderScenario2() };
-            var moodProfiles = GetOrCreateMoodProfiles();
 
             var lightObject = new GameObject("Directional Light");
             lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
@@ -254,16 +251,38 @@ namespace ProCommVR.Editor
             npc.name = "Placeholder NPC";
             npc.transform.position = new Vector3(0f, 0.9f, 2.5f);
             npc.transform.localScale = new Vector3(0.5f, 0.9f, 0.5f);
-            npc.GetComponent<Renderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial(NpcMaterialPath, new Color(0.45f, 0.6f, 0.8f));
+            npc.GetComponent<Renderer>().sharedMaterial = GetOrCreatePlaceholderNpcMaterial();
+
+            AddScenarioSystem(scene, npc.transform, new Vector3(0f, 2.15f, 2.5f), new Vector3(0f, 1.15f, 1.6f), scenarios, light);
+
+            SaveSceneFirstInBuild(scene, ScenePath);
+        }
+
+        internal static Material GetOrCreatePlaceholderNpcMaterial()
+        {
+            return XRTestSceneBuilder.GetOrCreateMaterial(NpcMaterialPath, new Color(0.45f, 0.6f, 0.8f));
+        }
+
+        /// <summary>
+        /// Adds the scenario presenter, results screen, scenario sequence and mood controller to the scene.
+        /// Shared by every scene that plays scenarios. Returns the presenter.
+        /// </summary>
+        internal static ScenarioPresenter AddScenarioSystem(Scene scene, Transform npc, Vector3 npcBubblePosition,
+            Vector3 optionsPosition, Scenario[] scenarios, Light light)
+        {
+            var bubblePrefab = LoadRequired<GameObject>(BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.")
+                .GetComponent<DialogueBubble>();
+            var resultsPrefab = LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
+            var moodProfiles = GetOrCreateMoodProfiles();
 
             var presenterObject = new GameObject("Scenario Presenter");
             var npcAnchor = new GameObject("NPC Bubble Anchor").transform;
             npcAnchor.SetParent(presenterObject.transform, false);
-            npcAnchor.position = new Vector3(0f, 2.15f, 2.5f);
+            npcAnchor.position = npcBubblePosition;
             npcAnchor.localScale = Vector3.one * 1.3f;
             var optionsAnchor = new GameObject("Options Anchor").transform;
             optionsAnchor.SetParent(presenterObject.transform, false);
-            optionsAnchor.position = new Vector3(0f, 1.15f, 1.6f);
+            optionsAnchor.position = optionsPosition;
 
             var presenter = presenterObject.AddComponent<ScenarioPresenter>();
             var serialized = new SerializedObject(presenter);
@@ -271,7 +290,7 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_bubblePrefab").objectReferenceValue = bubblePrefab;
             serialized.FindProperty("_npcBubbleAnchor").objectReferenceValue = npcAnchor;
             serialized.FindProperty("_optionsAnchor").objectReferenceValue = optionsAnchor;
-            serialized.FindProperty("_npc").objectReferenceValue = npc.transform;
+            serialized.FindProperty("_npc").objectReferenceValue = npc;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             var results = (GameObject)PrefabUtility.InstantiatePrefab(resultsPrefab, scene);
@@ -303,13 +322,21 @@ namespace ProCommVR.Editor
                 profiles.GetArrayElementAtIndex(i).objectReferenceValue = moodProfiles[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(ScenePath));
-            EditorSceneManager.SaveScene(scene, ScenePath);
-            var otherScenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) }.Concat(otherScenes).ToArray();
+            return presenter;
+        }
+
+        /// <summary>
+        /// Saves the scene and puts it first in the Build Settings, so a headset build starts with it.
+        /// </summary>
+        internal static void SaveSceneFirstInBuild(Scene scene, string path)
+        {
+            XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(path));
+            EditorSceneManager.SaveScene(scene, path);
+            var otherScenes = EditorBuildSettings.scenes.Where(s => s.path != path);
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(path, true) }.Concat(otherScenes).ToArray();
 
             AssetDatabase.SaveAssets();
-            Debug.Log($"[ProCommVR] Scenario test scene created at {ScenePath}.");
+            Debug.Log($"[ProCommVR] Scene created at {path}.");
         }
 
         /// <summary>
@@ -435,7 +462,7 @@ namespace ProCommVR.Editor
             option.FindPropertyRelative("_feedback").stringValue = feedback;
         }
 
-        private static T LoadRequired<T>(string path, string hint) where T : Object
+        internal static T LoadRequired<T>(string path, string hint) where T : Object
         {
             var asset = AssetDatabase.LoadAssetAtPath<T>(path);
             if (asset == null)

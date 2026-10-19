@@ -64,6 +64,7 @@ Assets/
     Dialogue/Scenarios/     scenario-data (Scenario assets), zie sectie 8
     Editor/                 editor-scripts (setup, tools), niet in de build
     Materials/              materialen
+    Materials/PatientRoom/  URP-materialen voor de patiëntenkamer (scenario 1), zie sectie 11
     Prefabs/                prefabs, o.a. de XR rig variant
     Prefabs/UI/             UI-prefabs, o.a. DialogueBubble
     Scenes/                 scenes
@@ -85,7 +86,7 @@ Third-party assets blijven buiten `_Project/`.
 
 ## 6. Testscene
 
-`Assets/_Project/Scenes/XRTest.unity` (tweede scene in de Build Settings, na `ScenarioTest`)
+`Assets/_Project/Scenes/XRTest.unity` (derde scene in de Build Settings, na `Scenario01_PatientRoom` en `ScenarioTest`)
 dient enkel om de rig te testen, het is geen content:
 
 - vloer (20 x 20 m) met een basic URP Simple Lit materiaal
@@ -107,7 +108,7 @@ Link draait op de pc, dus performance (72 fps) en uitzicht moet je altijd nog op
 controleren met een Android-build.
 
 **Testen op de Quest 3 (build):** zet het platform op Android, sluit de headset aan (developer mode),
-zet XRTest bovenaan in de Build Settings (of vink ScenarioTest uit) en kies **Build and Run**. Werkt het: beide controllers tonen een laser,
+zet XRTest bovenaan in de Build Settings (of vink de andere scenes uit) en kies **Build and Run**. Werkt het: beide controllers tonen een laser,
 trigger op de kubus en op de knop wisselt de kleur, grip doet niets op de kubus.
 
 ## 7. Opnieuw opbouwen
@@ -122,13 +123,15 @@ De setup is volledig gescript (`Assets/_Project/Editor/`), dus reproduceerbaar:
 6. **ProCommVR > Setup > 5. Build Results Screen Prefab**
 7. **ProCommVR > Setup > 6. Build Scenario Test Scene** (overschrijft de scene, de placeholder-scenario's
    blijven behouden als ze al bestaan)
+8. **ProCommVR > Setup > 7. Build Scenario 01 Patient Room** (overschrijft `Scenario01_PatientRoom`, zie sectie 11)
 
 In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`, daarna
 `ProCommVR.Editor.XRTestSceneBuilder.ImportStarterAssets` en
 `ProCommVR.Editor.XRTestSceneBuilder.BuildTestScene` (elk in een aparte run). Voor het
 scenario-systeem: `ProCommVR.Editor.ScenarioTestSceneBuilder.ImportTmpEssentialsAndExit`
 (zonder `-quit`, want de package-import is asynchroon), daarna `BuildBubblePrefab`,
-`BuildResultsScreenPrefab` en `BuildScenarioTestScene`.
+`BuildResultsScreenPrefab` en `BuildScenarioTestScene`. Voor de patiëntenkamer:
+`ProCommVR.Editor.Scenario01SceneBuilder.BuildScene`.
 
 ## 8. Scenario's
 
@@ -140,7 +143,8 @@ Scenario's zijn **data**, geen code: elk scenario is een asset (ScriptableObject
 | Klasse | Wat |
 | --- | --- |
 | `Scenario` | Eén gesprek: `Id`, `Title`, `Mood`, `NpcName`, `NpcLine` (openingszin van de NPC) en precies 4 `Options` |
-| `DialogueOption` | Eén antwoord van de speler: `Text`, `Score` (verborgen) en `Feedback` (uitleg na de keuze) |
+| `DialogueOption` | Eén antwoord van de speler: `Text`, `Score` (verborgen), `Feedback` (uitleg, enkel op het eindscherm) en de NPC-reactie: `Npc Reaction` (korte zin), `Npc Pose` en optioneel `Npc Voice` (audioclip) |
+| `NpcPose` | Lichaamstaal van de NPC na een keuze: `Unchanged`, `Engaged`, `TurnsAway`, `Withdrawn` |
 | `Mood` | Sfeer van het scenario: `Neutral`, `Tense`, `Somber`. Stuurt licht en muziek aan via het mood-systeem (sectie 10) |
 
 Een scenario heeft altijd precies 4 opties. Zijn het er meer of minder, dan geeft Unity een
@@ -154,19 +158,23 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 
 - `ScenarioPresenter` (in de scene) toont een `Scenario`: de NPC-zin in een ballon boven de NPC
   en de 4 opties als ballonnen in een 2x2-raster voor de speler, in **willekeurige volgorde**.
-- **Opties pas dichtbij:** de NPC-zin is meteen zichtbaar, de 4 opties verschijnen pas als het
-  hoofd van de speler binnen **1,5 m** (horizontaal) van de NPC staat (`GAME_BRIEF.md`). Ze
-  verschijnen dan tussen de speler en de NPC: 0,7 m voor het hoofd, 25 cm onder ooghoogte, naar
-  de speler gericht. Daarna blijven ze staan, ook als de speler terugstapt.
+- **Opties enkel dichtbij:** de NPC-zin is meteen zichtbaar, de 4 opties zijn enkel zichtbaar
+  zolang het hoofd van de speler binnen **1,5 m** (horizontaal) van de NPC staat (`GAME_BRIEF.md`).
+  Ze verschijnen tussen de speler en de NPC: 0,7 m voor het hoofd, 25 cm onder ooghoogte, naar
+  de speler gericht. Stapt de speler weg (verder dan 1,5 m + 10 cm marge), dan verdwijnen ze weer;
+  komt hij terug, dan verschijnen ze opnieuw voor hem, in dezelfde volgorde. De marge voorkomt
+  geflikker als de speler net op de grens staat.
   Instelbaar op de presenter onder **Proximity**: `Npc` (leeg = opties meteen tonen),
-  `Options Range`, `Player` (leeg = de main camera, dus de headset), `Place Options In Front Of
+  `Options Range`, `Options Hide Margin`, `Player` (leeg = de main camera, dus de headset), `Place Options In Front Of
   Player` (uit = opties blijven op de `Options Anchor`), `Options Distance` en `Options Height Offset`.
   In `ScenarioTest` staat de NPC (capsule) 2,5 m van het startpunt: stap ongeveer 1 m naar voren
   (of gebruik de linker thumbstick) om de opties te zien.
-- De speler kiest met **laser + trigger**. De opties verdwijnen, de feedback verschijnt op hun
-  plaats, en de presenter stuurt het event `OptionChosen(scenario, option)`. Scoring en het
-  eindscherm kunnen daarop aansluiten (nog niet gebouwd).
-- Onder de feedback verschijnt een **verderknop** (ballon). Met een `ScenarioSequence` (sectie 9)
+- De speler kiest met **laser + trigger**. De opties verdwijnen en de speler ziet **enkel de reactie
+  van de NPC**: de ballon boven de NPC toont de `Npc Reaction` (cursief) en de `NpcReactor` zet de NPC
+  in de `Npc Pose` en speelt de `Npc Voice` af (zie hieronder). Er verschijnt **geen** "goed/fout"-uitleg
+  meer direct na de keuze: die staat enkel op het eindscherm (sectie 9). De presenter stuurt het
+  event `OptionChosen(scenario, option)`, waar scoring en de NPC-reactie op inhaken.
+- Op de plaats van de opties verschijnt een **verderknop** (ballon). Met een `ScenarioSequence` (sectie 9)
   heet die "Next scenario" of, bij het laatste scenario, "See results". Zonder sequence heet hij
   "Try again" (`Continue Label`) en speelt hij hetzelfde scenario opnieuw.
 - `DialogueBubble` (`Assets/_Project/Prefabs/UI/DialogueBubble.prefab`) is één ballon: een
@@ -174,6 +182,19 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
   bij lange tekst. Wordt hergebruikt voor NPC-zin, opties en feedback.
 - De positie van de ballonnen komt van twee lege objecten onder de presenter: `NPC Bubble Anchor`
   en `Options Anchor`. Verschuif die in de scene om de layout aan te passen.
+
+### NPC-reactie (`NpcReactor`)
+
+Staat in de scene naast de NPC en luistert naar de presenter. Na een keuze:
+
+- **Houding:** de NPC beweegt in 0,8 s naar het doel-object van de gekozen `Npc Pose` (lijst **Poses**:
+  per pose een leeg object in de scene met de positie en rotatie van die houding). Een pose zonder doel
+  laat de NPC staan. Bij de start van een scenario springt de NPC terug naar zijn beginhouding.
+- **Animatie:** is er een **Animator** ingevuld, dan krijgt die een trigger met de naam van de pose
+  (`Engaged`, `TurnsAway`, `Withdrawn`). Zo werkt het later ook met een echt personage met animaties.
+- **Stem:** is er een **Voice**-AudioSource en heeft de optie een `Npc Voice`-clip, dan wordt die afgespeeld.
+
+Zolang er geen NPC-model is, is de NPC een capsule en zijn de poses enkel verschuivingen en rotaties.
 
 ### Een nieuw scenario toevoegen (zonder code)
 
@@ -183,12 +204,23 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 3. Vul in de Inspector in:
    - **Id:** korte unieke naam in kleine letters, bijvoorbeeld `discharged-patient`
    - **Title**, **Mood**, **Npc Name** en **Npc Line** (wat de NPC zegt)
-   - **Options:** voor elk van de 4 opties de **Text**, **Score** en **Feedback**
+   - **Options:** voor elk van de 4 opties de **Text**, **Score** en **Feedback**, en de NPC-reactie:
+     **Npc Reaction** (korte zin), **Npc Pose** en eventueel **Npc Voice**
 4. Alle tekst in het Engels (`GAME_BRIEF.md`).
 5. Testen: open `ScenarioTest`, selecteer **Scenario Sequence** en sleep je nieuwe asset in de
    lijst **Scenarios** (de volgorde van de lijst is de speelvolgorde). Druk op Play met de headset via Quest Link (zie sectie 6) of maak een
    Android-build.
 6. Commit het asset samen met zijn `.meta`-bestand.
+
+### Scenario 1: de teleurgestelde patiënt
+
+`Scenario01_DisappointedPatient.asset` ("A Disappointed Patient Who Wants to Go Home", mood `Somber`) bevat
+de echte tekst uit het brondocument `10 Scenarios.docx`: NPC-zin, de 4 opties en hun feedback, letterlijk
+overgenomen. Scores: A = 3 (beste), D = 1, B = 0, C = -2 (kritische fout).
+
+**Let op:** de `Npc Reaction`-zinnen staan **niet** in het brondocument. Het zijn concepten, afgeleid uit
+de "Impact"-regels (A: stemt in om op te staan, B: draait zich weg, C: blij met de valse belofte, D: blijft
+alleen en somber). Te laten nakijken door content en de inhoudsexpert. Aanpassen kan in de Inspector.
 
 ### Placeholder
 
@@ -197,8 +229,8 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 
 ### Nog niet gebouwd
 
-NPC-reactie (animatie, stem), een eigen omgeving per scenario (kamer, gang: nu speelt alles in
-`ScenarioTest` met dezelfde NPC), en echte muziek voor de moods.
+Een echt NPC-model met animaties (nu een capsule), opgenomen stemmen, de omgeving voor scenario 2 (gang),
+en echte muziek voor de moods.
 
 ## 9. Scoring en eindscherm
 
@@ -216,7 +248,8 @@ eindscherm > "Start again" (score terug op 0, eerste scenario).
 
 **Eindscherm:** verschijnt 1,3 m voor de speler, in de kijkrichting. Bovenaan de totaalscore
 (bijvoorbeeld `4 / 6`), daaronder per scenario de titel, de score tegenover de beste score, wat
-de speler zei, en de feedback bij die keuze. Daaronder een ballon "Start again".
+de speler zei, en de feedback bij die keuze. Dit is de **enige plek** waar de feedback (waarom een
+keuze goed of fout was) getoond wordt; tijdens het spel ziet de speler enkel de NPC-reactie. Daaronder een ballon "Start again".
 
 - De beste score per scenario is de hoogste score van zijn 4 opties (`Scenario.BestScore`), dus
   de schaal (nu 3/1/0/-2) kan veranderen zonder code aan te passen.
@@ -257,3 +290,57 @@ er komen geen extra lichten of schaduwen bij. Als de scenes later baked lighting
 werkt de lichtkleur van de mood enkel op realtime of mixed lichten; dan kan een mood ook via
 post-processing (color grading) of light probes werken. Dat beslissen we samen met de echte
 omgevingen.
+
+## 11. Scene: Scenario 1, patiëntenkamer
+
+`Assets/_Project/Scenes/Scenario01_PatientRoom.unity` speelt `Scenario01_DisappointedPatient`. Staat eerst in
+de Build Settings, dus een headset-build start hiermee. `ScenarioTest` blijft bestaan als technische testscene.
+De scene wordt volledig opgebouwd door `Assets/_Project/Editor/Scenario01SceneBuilder.cs` (menu
+**ProCommVR > Setup > 7. Build Scenario 01 Patient Room**). Pas de layout dus liefst daar aan en bouw opnieuw;
+handmatige wijzigingen in de scene gaan verloren bij een rebuild.
+
+**Layout** (`GAME_BRIEF.md`): kamer van 4 x 4 m (x -2..2, z 0..4), plafond op ongeveer 3 m. Deur in de zuidmuur,
+bed met het hoofdeinde tegen de noordmuur (tegenover de deur), raam in de oostmuur. De speler start binnen aan
+de deur (-1, 0, 0,5), naar de patiënt gericht, op ongeveer 2,6 m van de patiënt, en kan vrij tot bij het bed
+lopen. De opties verschijnen binnen 1,5 m van de patiënt (sectie 8).
+
+**Patiënt (placeholder):** er is nog geen NPC-model. Patiënt X is een capsule (zelfde materiaal als in
+`ScenarioTest`) die voorovergebogen op de rand van het bed zit en naar het raam kijkt, zoals in het brondocument.
+Een donker blokje ("Face Direction") toont naar waar hij kijkt. De `NpcReactor` op `Patient X (placeholder)`
+heeft drie poses (lege objecten onder `Poses`): `Engaged` (rechtop, naar de verpleegkundige), `TurnsAway`
+(rug naar de verpleegkundige) en `Withdrawn` (nog verder voorover, naar het raam). Een echt model vervangt
+later de capsule: sleep het in `Body` van de reactor, geef het een Animator met triggers met dezelfde namen.
+
+**Colliders:** de kamer-modellen hebben geen colliders. Onder `Room/Colliders` staan onzichtbare boxen voor de
+vloer (anders valt de rig) en de 4 muren (thumbstick-beweging blijft in de kamer).
+
+### Gebruikte assets
+
+| Map | Waarvoor |
+| --- | --- |
+| `Assets/ThirdParty/Sketchfab/HospitalRoom_UgurYksk/` | Kamerstructuur: vloertegels, muren, de muur met deuropening, de muur met raam, plafondlampen. Ook de ziekenhuisprops in dezelfde stijl: infuuspaal met zak, patiëntenmonitor, nachtkastje, bedtafel |
+| `Assets/ThirdParty/Sketchfab/HospitalDoor_anasrar/` | De deur, passend gemaakt in de deuropening van de UgurYksk-muur (de deur van de kit zelf wordt niet gebruikt) |
+| `Assets/ThirdParty/Sketchfab/HospitalBed_anshartis/` | Het bed van de patiënt (2,1 m lang) |
+| `Assets/ThirdParty/GRADD/HospitalRoom/` | Ziekenhuisprops: ladekast op wieltjes en afvalbak voor medisch afval (biohazard) |
+| `Assets/ThirdParty/Kenney/FurnitureKit/` | Generieke, niet-ziekenhuisprops: bezoekersstoel (`chair`) en plant (`pottedPlant`) |
+
+Credits van al deze assets staan in `CREDITS.md`.
+
+**Hoe de kit gebruikt wordt:** `HospitalScene.dae` (UgurYksk) is geen kant-en-klare kamer maar een modulaire kit:
+losse stukken van één tegel naast elkaar, op ongeveer 1/6 schaal. De builder kopieert de nodige stukken op naam
+(bijvoorbeeld `Ground.001`, `Wall3.001`, `DoorWall.001`, `WindowWall.001`) en schaalt ze zodat één vloertegel
+2 x 2 m is. Alles wordt geplaatst op basis van de echte mesh-grenzen, dus de vreemde pivots en rotaties van de
+modellen spelen geen rol. De GRADD-set is één groot OBJ-bestand in inch met alle props naast elkaar: de builder
+houdt enkel de meshes van één prop over en schaalt van inch naar meter.
+
+**Materialen:** de UgurYksk-kit gebruikt de oude Standard-shader, die in URP roze is. De builder maakt daarom
+eigen materialen in `Assets/_Project/Materials/PatientRoom/` (`Kit_<naam>.mat`, URP Simple Lit) met de albedo- en
+emissietexturen van de kit. Normal maps zijn bewust weggelaten (performance). Het raam is opaak (geen
+transparantie, duur op de Quest): het glas toont de blauwgrijze tint uit de texture. De bestanden in `ThirdParty/`
+zelf zijn niet aangepast.
+
+**Performance (Quest 3), nog te controleren op de headset:** het bed alleen is ongeveer 28.000 triangles, de hele
+kamer blijft ruim onder de richtwaarde van 100k. De texturen van de kit zijn 2048 x 2048; als het geheugen krap
+wordt, kan de max size van de gebruikte texturen naar 1024 (in de importinstellingen, na overleg). Eén directional
+light zonder schaduwen (het mood-systeem stuurt het aan), nog geen baked lighting.
+
