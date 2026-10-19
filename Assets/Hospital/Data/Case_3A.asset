@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aeb7f43e27df0304d810078ac50d9265, type: 3}
+  m_Name: Case_3A
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.PatientCase
+  _difficulty: 2
+  _doorLabel: 3A
+  _patientName: Ms. Z
+  _age: 34
+  _room: 3A
+  _situation: The physician ordered an urgent blood transfusion because her hemoglobin
+    is dropping. She pushes the IV set away and threatens to sue the hospital.
+  _watchOut: Respect her right to refuse while keeping her safe and involving the
+    physician.
+  _patientPrefab: {fileID: 6163876080245282168, guid: 8184acfc0709a34488c1c4813115edb0, type: 3}
+  _startPose: 1
+  _npcLine: I refuse to have anyone else's blood in my body! Don't you dare touch
+    me with that needle, or I'll sue this hospital!
+  _options:
+  - _title: Validating Autonomy & Coordinated Risk Discussion
+    _text: "I respect your autonomy and your right to make decisions about your body;
+      no one will force this on you. Because your levels are critically low, I want
+      to ensure you have all alternative options. Let\u2019s pause, and I will bring
+      the physician in immediately so we can discuss safe alternatives together."
+    _score: 3
+    _feedback: Calms defensive aggression, upholds legal bodily autonomy, prevents
+      unlawful battery, and keeps the patient safe by exploring medical alternatives
+      with the physician.
+  - _title: Paternalistic Coercion / Scaring the Patient
+    _text: You don't understand what you're doing. If you don't take this blood right
+      now, your organs will fail and you could die within hours. Sit still and let
+      me do my job.
+    _score: -2
+    _feedback: Violates the patient's legal right to informed refusal. Causes extreme
+      distress and immediate demands for legal intervention.
+  - _title: Passive Capitulation Without Risk Assessment
+    _text: Fine, it's your choice. If you don't want it, sign this refusal form and
+      I'll just pack the blood back into the fridge.
+    _score: 0
+    _feedback: Fails to explore alternative life-saving treatments (e.g., cell salvage,
+      volume expanders) or involve the lead physician before a preventable critical
+      decline occurs.
+  - _title: Argumentative Dismissal
+    _text: Threatening to sue won't change the medical facts. The doctor ordered
+      it for a reason, so taking your anger out on me won't help your condition.
+    _score: 1
+    _feedback: Escalates hostility and closes communication channels, alienating
+      a high-risk patient.

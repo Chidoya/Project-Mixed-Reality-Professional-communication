@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using ProCommVR.Hospital;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -22,6 +23,7 @@ namespace ProCommVR.Editor
         private const string PrefabFolder = "Assets/Hospital/Prefabs";
         private const string RoomPrefabPath = PrefabFolder + "/PatientRoom.prefab";
         private const string MaterialFolder = "Assets/Hospital/Materials";
+        private const string CaseFolder = "Assets/Hospital/Data";
         private const string KenneyFolder = "Assets/ThirdParty/Kenney/FurnitureKit";
         private const string DoorModelPath = "Assets/ThirdParty/Sketchfab/HospitalDoor_anasrar/source/untitled.fbx";
         private const string TmpFontPath = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
@@ -91,6 +93,17 @@ namespace ProCommVR.Editor
         private const float SignCenterY = 2.4f;
         private const float SignDepth = 0.04f;
 
+        // Patiëntkaart naast de deur (aan de kant van de hogere x)
+        private const float CardWidth = 0.6f;
+        private const float CardHeight = 0.8f;
+        private const float CardHeaderHeight = 0.14f;
+        private const float CardCenterY = 1.5f;
+        private const float CardGapFromDoor = 0.12f;
+        private const float CardDepth = 0.02f;
+        private const float CardPadding = 0.04f;
+        private static readonly Color CardTextColor = new Color(0.15f, 0.16f, 0.18f);
+        private static readonly Color CardComingSoonColor = new Color(0.55f, 0.56f, 0.58f);
+
         // Licht (Quest 3: geen schaduwen, weinig lichten)
         private const float CorridorLightSpacing = 6f;
         private const float CorridorLightRange = 7f;
@@ -124,6 +137,7 @@ namespace ProCommVR.Editor
 
         private static TMP_FontAsset _font;
         private static Vector2 _doorSize;
+        private static Dictionary<string, PatientCase> _cases;
 
         [MenuItem("ProCommVR/Hospital/Build")]
         public static void Build()
@@ -138,6 +152,7 @@ namespace ProCommVR.Editor
 
             _font = EnsureTmpFont();
             _doorSize = MeasureDoor();
+            _cases = LoadCases();
 
             var roomPrefab = BuildRoomPrefab();
             var root = new GameObject(RootName).transform;
@@ -280,6 +295,8 @@ namespace ProCommVR.Editor
             {
                 var label = $"{floor}{DoorLetters[i]}";
                 PlaceDoor(level, label, new Vector3(DoorCentersX[i], 0f, CorridorWidth));
+                _cases.TryGetValue(label, out var patientCase);
+                PlaceCard(level, label, floor, patientCase, DoorCentersX[i]);
                 var room = (GameObject)PrefabUtility.InstantiatePrefab(roomPrefab, level);
                 room.name = $"Room_{label}";
                 room.transform.localPosition = new Vector3(DoorCentersX[i], 0f, CorridorWidth);
@@ -361,6 +378,62 @@ namespace ProCommVR.Editor
             if (size.x < size.z)
                 model.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
             AlignToFloor(model, holder.position);
+        }
+
+        /// <summary>Alle PatientCase-assets in Assets/Hospital/Data, per deur (bv. "1A").</summary>
+        private static Dictionary<string, PatientCase> LoadCases()
+        {
+            var result = new Dictionary<string, PatientCase>();
+            if (!AssetDatabase.IsValidFolder(CaseFolder))
+                return result;
+            foreach (var path in AssetDatabase.FindAssets("t:PatientCase", new[] { CaseFolder }).Select(AssetDatabase.GUIDToAssetPath))
+            {
+                var c = AssetDatabase.LoadAssetAtPath<PatientCase>(path);
+                if (c == null || string.IsNullOrWhiteSpace(c.DoorLabel))
+                    continue;
+                if (result.ContainsKey(c.DoorLabel))
+                    Debug.LogWarning($"{LogPrefix}Deur {c.DoorLabel} heeft meer dan één case, {path} wordt genegeerd.");
+                else
+                    result[c.DoorLabel] = c;
+            }
+            Debug.Log($"{LogPrefix}{result.Count} case(s): {string.Join(", ", result.Keys.OrderBy(k => k))}.");
+            return result;
+        }
+
+        /// <summary>
+        /// Patiëntkaart naast de deur: kop in de kleur van de vloer, daaronder naam, leeftijd, kamer, situatie en "Watch out".
+        /// Zonder case: grijze kaart met "Coming soon".
+        /// </summary>
+        private static void PlaceCard(Transform level, string label, int floor, PatientCase patientCase, float doorX)
+        {
+            var card = new GameObject($"Card_{label}").transform;
+            card.SetParent(level, false);
+            var wallZ = CorridorWidth - WallThickness / 2f - StripeDepth;
+            var x = doorX + _doorSize.x / 2f + CardGapFromDoor + CardWidth / 2f;
+            card.localPosition = new Vector3(x, CardCenterY, wallZ);
+
+            var available = patientCase != null;
+            var headerColor = available ? Floors[floor - 1].Color : CardComingSoonColor;
+            var headerMat = available ? AccentMat(floor) : Mat("CardComingSoon", CardComingSoonColor);
+            var bodyHeight = CardHeight - CardHeaderHeight;
+
+            Box("Header", card, new Vector3(0f, CardHeight / 2f - CardHeaderHeight / 2f, -CardDepth / 2f),
+                new Vector3(CardWidth, CardHeaderHeight, CardDepth), headerMat);
+            Box("Body", card, new Vector3(0f, -CardHeaderHeight / 2f, -CardDepth / 2f),
+                new Vector3(CardWidth, bodyHeight, CardDepth), Mat("CardBody", new Color(0.98f, 0.98f, 0.97f)));
+
+            var front = -CardDepth - 0.003f;
+            var header = available ? $"Room {patientCase.Room}  ·  {patientCase.Difficulty}" : $"Room {label}";
+            Label("HeaderText", card, header, new Vector3(0f, CardHeight / 2f - CardHeaderHeight / 2f, front), Vector3.back,
+                CardWidth - 2f * CardPadding, CardHeaderHeight * 0.7f, Color.white);
+
+            var body = available
+                ? $"<b>{patientCase.PatientName}</b>, {patientCase.Age}\n\n{patientCase.Situation}\n\n" +
+                  $"<b><color=#{ColorUtility.ToHtmlStringRGB(headerColor * 0.8f)}>Watch out:</color></b> {patientCase.WatchOut}"
+                : "Coming soon";
+            Label("BodyText", card, body, new Vector3(0f, -CardHeaderHeight / 2f, front), Vector3.back,
+                CardWidth - 2f * CardPadding, bodyHeight - 2f * CardPadding, available ? CardTextColor : CardComingSoonColor,
+                wrap: available, alignment: available ? TextAlignmentOptions.TopLeft : TextAlignmentOptions.Center);
         }
 
         /// <summary>
@@ -597,7 +670,7 @@ namespace ProCommVR.Editor
         }
 
         private static void Label(string name, Transform parent, string text, Vector3 localPosition, Vector3 normal,
-            float width, float height, Color color)
+            float width, float height, Color color, bool wrap = false, TextAlignmentOptions alignment = TextAlignmentOptions.Center)
         {
             if (_font == null)
                 return;
@@ -609,8 +682,8 @@ namespace ProCommVR.Editor
             tmp.font = _font;
             tmp.text = text;
             tmp.color = color;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.alignment = alignment;
+            tmp.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
             tmp.enableAutoSizing = true;
             tmp.fontSizeMin = 0.05f;
             tmp.fontSizeMax = 10f;
@@ -750,6 +823,9 @@ namespace ProCommVR.Editor
             Shot("hospital_room_1A.png",
                 new Vector3(DoorCentersX[0] - 1.4f, floor1 + EyeHeight, CorridorWidth + 0.5f),
                 new Vector3(DoorCentersX[0] + 0.3f, floor1 + 0.6f, CorridorWidth + RoomDepth - 0.8f));
+            Shot("hospital_cards_floor1.png",
+                new Vector3(DoorCentersX[0] + 1.2f, floor1 + EyeHeight, 0.9f),
+                new Vector3(DoorCentersX[0] + 0.5f, floor1 + 1.35f, CorridorWidth));
             Shot("hospital_lobby.png", new Vector3(LobbyLength - 1f, EyeHeight, LobbyMaxZ - 1f), new Vector3(0f, 1.2f, LiftCenterZ));
         }
 
