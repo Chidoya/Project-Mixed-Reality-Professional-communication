@@ -196,10 +196,16 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
+| 2026-10-18 | XR Interaction Toolkit + OpenXR, geen Meta XR SDK | Gevraagd in `GAME_BRIEF.md`; open standaard, geen vendor lock-in |
+| 2026-10-18 | Trigger = select, grip = activate, geen gaze-select | Dialoogopties kiezen met laser + trigger, zonder tijdsdruk (`GAME_BRIEF.md`) |
+| 2026-10-18 | Projectsetup gescript via menu `ProCommVR > Setup` | Reproduceerbaar voor beide developers, ook in batchmode |
 | 2026-10-18 | Unity 6000.3.9f1 bevestigd, geen upgrade naar 6000.6.6f1 | Bestaand leeg project staat al in 6000.3.9f1, voorkomt onnodige project-upgrade |
 | 2026-10-19 | Directe feedback vervangen door NPC-houding + reactiezin, volledige uitleg enkel op eindscherm | Realistischer, studenten leren non-verbale signalen lezen ipv meteen een score te zien |
 | 2026-10-19 | Patient X zit rechtop op de bedrand ipv plat liggend | Past bij "sitting slumped" uit het scenario, makkelijker te animeren |
 | 2026-10-19 | Eigen URP-materialen ipv de materialen uit de asset-kit | Kit gebruikte Standard-shaders, niet compatibel met URP op Quest |
+| 2026-10-20 | `MoodController` houdt enkel de mood-data bij; lezers (`MoodAtmosphere`, `MoodRoomLight`, `RoomSign`) tonen ze | Eén mood-gegeven per patiënt/kamer, uitbreidbaar zonder dat de data iets van licht, UI of bordjes weet |
+| 2026-10-20 | Shift-loop in een placeholder-ziekenhuis (`ShiftHospital`, Kenney) tot Liam's hospital op GitHub staat | `origin/Liam` bevatte enkel de personages, geen hospital-scene; de shift-scripts hangen niet aan deze layout |
+| 2026-10-20 | `ShiftHospital` eerst in de Build Settings | Een headset-build start met de shift (briefing, 5 taken, eindscherm) |
 
 
 ## Open vragen
