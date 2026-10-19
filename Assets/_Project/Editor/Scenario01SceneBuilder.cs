@@ -372,7 +372,7 @@ namespace ProCommVR.Editor
             return material;
         }
 
-        private static GameObject PlaceModel(string path, Transform parent, string name, float yaw)
+        internal static GameObject PlaceModel(string path, Transform parent, string name, float yaw)
         {
             var model = (GameObject)PrefabUtility.InstantiatePrefab(ScenarioTestSceneBuilder.LoadRequired<GameObject>(path, "Third-party asset missing, see CREDITS.md."));
             model.name = name;
@@ -384,7 +384,7 @@ namespace ProCommVR.Editor
         /// <summary>
         /// The GRADD OBJ is one big file with all props side by side: keep only the meshes of one prop.
         /// </summary>
-        private static GameObject PlaceGradd(Transform parent, string name, string prop, float yaw)
+        internal static GameObject PlaceGradd(Transform parent, string name, string prop, float yaw)
         {
             var model = (GameObject)PrefabUtility.InstantiatePrefab(ScenarioTestSceneBuilder.LoadRequired<GameObject>(GraddPath, "Third-party asset missing, see CREDITS.md."));
             PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
@@ -401,7 +401,7 @@ namespace ProCommVR.Editor
             return model;
         }
 
-        private static void ScaleToHeight(GameObject go, float height)
+        internal static void ScaleToHeight(GameObject go, float height)
         {
             go.transform.localScale *= height / TightBounds(go).size.y;
         }
@@ -410,7 +410,7 @@ namespace ProCommVR.Editor
         /// Moves the object so that a point of its bounds lands on the target. The pivot is relative to the bounds:
         /// (0, 0, 0) is the minimum corner, (1, 1, 1) the maximum, (0.5, 0, 0.5) the bottom center.
         /// </summary>
-        private static void Align(GameObject go, Vector3 pivot, Vector3 target)
+        internal static void Align(GameObject go, Vector3 pivot, Vector3 target)
         {
             var bounds = TightBounds(go);
             var point = bounds.min + Vector3.Scale(bounds.size, pivot);
@@ -420,7 +420,7 @@ namespace ProCommVR.Editor
         /// <summary>
         /// World bounds from the actual vertices. Renderer.bounds is too loose for rotated meshes.
         /// </summary>
-        private static Bounds TightBounds(GameObject go)
+        internal static Bounds TightBounds(GameObject go)
         {
             var bounds = new Bounds();
             var first = true;

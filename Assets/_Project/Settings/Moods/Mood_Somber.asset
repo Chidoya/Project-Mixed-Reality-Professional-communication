@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Mood_Somber
   m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Atmosphere.MoodProfile
   _mood: 2
+  _color: {r: 0.3, g: 0.45, b: 0.85, a: 1}
   _lightColor: {r: 0.7, g: 0.78, b: 0.95, a: 1}
   _lightIntensity: 0.6
   _ambientColor: {r: 0.25, g: 0.28, b: 0.36, a: 1}

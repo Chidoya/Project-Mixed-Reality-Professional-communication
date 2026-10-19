@@ -7,7 +7,8 @@ namespace ProCommVR.Scenarios
 {
     /// <summary>
     /// End screen in the world: total score, and per scenario the score, the chosen answer and its feedback.
-    /// Appears in front of the player. The restart bubble starts the sequence again.
+    /// Appears in front of the player. The restart bubble raises <see cref="RestartRequested"/>
+    /// (the scenario sequence starts again, the shift closes the game).
     /// </summary>
     public class ResultsScreen : MonoBehaviour
     {
@@ -43,8 +44,16 @@ namespace ProCommVR.Scenarios
 
         public void Show(SessionScore score)
         {
-            _titleLabel.text = $"{_title}\n<size=70%>Total score: {score.Total} / {score.BestTotal}</size>";
-            _bodyLabel.text = BuildBody(score);
+            ShowText($"Total score: {score.Total} / {score.BestTotal}", BuildBody(score));
+        }
+
+        /// <summary>
+        /// Shows the screen with a custom subtitle (under the title) and body, e.g. the end of a shift.
+        /// </summary>
+        public void ShowText(string subtitle, string body)
+        {
+            _titleLabel.text = $"{_title}\n<size=70%>{subtitle}</size>";
+            _bodyLabel.text = body;
             PlaceInFrontOfPlayer();
             gameObject.SetActive(true);
         }

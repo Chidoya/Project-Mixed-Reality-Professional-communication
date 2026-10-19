@@ -1,13 +1,15 @@
 namespace ProCommVR.Scenarios
 {
     /// <summary>
-    /// Atmosphere of a scenario. Will drive lighting and background music (see GAME_BRIEF.md);
-    /// for now it is stored as data only.
+    /// Mood of a scenario or of a patient. A <see cref="ProCommVR.Atmosphere.MoodController"/> holds the current
+    /// mood; its <see cref="ProCommVR.Atmosphere.MoodProfile"/> gives the color, light and music.
+    /// Add new values at the end only, otherwise existing assets shift to another mood.
     /// </summary>
     public enum Mood
     {
         Neutral,
         Tense,
-        Somber
+        Somber,
+        Happy
     }
 }
