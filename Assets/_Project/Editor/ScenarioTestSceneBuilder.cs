@@ -264,18 +264,44 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Adds the scenario presenter, results screen, scenario sequence and mood controller to the scene.
+        /// Adds the scenario presenter, results screen, scenario sequence and mood system to the scene.
         /// Shared by every scene that plays scenarios. Returns the presenter.
         /// </summary>
         internal static ScenarioPresenter AddScenarioSystem(Scene scene, Transform npc, Vector3 npcBubblePosition,
             Vector3 optionsPosition, Scenario[] scenarios, Light light)
         {
+            var resultsPrefab = LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
+            var presenter = CreatePresenter("Scenario Presenter", npc, npcBubblePosition, optionsPosition);
+
+            var results = (GameObject)PrefabUtility.InstantiatePrefab(resultsPrefab, scene);
+            results.SetActive(false);
+
+            var sequence = new GameObject("Scenario Sequence").AddComponent<ScenarioSequence>();
+            var serialized = new SerializedObject(sequence);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_resultsScreen").objectReferenceValue = results.GetComponent<ResultsScreen>();
+            var list = serialized.FindProperty("_scenarios");
+            list.arraySize = scenarios.Length;
+            for (var i = 0; i < scenarios.Length; i++)
+                list.GetArrayElementAtIndex(i).objectReferenceValue = scenarios[i];
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var moodObject = new GameObject("Mood Controller");
+            var mood = AddMoodController(moodObject, presenter);
+            AddMoodAtmosphere(moodObject, mood, light);
+
+            return presenter;
+        }
+
+        /// <summary>
+        /// A scenario presenter (not playing on start) with its NPC bubble anchor and options anchor.
+        /// </summary>
+        internal static ScenarioPresenter CreatePresenter(string name, Transform npc, Vector3 npcBubblePosition, Vector3 optionsPosition)
+        {
             var bubblePrefab = LoadRequired<GameObject>(BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.")
                 .GetComponent<DialogueBubble>();
-            var resultsPrefab = LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
-            var moodProfiles = GetOrCreateMoodProfiles();
 
-            var presenterObject = new GameObject("Scenario Presenter");
+            var presenterObject = new GameObject(name);
             var npcAnchor = new GameObject("NPC Bubble Anchor").transform;
             npcAnchor.SetParent(presenterObject.transform, false);
             npcAnchor.position = npcBubblePosition;
@@ -286,43 +312,47 @@ namespace ProCommVR.Editor
 
             var presenter = presenterObject.AddComponent<ScenarioPresenter>();
             var serialized = new SerializedObject(presenter);
-            serialized.FindProperty("_playOnStart").boolValue = false; // the sequence starts it
+            serialized.FindProperty("_playOnStart").boolValue = false; // a sequence or the shift starts it
             serialized.FindProperty("_bubblePrefab").objectReferenceValue = bubblePrefab;
             serialized.FindProperty("_npcBubbleAnchor").objectReferenceValue = npcAnchor;
             serialized.FindProperty("_optionsAnchor").objectReferenceValue = optionsAnchor;
             serialized.FindProperty("_npc").objectReferenceValue = npc;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            return presenter;
+        }
 
-            var results = (GameObject)PrefabUtility.InstantiatePrefab(resultsPrefab, scene);
-            results.SetActive(false);
-
-            var sequence = new GameObject("Scenario Sequence").AddComponent<ScenarioSequence>();
-            serialized = new SerializedObject(sequence);
+        /// <summary>
+        /// A MoodController with all mood profiles. With a presenter it follows the mood of each scenario.
+        /// </summary>
+        internal static MoodController AddMoodController(GameObject target, ScenarioPresenter presenter)
+        {
+            var moodProfiles = GetOrCreateMoodProfiles();
+            var mood = target.AddComponent<MoodController>();
+            var serialized = new SerializedObject(mood);
             serialized.FindProperty("_presenter").objectReferenceValue = presenter;
-            serialized.FindProperty("_resultsScreen").objectReferenceValue = results.GetComponent<ResultsScreen>();
-            var list = serialized.FindProperty("_scenarios");
-            list.arraySize = scenarios.Length;
-            for (var i = 0; i < scenarios.Length; i++)
-                list.GetArrayElementAtIndex(i).objectReferenceValue = scenarios[i];
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-
-            var moodObject = new GameObject("Mood Controller");
-            var music = moodObject.AddComponent<AudioSource>();
-            music.playOnAwake = false;
-            music.loop = true;
-            music.spatialBlend = 0f;
-            var mood = moodObject.AddComponent<MoodController>();
-            serialized = new SerializedObject(mood);
-            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
-            serialized.FindProperty("_light").objectReferenceValue = light;
-            serialized.FindProperty("_musicSource").objectReferenceValue = music;
             var profiles = serialized.FindProperty("_profiles");
             profiles.arraySize = moodProfiles.Length;
             for (var i = 0; i < moodProfiles.Length; i++)
                 profiles.GetArrayElementAtIndex(i).objectReferenceValue = moodProfiles[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            return mood;
+        }
 
-            return presenter;
+        /// <summary>
+        /// Main light, ambient light and music (a 2D looping AudioSource on the same object) follow the mood.
+        /// </summary>
+        internal static void AddMoodAtmosphere(GameObject target, MoodController mood, Light light)
+        {
+            var music = target.AddComponent<AudioSource>();
+            music.playOnAwake = false;
+            music.loop = true;
+            music.spatialBlend = 0f;
+            var atmosphere = target.AddComponent<MoodAtmosphere>();
+            var serialized = new SerializedObject(atmosphere);
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.FindProperty("_light").objectReferenceValue = light;
+            serialized.FindProperty("_musicSource").objectReferenceValue = music;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>
@@ -402,19 +432,20 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// One placeholder profile per mood: only light and ambient color, no music yet.
+        /// One placeholder profile per mood: a mood color, light and ambient color, no music yet.
         /// </summary>
-        private static MoodProfile[] GetOrCreateMoodProfiles()
+        internal static MoodProfile[] GetOrCreateMoodProfiles()
         {
             return new[]
             {
-                GetOrCreateMoodProfile(Mood.Neutral, new Color(1f, 0.96f, 0.9f), 1f, new Color(0.5f, 0.5f, 0.52f)),
-                GetOrCreateMoodProfile(Mood.Tense, new Color(1f, 0.8f, 0.65f), 1.15f, new Color(0.42f, 0.34f, 0.32f)),
-                GetOrCreateMoodProfile(Mood.Somber, new Color(0.7f, 0.78f, 0.95f), 0.6f, new Color(0.25f, 0.28f, 0.36f)),
+                GetOrCreateMoodProfile(Mood.Neutral, new Color(0.8f, 0.8f, 0.8f), new Color(1f, 0.96f, 0.9f), 1f, new Color(0.5f, 0.5f, 0.52f)),
+                GetOrCreateMoodProfile(Mood.Tense, new Color(0.95f, 0.5f, 0.15f), new Color(1f, 0.8f, 0.65f), 1.15f, new Color(0.42f, 0.34f, 0.32f)),
+                GetOrCreateMoodProfile(Mood.Somber, new Color(0.3f, 0.45f, 0.85f), new Color(0.7f, 0.78f, 0.95f), 0.6f, new Color(0.25f, 0.28f, 0.36f)),
+                GetOrCreateMoodProfile(Mood.Happy, new Color(0.2f, 0.8f, 0.3f), new Color(1f, 0.98f, 0.88f), 1.1f, new Color(0.52f, 0.54f, 0.48f)),
             };
         }
 
-        private static MoodProfile GetOrCreateMoodProfile(Mood mood, Color lightColor, float intensity, Color ambient)
+        private static MoodProfile GetOrCreateMoodProfile(Mood mood, Color color, Color lightColor, float intensity, Color ambient)
         {
             var path = $"{MoodProfileFolder}/Mood_{mood}.asset";
             var profile = AssetDatabase.LoadAssetAtPath<MoodProfile>(path);
@@ -427,6 +458,7 @@ namespace ProCommVR.Editor
 
             var serialized = new SerializedObject(profile);
             serialized.FindProperty("_mood").enumValueIndex = (int)mood;
+            serialized.FindProperty("_color").colorValue = color;
             serialized.FindProperty("_lightColor").colorValue = lightColor;
             serialized.FindProperty("_lightIntensity").floatValue = intensity;
             serialized.FindProperty("_ambientColor").colorValue = ambient;

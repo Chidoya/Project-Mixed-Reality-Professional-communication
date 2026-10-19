@@ -332,6 +332,7 @@ GameObject:
   - component: {fileID: 613649060}
   - component: {fileID: 613649059}
   - component: {fileID: 613649058}
+  - component: {fileID: 613649061}
   m_Layer: 0
   m_Name: Mood Controller
   m_TagString: Untagged
@@ -356,9 +357,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 3082239b977934642ab952e126054fad, type: 2}
   - {fileID: 11400000, guid: 7c6bfd27be283f84eb34ab17d879aefd, type: 2}
   - {fileID: 11400000, guid: 4526d42dbaf084a42b7730075f91245a, type: 2}
-  _light: {fileID: 1511043617}
-  _musicSource: {fileID: 613649059}
-  _fadeDuration: 1.5
+  - {fileID: 0}
+  _applyInitialMood: 0
+  _initialMood: 0
 --- !u!82 &613649059
 AudioSource:
   m_ObjectHideFlags: 0
@@ -471,6 +472,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &613649061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 613649057}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15f8d732ee7cb31419afaa2c149fe281, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Atmosphere.MoodAtmosphere
+  _moodController: {fileID: 613649058}
+  _light: {fileID: 1511043617}
+  _musicSource: {fileID: 613649059}
+  _fadeDuration: 1.5
 --- !u!1001 &814635014
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1050,6 +1067,7 @@ MonoBehaviour:
   _shuffleOptions: 1
   _npc: {fileID: 1242960854}
   _optionsRange: 1.5
+  _optionsHideMargin: 0.1
   _player: {fileID: 0}
   _placeOptionsInFrontOfPlayer: 1
   _optionsDistance: 0.7

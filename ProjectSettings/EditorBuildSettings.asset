@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Project/Scenes/ShiftHospital.unity
+    guid: 83cc4787b13d8ef4aba4291efaaa2ef4
+  - enabled: 1
     path: Assets/_Project/Scenes/Scenario01_PatientRoom.unity
     guid: c4e4dd82dab84294b9601378fad15061
   - enabled: 1
