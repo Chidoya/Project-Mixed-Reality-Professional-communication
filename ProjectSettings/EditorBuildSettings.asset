@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Project/Scenes/Scenario01_PatientRoom.unity
+    guid: c4e4dd82dab84294b9601378fad15061
+  - enabled: 1
     path: Assets/_Project/Scenes/ScenarioTest.unity
     guid: 41fb4724c7c42674485dd679649907cf
   - enabled: 1
