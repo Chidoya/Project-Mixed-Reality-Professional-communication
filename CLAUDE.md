@@ -174,14 +174,19 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   op `main`; `Jalil` en `Liam` zijn op 2026-10-12 bijgewerkt naar `main`. Nog geen `.gitattributes`/LFS,
   geen XR packages, geen README, geen branch protection gecontroleerd.
   Scenario, rollen en data nog niet beslist.
-- 2026-10-18: Jalil schreef `GAME_BRIEF.md` (MVP: 2 scenario's, keuze via laser + trigger,
-  tekst in het Engels). Op `feature/jalil/xr-setup`: XR packages, Quest 3 configuratie,
-  XR rig variant en testscene `XRTest`, plus `ARCHITECTURE.md`. Batchmode compile-check OK,
-  nog niet getest op de Quest 3 en nog niet gepusht. `GAME_BRIEF.md` staat op
-  `chore/jalil/game-brief`, ook nog niet gepusht.
-  Let op: op GitHub bestaan nu zowel `Jalil` als `jalil`. Op een Windows-schijf botsen die
-  (Git ziet ze als dezelfde ref), waardoor `git fetch` faalt. `jalil` bevat ook per ongeluk
-  een geneste kopie van de repo als gitlink. Nog te beslissen welke branch blijft.
+- 2026-10-18: Jalil installeerde per ongeluk Unity 6000.6.6f1. Bevestigd dat het project bij
+  de afgesproken versie 6000.3.9f1 blijft, zodat het bestaande lege project niet geüpgraded
+  moet worden. Jalil installeert 6000.3.9f1 ernaast via Unity Hub (beide versies kunnen
+  naast elkaar bestaan).
+- 2026-10-19: PR #10 (`feature/jalil/scenario01-patient-room` naar `Jalil`) gemerged.
+  Scenario 1 uitgewerkt (uit het brondocument, scores 3/0/-2/1, mood Somber) in
+  `Scenario01_PatientRoom.unity` (4x4m kamer, deur-bed-raam). Eigen URP-materialen
+  gebruikt omdat de asset-kit Standard-shaders had. Patient X zit rechtop op de bedrand
+  ipv plat liggend. Proximity-bug opgelost met marge. Directe feedback vervangen door
+  NPC-houding + korte reactiezin; volledige uitleg staat enkel nog op het eindscherm.
+  Enkel compile-check en screenshot-renders gecontroleerd, nog niet getest in Play mode
+  of op de Quest 3 zelf. De 4 reactiezinnen zijn door Claude verzonnen, nog niet
+  nagekeken door content/inhoudsexpert.
 
 
 ## Beslissingen
@@ -191,9 +196,10 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
-| 2026-10-18 | XR Interaction Toolkit + OpenXR, geen Meta XR SDK | Gevraagd in `GAME_BRIEF.md`; open standaard, geen vendor lock-in |
-| 2026-10-18 | Trigger = select, grip = activate, geen gaze-select | Dialoogopties kiezen met laser + trigger, zonder tijdsdruk (`GAME_BRIEF.md`) |
-| 2026-10-18 | Projectsetup gescript via menu `ProCommVR > Setup` | Reproduceerbaar voor beide developers, ook in batchmode |
+| 2026-10-18 | Unity 6000.3.9f1 bevestigd, geen upgrade naar 6000.6.6f1 | Bestaand leeg project staat al in 6000.3.9f1, voorkomt onnodige project-upgrade |
+| 2026-10-19 | Directe feedback vervangen door NPC-houding + reactiezin, volledige uitleg enkel op eindscherm | Realistischer, studenten leren non-verbale signalen lezen ipv meteen een score te zien |
+| 2026-10-19 | Patient X zit rechtop op de bedrand ipv plat liggend | Past bij "sitting slumped" uit het scenario, makkelijker te animeren |
+| 2026-10-19 | Eigen URP-materialen ipv de materialen uit de asset-kit | Kit gebruikte Standard-shaders, niet compatibel met URP op Quest |
 
 
 ## Open vragen
