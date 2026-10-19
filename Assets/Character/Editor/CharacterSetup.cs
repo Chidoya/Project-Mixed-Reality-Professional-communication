@@ -11,8 +11,8 @@ namespace ProCommVR.Editor
 {
     /// <summary>
     /// Zet de low-poly personages uit Blender klaar (Assets/Character/&lt;Naam&gt;/&lt;Naam&gt;.fbx):
-    /// Humanoid rig, URP Lit materialen, Animator Controller en prefab per personage,
-    /// plus de testscene Assets/Scenes/liam_test_scene.unity.
+    /// Humanoid rig, URP Lit materialen, Animator Controller en prefab per personage.
+    /// Maakt ook een lege standaard scene Assets/Scenes/liam_test_scene.unity als die nog niet bestaat.
     /// Mag opnieuw gedraaid worden, bv. nadat er animaties in Assets/Character/Animations bijkomen.
     /// </summary>
     public static class CharacterSetup
@@ -22,9 +22,6 @@ namespace ProCommVR.Editor
         private const string TestScenePath = "Assets/Scenes/liam_test_scene.unity";
         private const string LitShader = "Universal Render Pipeline/Lit";
         private const string LogPrefix = "[CharacterSetup] ";
-
-        private const float Spacing = 1.5f;
-        private const float PatientRowZ = 3f;
 
         // State in de Animator -> mogelijke bestandsnamen van Mixamo-clips (zonder spaties, kleine letters)
         private static readonly (string State, string[] Names)[] States =
@@ -54,20 +51,10 @@ namespace ProCommVR.Editor
                 prefabs.Add(BuildPrefab(fbxPath, name, controller));
             }
 
-            BuildTestScene(prefabs, overwrite: false);
+            CreateTestSceneIfMissing();
             AssetDatabase.SaveAssets();
             Debug.Log($"{LogPrefix}Klaar: {prefabs.Count} personages, {clips.Count} animatieclips " +
                       $"({string.Join(", ", clips.Keys)}).");
-        }
-
-        [MenuItem("ProCommVR/Characters/Rebuild Test Scene")]
-        public static void RebuildTestScene()
-        {
-            var prefabs = FindCharacterModels()
-                .Select(p => AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath(Path.GetFileNameWithoutExtension(p))))
-                .Where(p => p != null)
-                .ToList();
-            BuildTestScene(prefabs, overwrite: true);
         }
 
         /// <summary>Voor de command line: Unity -batchmode -executeMethod ProCommVR.Editor.CharacterSetup.RunBatch</summary>
@@ -229,7 +216,7 @@ namespace ProCommVR.Editor
             return controller;
         }
 
-        // --- Prefab en testscene -------------------------------------------------
+        // --- Prefab en scene ------------------------------------------------------
 
         private static GameObject BuildPrefab(string fbxPath, string name, AnimatorController controller)
         {
@@ -247,62 +234,15 @@ namespace ProCommVR.Editor
             return prefab;
         }
 
-        private static void BuildTestScene(List<GameObject> prefabs, bool overwrite)
+        /// <summary>Lege standaard scene (camera + licht). Een bestaande scene wordt nooit aangeraakt.</summary>
+        private static void CreateTestSceneIfMissing()
         {
-            if (!overwrite && File.Exists(TestScenePath))
-            {
-                Debug.Log($"{LogPrefix}{TestScenePath} bestaat al, niet overschreven (gebruik Rebuild Test Scene).");
+            if (File.Exists(TestScenePath))
                 return;
-            }
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
-
-            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            floor.name = "Floor";
-            floor.transform.localScale = new Vector3(2f, 1f, 1f);
-            floor.transform.position = new Vector3(0f, 0f, 1.5f);
-
-            var camera = Camera.main;
-            if (camera != null)
-            {
-                camera.transform.position = new Vector3(0f, 2.6f, -8f);
-                camera.transform.LookAt(new Vector3(0f, 1f, 1.5f));
-            }
-
-            var patients = new GameObject("Patients").transform;
-            var staff = new GameObject("Staff").transform;
-            var patientPrefabs = prefabs.Where(p => p.name.StartsWith("Patient")).ToList();
-            var staffPrefabs = prefabs.Except(patientPrefabs).ToList();
-            PlaceRow(patientPrefabs, patients, PatientRowZ);
-            PlaceRow(staffPrefabs, staff, 0f);
-
             EditorSceneManager.SaveScene(scene, TestScenePath);
-            Debug.Log($"{LogPrefix}Testscene opgeslagen: {TestScenePath}");
-        }
-
-        private static void PlaceRow(List<GameObject> prefabs, Transform parent, float z)
-        {
-            for (var i = 0; i < prefabs.Count; i++)
-            {
-                var go = (GameObject)PrefabUtility.InstantiatePrefab(prefabs[i], parent);
-                var x = (i - (prefabs.Count - 1) / 2f) * Spacing;
-                go.transform.position = new Vector3(x, 0f, z);
-                // Personages kijken naar de camera (-Z)
-                go.transform.rotation = Quaternion.LookRotation(Vector3.back) * Quaternion.Inverse(FacingOffset(go));
-            }
-        }
-
-        /// <summary>Rotatie van de kijkrichting van het model t.o.v. +Z, bepaald via de voeten.</summary>
-        private static Quaternion FacingOffset(GameObject go)
-        {
-            var animator = go.GetComponent<Animator>();
-            var foot = animator != null ? animator.GetBoneTransform(HumanBodyBones.LeftFoot) : null;
-            var toes = animator != null ? animator.GetBoneTransform(HumanBodyBones.LeftToes) : null;
-            if (foot == null || toes == null)
-                return Quaternion.identity;
-            var forward = Vector3.ProjectOnPlane(toes.position - foot.position, Vector3.up);
-            var localForward = Quaternion.Inverse(go.transform.rotation) * forward;
-            return localForward.sqrMagnitude < 1e-6f ? Quaternion.identity : Quaternion.LookRotation(localForward.normalized);
+            Debug.Log($"{LogPrefix}Lege scene aangemaakt: {TestScenePath}");
         }
     }
 }
