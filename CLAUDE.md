@@ -187,6 +187,15 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   Enkel compile-check en screenshot-renders gecontroleerd, nog niet getest in Play mode
   of op de Quest 3 zelf. De 4 reactiezinnen zijn door Claude verzonnen, nog niet
   nagekeken door content/inhoudsexpert.
+- 2026-10-20: PR #11 (`feature/jalil/shift-gameloop`) en PR #12 (`feature/jalil/shift-followups`)
+  gemerged in `jalil`. Shift-loop in `ShiftHospital.unity` (briefing, 5 patiëntkamers, timer,
+  eindscherm) met mood per kamer (licht, deurbordje, sfeer). Elke patiënt heeft een interne
+  `PatientId` (`patient-01` tot `patient-05`); op het scherm blijft het "Patient X".
+  De patiënt zit op een stoel naast het bed (niet meer op de bedrand). Nieuwe component
+  `MoodAudio` vloeit over naar het geluid van de mood; nu enkel placeholder-tonen.
+  Getest: batchmode compile-check en Play mode smoke tests met de XR-simulator
+  (`RunShiftLoop`, `RunShiftTimeout`, `RunScenario01Mood`, alle drie geslaagd).
+  Nog niet getest op de Quest 3 of via Quest Link, overvloeien van het geluid niet beluisterd.
 
 
 ## Beslissingen
@@ -206,6 +215,9 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-20 | `MoodController` houdt enkel de mood-data bij; lezers (`MoodAtmosphere`, `MoodRoomLight`, `RoomSign`) tonen ze | Eén mood-gegeven per patiënt/kamer, uitbreidbaar zonder dat de data iets van licht, UI of bordjes weet |
 | 2026-10-20 | Shift-loop in een placeholder-ziekenhuis (`ShiftHospital`, Kenney) tot Liam's hospital op GitHub staat | `origin/Liam` bevatte enkel de personages, geen hospital-scene; de shift-scripts hangen niet aan deze layout |
 | 2026-10-20 | `ShiftHospital` eerst in de Build Settings | Een headset-build start met de shift (briefing, 5 taken, eindscherm) |
+| 2026-10-20 | Patiënt in de shift zit op een stoel naast het bed, niet op de bedrand (wijkt af van 2026-10-19) | De zitanimatie verwacht ongeveer 0,45 m zithoogte; de matras ligt op 0,66 m met bedhekken tot 0,83 m |
+| 2026-10-20 | Interne `PatientId` per `ShiftTask`, op het scherm blijft het "Patient X" | Mood, voortgang en latere content per patiënt gescheiden houden zonder namen te tonen |
+| 2026-10-20 | Geluid per mood via een aparte `MoodAudio`, die de mood enkel leest | `MoodController` blijft pure data; een nieuw geluid is enkel een clip in het mood-profiel, zonder code |
 
 
 ## Open vragen
@@ -220,3 +232,9 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 - Locomotion uit de Starter Assets (thumbstick, snap turn, teleport) houden, of enkel fysiek rondlopen?
 - Wie is de vijfde persoon en welke opleiding?
 - Hoe meten we "resilience" en communicatie in de ervaring (feedback, score, debrief)?
+- Echte mood-geluiden: de huidige `Mood_*_Placeholder.wav` zijn gegenereerde tonen, geen muziek.
+  Wie maakt of kiest ze (en met welke licentie)?
+- CREDITS.md voor de personages van Liam: bron en licentie nog na te vragen bij Liam.
+- De vier placeholder-WAV's (ongeveer 1 MB) staan zonder LFS in Git; meenemen in de LFS-beslissing.
+- Shift-loop en zithouding nog testen op de Quest 3 (72 fps, geluid op de headset).
+- Oude remote branch `feature/jalil/shift-gameloop` mag door een mens verwijderd worden.
