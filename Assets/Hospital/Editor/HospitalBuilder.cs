@@ -16,7 +16,7 @@ namespace ProCommVR.Editor
     /// accentkleur en bord per vloer, en weinig lichten. Gebruikt Kenney-meubels en de Hospital Door van anasrar.
     /// Mag opnieuw gedraaid worden: de root "Hospital" en de prefab PatientRoom worden telkens opnieuw opgebouwd.
     /// </summary>
-    public static class HospitalBuilder
+    public static partial class HospitalBuilder
     {
         // --- Paden ---------------------------------------------------------------
         private const string ScenePath = "Assets/Scenes/liam_test_scene.unity";
@@ -165,6 +165,7 @@ namespace ProCommVR.Editor
 
             SetupLighting(scene, root);
             MarkStatic(root);
+            PlaceCharacters(root);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -818,6 +819,19 @@ namespace ProCommVR.Editor
         private static void TakeScreenshots()
         {
             Directory.CreateDirectory(ScreenshotFolder);
+            BeginPosePreview();
+            try
+            {
+                TakeScreenshotsPosed();
+            }
+            finally
+            {
+                EndPosePreview();
+            }
+        }
+
+        private static void TakeScreenshotsPosed()
+        {
             var floor1 = FloorHeight;
             Shot("hospital_corridor_floor1.png", new Vector3(0.7f, floor1 + EyeHeight, 1.1f), new Vector3(CorridorLength, floor1 + 1.3f, 1.9f));
             Shot("hospital_room_1A.png",
@@ -827,6 +841,10 @@ namespace ProCommVR.Editor
                 new Vector3(DoorCentersX[0] + 1.2f, floor1 + EyeHeight, 0.9f),
                 new Vector3(DoorCentersX[0] + 0.5f, floor1 + 1.35f, CorridorWidth));
             Shot("hospital_lobby.png", new Vector3(LobbyLength - 1f, EyeHeight, LobbyMaxZ - 1f), new Vector3(0f, 1.2f, LiftCenterZ));
+            var floor2 = 2f * FloorHeight;
+            Shot("hospital_room_2A.png",
+                new Vector3(DoorCentersX[0] - 0.6f, floor2 + EyeHeight, CorridorWidth + 0.4f),
+                new Vector3(DoorCentersX[0] + 0.8f, floor2 + 0.9f, CorridorWidth + RoomDepth - 1.2f));
         }
 
         private static void Shot(string file, Vector3 position, Vector3 lookAt)
