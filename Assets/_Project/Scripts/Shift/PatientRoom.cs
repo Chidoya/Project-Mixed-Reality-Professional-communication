@@ -32,6 +32,13 @@ namespace ProCommVR.Shift
         public ShiftTask Task => _task;
 
         /// <summary>
+        /// Unique id of the patient in this room this shift, or null before a task is assigned.
+        /// </summary>
+        public string PatientId => _task?.PatientId;
+
+        public MoodController MoodController => _moodController;
+
+        /// <summary>
         /// The choice the player made in this room, or null.
         /// </summary>
         public DialogueOption ChosenOption { get; private set; }
@@ -70,7 +77,7 @@ namespace ProCommVR.Shift
         {
             if (_task == null || _task.Scenario == null)
             {
-                Debug.LogWarning($"[ProCommVR] {_roomName} has no scenario to play.", this);
+                Debug.LogWarning($"[ProCommVR] {_roomName} ({PatientId}) has no scenario to play.", this);
                 return;
             }
             _active = true;

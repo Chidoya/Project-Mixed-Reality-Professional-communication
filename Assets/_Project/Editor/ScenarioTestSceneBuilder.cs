@@ -32,6 +32,7 @@ namespace ProCommVR.Editor
         private const string PlaceholderScenarioPath = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario.asset";
         private const string PlaceholderScenario2Path = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario2.asset";
         private const string MoodProfileFolder = "Assets/_Project/Settings/Moods";
+        private const string MoodSoundFolder = "Assets/_Project/Audio/Placeholder";
         internal const string RigVariantPath = "Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab";
         private const string FloorMaterialPath = "Assets/_Project/Materials/Floor.mat";
         private const string NpcMaterialPath = "Assets/_Project/Materials/PlaceholderNpc.mat";
@@ -289,6 +290,7 @@ namespace ProCommVR.Editor
             var moodObject = new GameObject("Mood Controller");
             var mood = AddMoodController(moodObject, presenter);
             AddMoodAtmosphere(moodObject, mood, light);
+            AddMoodAudio(moodObject, mood, false);
 
             return presenter;
         }
@@ -339,20 +341,34 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Main light, ambient light and music (a 2D looping AudioSource on the same object) follow the mood.
+        /// Main light and ambient light follow the mood.
         /// </summary>
         internal static void AddMoodAtmosphere(GameObject target, MoodController mood, Light light)
         {
-            var music = target.AddComponent<AudioSource>();
-            music.playOnAwake = false;
-            music.loop = true;
-            music.spatialBlend = 0f;
             var atmosphere = target.AddComponent<MoodAtmosphere>();
             var serialized = new SerializedObject(atmosphere);
             serialized.FindProperty("_moodController").objectReferenceValue = mood;
             serialized.FindProperty("_light").objectReferenceValue = light;
-            serialized.FindProperty("_musicSource").objectReferenceValue = music;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// The mood's looping sound on a new AudioSource: 2D (whole scene), or 3D and only audible within maxDistance.
+        /// </summary>
+        internal static MoodAudio AddMoodAudio(GameObject target, MoodController mood, bool spatial, float maxDistance = 4f)
+        {
+            var source = target.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.loop = true;
+            source.spatialBlend = spatial ? 1f : 0f;
+            source.rolloffMode = AudioRolloffMode.Linear;
+            source.minDistance = 1f;
+            source.maxDistance = maxDistance;
+            var audio = target.AddComponent<MoodAudio>();
+            var serialized = new SerializedObject(audio);
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return audio;
         }
 
         /// <summary>
@@ -432,7 +448,7 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// One placeholder profile per mood: a mood color, light and ambient color, no music yet.
+        /// One placeholder profile per mood: a mood color, light and ambient color and a placeholder sound.
         /// </summary>
         internal static MoodProfile[] GetOrCreateMoodProfiles()
         {
@@ -450,7 +466,7 @@ namespace ProCommVR.Editor
             var path = $"{MoodProfileFolder}/Mood_{mood}.asset";
             var profile = AssetDatabase.LoadAssetAtPath<MoodProfile>(path);
             if (profile != null)
-                return profile;
+                return FillMissingSound(profile);
 
             XRTestSceneBuilder.EnsureFolder(MoodProfileFolder);
             profile = ScriptableObject.CreateInstance<MoodProfile>();
@@ -464,6 +480,25 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_ambientColor").colorValue = ambient;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
+            EditorUtility.SetDirty(profile);
+            return FillMissingSound(profile);
+        }
+
+        /// <summary>
+        /// Gives a profile without a sound the placeholder loop of its mood (Audio/Placeholder/Mood_&lt;mood&gt;_Placeholder.wav).
+        /// A sound someone already chose is never replaced.
+        /// </summary>
+        private static MoodProfile FillMissingSound(MoodProfile profile)
+        {
+            if (profile.Sound != null)
+                return profile;
+            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>($"{MoodSoundFolder}/Mood_{profile.Mood}_Placeholder.wav");
+            if (clip == null)
+                return profile;
+            var serialized = new SerializedObject(profile);
+            serialized.FindProperty("_sound").objectReferenceValue = clip;
+            serialized.FindProperty("_soundVolume").floatValue = 0.25f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(profile);
             return profile;
         }

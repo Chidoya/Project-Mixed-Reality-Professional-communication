@@ -80,9 +80,42 @@ namespace ProCommVR.Editor.Testing
                 yield return 1f;
                 Check(manager.State == ShiftState.Briefing, "shift waits in the briefing room");
                 Check(manager.AssignedRooms.Count == 5, $"5 patients assigned (got {manager.AssignedRooms.Count})");
+                var ids = manager.AssignedRooms.Select(r => r.PatientId).ToArray();
+                Check(ids.All(id => !string.IsNullOrWhiteSpace(id)) && ids.Distinct().Count() == ids.Length,
+                    $"every patient has a unique id ({string.Join(", ", ids)})");
+                Check(manager.AssignedRooms.All(r => manager.FindRoom(r.PatientId) == r), "rooms are found by patient id");
+                Check(manager.AssignedRooms.Select(r => r.Task.PatientName).Distinct().Count() == 1, "display names may stay the same (all 'Patient X')");
                 foreach (var room in rooms)
-                    CheckMood(room);
+                    CheckMood(room, Mood.Happy);
+                // Animators of patients out of view may skip updating their bones; animate them all for the check.
+                foreach (var animator in rooms.Select(r => r.GetComponentInChildren<Animator>()))
+                    animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                yield return 0.3f;
+                foreach (var room in rooms)
+                    CheckSitting(room);
+                yield return 2.5f; // the mood sounds fade in
+                foreach (var room in rooms)
+                    CheckMoodSound(room);
+                Check(Object.FindObjectsByType<MoodAudio>(FindObjectsSortMode.None).Length == rooms.Length, "only the patient rooms play a mood sound");
                 Screenshot("briefing");
+
+                // One patient's mood changes: only that room follows (sign, light, crossfade to the new sound).
+                var changed = manager.AssignedRooms[2];
+                var oldSource = changed.GetComponentInChildren<MoodAudio>().CurrentSource;
+                Check(manager.SetPatientMood(changed.PatientId, Mood.Somber), $"set the mood of {changed.PatientId} by id");
+                yield return 0.5f;
+                var newSource = changed.GetComponentInChildren<MoodAudio>().CurrentSource;
+                Check(newSource != oldSource && newSource.isPlaying && oldSource.isPlaying, "the old and the new sound overlap during the crossfade");
+                yield return 2.5f;
+                CheckMood(changed, Mood.Somber);
+                CheckMoodSound(changed);
+                Check(!oldSource.isPlaying, "the old sound stops after the crossfade");
+                foreach (var room in manager.AssignedRooms.Where(r => r != changed))
+                    Check(room.MoodController.CurrentMood == Mood.Happy, $"{room.PatientId} keeps its own mood");
+                manager.SetPatientMood(changed.PatientId, Mood.Happy);
+                yield return 2.5f;
+                CheckMood(changed, Mood.Happy);
+                CheckMoodSound(changed);
 
                 if (timeout)
                     SetPrivateField(manager, "_shiftDuration", 4f);
@@ -175,7 +208,7 @@ namespace ProCommVR.Editor.Testing
                 Screenshot("room-doorway");
                 // Side view of the patient, to check the sitting pose (only when taking screenshots).
                 var side = Vector3.Cross(Vector3.up, Flat(patient.position - door)).normalized;
-                _headWorld = patient.position + side * 1.6f + Vector3.up * 1.2f;
+                _headWorld = patient.position - side * 1.6f + Vector3.up * 1.2f;
                 _headRotation = Quaternion.LookRotation(patient.position + Vector3.up * 0.7f - _headWorld);
                 yield return 0.3f;
                 Screenshot("room-patient-side");
@@ -214,21 +247,71 @@ namespace ProCommVR.Editor.Testing
             foreach (var step in Click(Center(finish[0]), () => manager.IsCompleted(room)))
                 yield return step;
             Check(manager.IsCompleted(room), $"{room.RoomName}: Finish marks the patient as cared for");
+            Check(manager.IsCompleted(room.PatientId) && manager.CompletedCount == manager.AssignedRooms.Count(r => manager.IsCompleted(r.PatientId)),
+                $"{room.RoomName}: progress is kept per patient id ({room.PatientId})");
             yield return 0.2f;
             Check(presenter.GetComponentsInChildren<DialogueBubble>().Length == 0, $"{room.RoomName}: bubbles are cleared");
         }
 
-        private static void CheckMood(PatientRoom room)
+        private static void CheckMood(PatientRoom room, Mood expected)
         {
-            var mood = room.GetComponentInChildren<MoodController>();
+            var mood = room.MoodController;
             var light = room.GetComponentInChildren<MoodRoomLight>().GetComponent<Light>();
             var sign = room.GetComponentInChildren<RoomSign>();
             var patch = sign.GetComponentsInChildren<Image>().First(i => i.gameObject != sign.gameObject);
-            var green = mood.CurrentColor;
-            Check(mood.CurrentMood == Mood.Happy, $"{room.RoomName}: mood is Happy (got {mood.CurrentMood})");
-            Check(green.g > green.r && green.g > green.b, $"{room.RoomName}: Happy color is green ({green})");
-            Check(light.color == green, $"{room.RoomName}: room light has the mood color ({light.color})");
-            Check(patch.color == green, $"{room.RoomName}: door sign shows the mood color ({patch.color})");
+            var color = mood.CurrentColor;
+            Check(mood.CurrentMood == expected, $"{room.RoomName}: mood is {expected} (got {mood.CurrentMood})");
+            if (expected == Mood.Happy)
+                Check(color.g > color.r && color.g > color.b, $"{room.RoomName}: Happy color is green ({color})");
+            Check(light.color == color, $"{room.RoomName}: room light has the mood color ({light.color})");
+            Check(patch.color == color, $"{room.RoomName}: door sign shows the mood color ({patch.color})");
+        }
+
+        /// <summary>
+        /// The room's MoodAudio plays the sound of the current mood, 3D, at the profile's volume.
+        /// </summary>
+        private static void CheckMoodSound(PatientRoom room)
+        {
+            var profile = room.MoodController.CurrentProfile;
+            var source = room.GetComponentInChildren<MoodAudio>().CurrentSource;
+            Check(profile.Sound != null && source.clip == profile.Sound && source.isPlaying,
+                $"{room.RoomName}: plays the {profile.Mood} sound ({(source.clip != null ? source.clip.name : "none")}, playing {source.isPlaying})");
+            Check(Mathf.Approximately(source.volume, profile.SoundVolume) && source.spatialBlend == 1f,
+                $"{room.RoomName}: sound at volume {source.volume:F2}, 3D");
+        }
+
+        /// <summary>
+        /// The patient is visibly sitting: Animator in the Sitting state, hips and head clearly lower than when standing,
+        /// and the hips above the seat of the chair next to the bed.
+        /// </summary>
+        private static void CheckSitting(PatientRoom room)
+        {
+            var animator = room.GetComponentInChildren<Animator>();
+            var floor = room.transform.position.y;
+            var hips = animator.GetBoneTransform(HumanBodyBones.Hips).position;
+            var head = animator.GetBoneTransform(HumanBodyBones.Head).position;
+            var chair = RendererBounds(room.transform.Find("Visitor Chair").gameObject);
+            var bed = RendererBounds(room.transform.Find("Hospital Bed").gameObject);
+            var hipsOverSeat = new Vector2(hips.x - chair.center.x, hips.z - chair.center.z).magnitude;
+            var chairToBed = Vector2.Distance(new Vector2(chair.center.x, chair.center.z), new Vector2(bed.ClosestPoint(chair.center).x, bed.ClosestPoint(chair.center).z));
+
+            Check(animator.GetCurrentAnimatorStateInfo(0).IsName("Sitting"), $"{room.RoomName}: Animator plays Sitting");
+            Check(hips.y - floor > 0.3f && hips.y - floor < 0.75f, $"{room.RoomName}: hips at sitting height ({hips.y - floor:F2} m)");
+            Check(head.y - floor < 1.45f, $"{room.RoomName}: head lower than standing ({head.y - floor:F2} m)");
+            Check(hipsOverSeat < 0.3f, $"{room.RoomName}: hips above the chair seat ({hipsOverSeat:F2} m from its center)");
+            Check(chairToBed < 0.5f, $"{room.RoomName}: chair stands next to the bed ({chairToBed:F2} m)");
+        }
+
+        /// <summary>
+        /// World bounds of all renderers. In Play mode static batching replaces the meshes, so mesh-based bounds don't work.
+        /// </summary>
+        private static Bounds RendererBounds(GameObject go)
+        {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            var bounds = renderers[0].bounds;
+            foreach (var renderer in renderers)
+                bounds.Encapsulate(renderer.bounds);
+            return bounds;
         }
 
         /// <summary>

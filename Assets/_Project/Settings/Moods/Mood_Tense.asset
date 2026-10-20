@@ -17,5 +17,5 @@ MonoBehaviour:
   _lightColor: {r: 1, g: 0.8, b: 0.65, a: 1}
   _lightIntensity: 1.15
   _ambientColor: {r: 0.42, g: 0.34, b: 0.32, a: 1}
-  _music: {fileID: 0}
-  _musicVolume: 0.4
+  _sound: {fileID: 8300000, guid: 9d95888d6f52b8b4e867210b01487021, type: 3}
+  _soundVolume: 0.25
