@@ -61,6 +61,7 @@ Dependencies zoals `com.unity.xr.core-utils` en `com.unity.inputsystem` komen au
 ```
 Assets/
   _Project/                 alles van ons
+    Audio/Placeholder/      placeholder-geluiden per mood (gegenereerde tonen), zie sectie 10
     Dialogue/Scenarios/     scenario-data (Scenario assets), zie sectie 8
     Dialogue/Shifts/        shift-plannen (ShiftPlan assets), zie sectie 12
     Editor/                 editor-scripts (setup, tools), niet in de build
@@ -84,7 +85,7 @@ Assets/
   Settings/                 URP-assets van het template
 ```
 
-Volgens `CLAUDE.md` komen er later nog `Art/` en `Audio/` bij onder `_Project/`.
+Volgens `CLAUDE.md` komt er later nog `Art/` bij onder `_Project/`.
 Lege mappen zetten we niet in Git: maak ze aan zodra er iets in komt.
 Third-party assets blijven buiten `_Project/`. De personages van Liam staan in `Assets/Character/`
 (14 low-poly personages, Mixamo-animaties, zijn eigen setup-script `ProCommVR > Characters > Setup`).
@@ -239,7 +240,8 @@ alleen en somber). Te laten nakijken door content en de inhoudsexpert. Aanpassen
 ### Nog niet gebouwd
 
 Een echt NPC-model in `ScenarioTest` en `Scenario01_PatientRoom` (daar nog een capsule; de shift-scene in sectie 12
-gebruikt al de personages van Liam), opgenomen stemmen, de omgeving voor scenario 2 (gang), en echte muziek voor de moods.
+gebruikt al de personages van Liam), opgenomen stemmen, de omgeving voor scenario 2 (gang), en echte muziek of
+geluiden voor de moods (de infrastructuur staat, nu met placeholder-tonen, sectie 10).
 
 ## 9. Scoring en eindscherm
 
@@ -276,17 +278,22 @@ niets weet van licht, muziek, UI of bordjes.
 | Klasse | Wat |
 | --- | --- |
 | `Mood` (enum) | `Neutral`, `Tense`, `Somber`, `Happy` |
-| `MoodProfile` | Asset per mood: `Mood`, `Color` (de kleur van de mood: deurbordje en kamerlicht), `Light Color`, `Light Intensity`, `Ambient Color`, `Music` (optioneel, loopt) en `Music Volume` |
+| `MoodProfile` | Asset per mood: `Mood`, `Color` (de kleur van de mood: deurbordje en kamerlicht), `Light Color`, `Light Intensity`, `Ambient Color`, `Sound` (loopend geluid: muziek of ambiance, leeg = stilte) en `Sound Volume` |
 | `MoodController` | **Enkel data.** Houdt de huidige mood van één scene, kamer of patiënt bij (`CurrentMood`, `CurrentProfile`, `CurrentColor`) en meldt elke wijziging via het event `MoodChanged`. De mood komt van code (`ApplyMood`), van een gekoppelde `ScenarioPresenter` (volgt de mood van elk scenario dat start) of van `Initial Mood` bij de start |
-| `MoodAtmosphere` | Lezer: zet het hoofdlicht, het ambient licht en de muziek in 1,5 s op het profiel van de mood (dit deed vroeger de MoodController zelf) |
+| `MoodAtmosphere` | Lezer: zet het hoofdlicht en het ambient licht in 1,5 s op het profiel van de mood |
+| `MoodAudio` | Lezer: speelt de `Sound` van de mood op de AudioSource van zijn object en **kruisfadet** (2 s) naar het nieuwe geluid als de mood verandert. Maakt daarvoor zelf een kopie van die AudioSource, zodat oud en nieuw geluid even overlappen |
 | `MoodRoomLight` | Lezer: geeft één licht in een kamer de kleur van de mood (`Strength`: 0 = wit, 1 = de volle kleur) |
 | `RoomSign` | Lezer (sectie 12): het deurbordje toont de kleur van de mood naast de patiënt |
 
 - De profielen staan in `Assets/_Project/Settings/Moods/` (`Mood_Neutral` grijs, `Mood_Tense` oranje, `Mood_Somber`
-  blauw, `Mood_Happy` groen). Het zijn **placeholders**: kleur en licht, nog geen muziek.
+  blauw, `Mood_Happy` groen). Het zijn **placeholders**: kleur, licht en een placeholder-geluid.
+- **Placeholder-geluiden:** `Assets/_Project/Audio/Placeholder/Mood_<mood>_Placeholder.wav`, zachte gegenereerde tonen
+  van 6 s die naadloos loopen (Happy: majeurakkoord, Somber: laag mineurakkoord, Tense: dissonant met tremolo, Neutral:
+  zachte brom), volume 0,25. Geen echte muziek, geen licentie nodig. De Setup-builders vullen deze clip enkel in bij een
+  profiel waarvan `Sound` nog leeg is; een gekozen geluid wordt nooit overschreven.
 - In `ScenarioTest` en `Scenario01_PatientRoom` staat een **Mood Controller** (gekoppeld aan de presenter) met een
-  `MoodAtmosphere` en een AudioSource (2D, loop). Het tweede placeholder-scenario staat op `Tense`, dus in
-  `ScenarioTest` verandert het licht merkbaar bij "Next scenario".
+  `MoodAtmosphere`, een `MoodAudio` en een AudioSource (2D, loop). Het tweede placeholder-scenario staat op `Tense`, dus in
+  `ScenarioTest` veranderen licht en geluid merkbaar bij "Next scenario".
 - Het ambient licht wordt op **Flat** gezet zodra een `MoodAtmosphere` een mood toepast.
 - Een mood zonder profiel laat de mood ongewijzigd en geeft een waarschuwing in de Console.
 
@@ -300,15 +307,15 @@ wat het dimmen van het hoofdlicht deels tenietdoet. Wil je de mood duidelijker: 
 (lagere `Light Intensity`, donkerder `Ambient Color`) of gebruik een gekleurd kamerlicht met `MoodRoomLight`, zoals in
 de shift-scene.
 
-**Muziek toevoegen:** zet het audiobestand in `Assets/_Project/Audio/` (map aanmaken), selecteer
-het profiel in `Settings/Moods/` en sleep de clip in **Music**. Stel **Music Volume** in.
-Geen code nodig.
+**Geluid toevoegen of vervangen:** zet het audiobestand in `Assets/_Project/Audio/`, selecteer het profiel in
+`Settings/Moods/` en sleep de clip in **Sound**. Stel **Sound Volume** in. Geen code nodig; elke `MoodAudio` die deze mood
+toont speelt het nieuwe geluid. De clip hoeft in de importinstellingen niet op Loop te staan: `MoodAudio` loopt zelf.
 
 **Een nieuwe mood toevoegen** (bijvoorbeeld `Anxious`): voeg de waarde toe **achteraan** in
 `Mood.cs` (achteraan, anders schuiven de bestaande scenario's van mood), maak via
-**Create > ProCommVR > Mood Profile** een profiel, kies de nieuwe mood en zijn kleur, en sleep het profiel in
+**Create > ProCommVR > Mood Profile** een profiel, kies de nieuwe mood, zijn kleur en zijn geluid, en sleep het profiel in
 de lijst **Profiles** van elke Mood Controller die de mood moet kennen. De lezers (bordje, kamerlicht,
-atmosfeer) hoeven niet aangepast te worden.
+atmosfeer, geluid) hoeven niet aangepast te worden.
 
 **Performance (Quest 3):** de mood verandert enkel kleur en intensiteit van bestaande lichten,
 er komen geen extra lichten of schaduwen bij. Als de scenes later baked lighting gebruiken,
@@ -393,12 +400,18 @@ met placeholder-inhoud**: 5 keer Scenario 1, elke patiënt `Happy`.
 | Klasse | Wat |
 | --- | --- |
 | `ShiftPlan` | Asset (Create > ProCommVR > Shift Plan): de lijst **Tasks**. Taak 1 gaat naar de eerste kamer van de ShiftManager, taak 2 naar de tweede, ... |
-| `ShiftTask` | Eén patiënt: `Scenario`, `Patient Name` (leeg = de NPC-naam van het scenario) en `Patient Mood` |
-| `ShiftManager` | De gameloop: wijst de taken toe, `StartShift()`, timer (`Shift Duration` in seconden, nu 600 als testwaarde), einde bij alle taken klaar of tijd op, toont het Shift report. Events: `ShiftStarted`, `TaskCompleted`, `ShiftEnded` |
-| `PatientRoom` | Eén kamer: `Room Name`, eigen `ScenarioPresenter`, `MoodController` (het humeur van de patiënt) en `RoomSign`. Zet bij toewijzing de mood en het bordje, speelt het scenario bij de start en meldt `TaskCompleted` na "Finish" |
+| `ShiftTask` | Eén patiënt: `Patient Id` (uniek in het plan, bijvoorbeeld `patient-01`), `Scenario`, `Patient Name` (leeg = de NPC-naam van het scenario, enkel voor weergave) en `Patient Mood` |
+| `ShiftManager` | De gameloop: wijst de taken toe, `StartShift()`, timer (`Shift Duration` in seconden, nu 600 als testwaarde), einde bij alle taken klaar of tijd op, toont het Shift report. Houdt de voortgang bij **per patiënt-id**: `IsCompleted(patientId)`, `FindRoom(patientId)`, `SetPatientMood(patientId, mood)`. Events: `ShiftStarted`, `TaskCompleted`, `ShiftEnded` |
+| `PatientRoom` | Eén kamer: `Room Name`, eigen `ScenarioPresenter`, `MoodController` (het humeur van de patiënt) en `RoomSign`. `PatientId` = de id van de toegewezen taak. Zet bij toewijzing de mood en het bordje, speelt het scenario bij de start en meldt `TaskCompleted` na "Finish" |
 | `RoomSign` | Het deurbordje: kamer, patiënt, scenariotitel en een kleurvlak met de mood-kleur (leest de `MoodController`); toont "Cared for" na de taak |
 | `ShiftBoard` | Wereld-UI-paneel met de patiënten van de shift (Waiting / Cared for), de resterende tijd en de teller. Er staan er twee: in de briefing room en aan het einde van de gang |
 | `ShiftStartButton` | Op de computer: laser + trigger start de shift (XRSimpleInteractable). Het label erboven kleurt blauw als de laser erop staat |
+
+**Patiënt-id:** de weergavenaam mag overal hetzelfde zijn (nu 5 keer "Patient X" met 5 keer Scenario 1); intern
+onderscheidt het systeem de patiënten enkel op `Patient Id`. Een taak zonder id, met een dubbele id of zonder scenario
+geeft een waarschuwing in de Inspector (`ShiftPlan.OnValidate`) en wordt bij de start van de shift overgeslagen. Het
+placeholder-plan gebruikt `patient-01` tot `patient-05`. Echte content per patiënt (eigen scenario, mood, later
+dossiergegevens) hangt dus aan die id, niet aan de naam of de kamer.
 
 Ook nieuw: `NpcAnimationState` (`Scripts/Scenarios/`) speelt bij de start één state van de Animator van een personage,
 bijvoorbeeld `Sitting`. `ResultsScreen` kreeg `ShowText(subtitle, body)` zodat de shift zijn eigen rapport kan tonen.
@@ -412,15 +425,21 @@ bijvoorbeeld `Sitting`. `ResultsScreen` kreeg `ShowText(subtitle, body)` zodat d
   kamers 4 en 5. Elke kamer is 4 x 4 m met een deuropening van 1 m naar de gang en een raam in de buitenmuur.
   Plafond op 2,7 m.
 - **Briefing room:** bureau met de start-computer, bureaustoel, boekenkast, vergadertafel, kapstok, plant en een shift-bord.
-- **Patiëntenkamer:** ziekenhuisbed, infuuspaal en ladekast op wieltjes (GRADD), een stoel bij het raam waarin de
-  patiënt zit, een plafondlamp en het **mood-licht** (point light zonder schaduw, kleur via `MoodRoomLight`). Het
-  deurbordje hangt rechts van de deur aan de gangkant.
+- **Patiëntenkamer:** ziekenhuisbed, infuuspaal en ladekast op wieltjes (GRADD), een stoel naast het bed waarin de
+  patiënt zit, een plafondlamp, het **mood-licht** (point light zonder schaduw, kleur via `MoodRoomLight`) en het
+  **mood-geluid** (`Patient Mood` met `MoodAudio`: 3D, lineair hoorbaar tot 4 m, dus enkel in en net buiten de kamer).
+  Het deurbordje hangt rechts van de deur aan de gangkant.
 - **Patiënten:** de personages van Liam (`Patient_Male`, `Patient_Female_Old`, `Patient_Male_Old`, `Patient_Female`,
-  `Patient_Male_Old`), zittend (Animator-state `Sitting`). Scenario 1 laat de patiënt eigenlijk op de bedrand zitten;
-  hier zit hij in een stoel, omdat de Sitting-animatie op stoelhoogte gemaakt is. De `NpcReactor` draait de patiënt
+  `Patient_Male_Old`), zittend (Animator-state `Sitting`) op een stoel **naast het bed**, niet op de bedrand. Dat wijkt
+  af van de beslissing van 2026-10-19 (bedrand, voor de capsule in `Scenario01_PatientRoom`), om deze redenen: de
+  Sitting-animatie gaat uit van een zitting van ongeveer 0,45 m, de matras van het GRADD-bed ligt op 0,66 m en langs
+  beide lange zijden staan zijrails tot 0,65 à 0,83 m. Op de bedrand zou de patiënt met zwevende voeten in een rail
+  zitten. Gemeten in Play mode zitten de heupen op 0,50 à 0,57 m en het hoofd op 1,05 à 1,19 m (staand zijn de personages
+  1,7 à 1,9 m groot). Op de bedrand zitten kan later met een eigen animatie of een lager bed. De `NpcReactor` draait de patiënt
   bij een keuze naar de verpleegkundige toe (`Engaged`), weg (`TurnsAway`) of naar het raam (`Withdrawn`).
 - **Licht:** één directional light zonder schaduwen en een eigen `Ward Mood` (MoodController op `Neutral` +
-  MoodAtmosphere) voor het hoofdlicht en het ambient licht. De patiënt-moods kleuren enkel de kamerlichten en bordjes.
+  MoodAtmosphere) voor het hoofdlicht en het ambient licht, zonder geluid. De patiënt-moods kleuren de kamerlichten en
+  bordjes en bepalen het geluid per kamer.
 - **Colliders:** de Kenney-modellen hebben geen colliders. Er is één onzichtbare vloer-collider en per muurstuk een
   box-collider (deuropeningen blijven open), zodat de thumbstick-beweging binnen de muren blijft.
 
@@ -436,18 +455,21 @@ schaalt die (muren 10 cm dik) en draait ze een halve slag, zodat de voorkant de 
 **Performance (Quest 3), nog te controleren op de headset:** de builder logt het totale aantal driehoeken: 86.355
 voor de hele scene (richtwaarde ongeveer 100k), vooral de 5 GRADD-bedden. De personages zijn ongeveer 500 driehoeken.
 6 realtime lichten (1 directional + 5 point, geen schaduwen); elke kamer valt binnen het bereik van 1 point light.
-Structuur en meubels staan op Batching Static.
+Structuur en meubels staan op Batching Static. Geluid: 5 loopende 3D-bronnen (tijdens een crossfade even 2 per kamer),
+mono 22 kHz, buiten 4 m geruisloos.
 
 ### Uitbreiden
 
 - **Andere patiënten of scenario's:** open `Assets/_Project/Dialogue/Shifts/Shift_Placeholder.asset` en vul per taak
   een ander **Scenario**, **Patient Name** en **Patient Mood** in. Geen code nodig.
-- **Een andere mood per patiënt:** kies de mood in de taak. Bordje en kamerlicht volgen vanzelf (sectie 10).
+- **Een andere mood per patiënt:** kies de mood in de taak. Bordje, kamerlicht en geluid volgen vanzelf (sectie 10).
+  Tijdens het spel: `ShiftManager.SetPatientMood("patient-03", Mood.Somber)`.
+- **Een nieuwe patiënt in het plan:** geef hem een nieuwe, unieke **Patient Id**.
 - **Duur van de shift:** `Shift Duration` op de **Shift Manager** in de scene.
 - **Meer kamers:** voeg een kamer toe in de builder (of dupliceer een `Room N` in de scene) en sleep zijn
   `PatientRoom` in de lijst **Rooms** van de Shift Manager.
 - **Naar Liam's hospital:** de shift-scripts hangen niet aan deze layout. In een andere omgeving heb je per kamer een
-  `PatientRoom` nodig met een presenter, een MoodController en een RoomSign, plus een Shift Manager, een ShiftBoard,
+  `PatientRoom` nodig met een presenter, een MoodController (met MoodRoomLight en MoodAudio) en een RoomSign, plus een Shift Manager, een ShiftBoard,
   een object met `ShiftStartButton` en een ResultsScreen.
 
 ## 13. Automatische tests in Play mode
@@ -457,9 +479,9 @@ Structuur en meubels staan op Batching Static.
 
 | Test | Wat |
 | --- | --- |
-| `RunShiftLoop` | Een volledige shift in `ShiftHospital`: mood Happy in elke kamer (data, kamerlicht en bordje groen), start via de computer, per kamer: geen opties vanaf de deur, 4 opties binnen 1,5 m, keuze, "Finish", dan het eindscherm, beide borden op "Shift ended" en 5 / 5 |
+| `RunShiftLoop` | Een volledige shift in `ShiftHospital`: unieke patiënt-id's (ook met 5 keer dezelfde naam), mood Happy in elke kamer (data, kamerlicht en bordje groen, Happy-geluid 3D), elke patiënt **zichtbaar zittend** (Animator in `Sitting`, heupen tussen 0,3 en 0,75 m, hoofd onder 1,45 m, heupen boven de zitting van de stoel, stoel naast het bed), mood van één patiënt wijzigen via zijn id (enkel die kamer verandert, geluid kruisfadet), start via de computer, per kamer: geen opties vanaf de deur, 4 opties binnen 1,5 m, keuze, "Finish", voortgang per id, dan het eindscherm, beide borden op "Shift ended" en 5 / 5 |
 | `RunShiftTimeout` | Zelfde scene, de shift duurt 4 s: na 1 patiënt loopt de tijd af, het spel stopt met 1 / 5 en de andere kamers stoppen hun gesprek |
-| `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel |
+| `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel, en het Somber-geluid speelt |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
