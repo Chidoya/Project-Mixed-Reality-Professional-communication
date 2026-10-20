@@ -39,7 +39,8 @@ namespace ProCommVR.Shift
         [SerializeField] private ResultsScreen _resultsScreen;
 
         private readonly List<PatientRoom> _assignedRooms = new List<PatientRoom>();
-        private readonly HashSet<PatientRoom> _completedRooms = new HashSet<PatientRoom>();
+        private readonly Dictionary<string, PatientRoom> _roomsByPatient = new Dictionary<string, PatientRoom>();
+        private readonly HashSet<string> _completedPatients = new HashSet<string>();
 
         public ShiftState State { get; private set; } = ShiftState.Briefing;
         public ShiftEndReason EndReason { get; private set; }
@@ -51,7 +52,7 @@ namespace ProCommVR.Shift
         /// </summary>
         public IReadOnlyList<PatientRoom> AssignedRooms => _assignedRooms;
 
-        public int CompletedCount => _completedRooms.Count;
+        public int CompletedCount => _completedPatients.Count;
 
         public event Action ShiftStarted;
         public event Action<PatientRoom> TaskCompleted;
@@ -91,7 +92,35 @@ namespace ProCommVR.Shift
 
         public bool IsCompleted(PatientRoom room)
         {
-            return _completedRooms.Contains(room);
+            return room != null && room.PatientId != null && _completedPatients.Contains(room.PatientId);
+        }
+
+        public bool IsCompleted(string patientId)
+        {
+            return patientId != null && _completedPatients.Contains(patientId);
+        }
+
+        /// <summary>
+        /// The room of a patient this shift, or null.
+        /// </summary>
+        public PatientRoom FindRoom(string patientId)
+        {
+            return patientId != null && _roomsByPatient.TryGetValue(patientId, out var room) ? room : null;
+        }
+
+        /// <summary>
+        /// Changes the mood of one patient (door sign, room light and sound of that room follow).
+        /// </summary>
+        public bool SetPatientMood(string patientId, Mood mood)
+        {
+            var room = FindRoom(patientId);
+            if (room == null || room.MoodController == null)
+            {
+                Debug.LogWarning($"[ProCommVR] No patient '{patientId}' with a mood this shift.", this);
+                return false;
+            }
+            room.MoodController.ApplyMood(mood);
+            return true;
         }
 
         /// <summary>
@@ -130,24 +159,27 @@ namespace ProCommVR.Shift
             for (var i = 0; i < tasks.Count && i < _rooms.Length; i++)
             {
                 var room = _rooms[i];
-                if (room == null || tasks[i] == null || tasks[i].Scenario == null)
+                var problem = room == null ? $"Task {i + 1} has no room." : _plan.Validate(i);
+                if (problem != null)
                 {
-                    Debug.LogWarning($"[ProCommVR] Task {i + 1} has no room or no scenario; skipped.", this);
+                    Debug.LogWarning($"[ProCommVR] {problem} Skipped.", this);
                     continue;
                 }
                 room.Assign(tasks[i]);
                 room.TaskCompleted += OnTaskCompleted;
                 _assignedRooms.Add(room);
+                _roomsByPatient.Add(tasks[i].PatientId, room);
             }
         }
 
         private void OnTaskCompleted(PatientRoom room)
         {
-            if (State != ShiftState.Running || !_completedRooms.Add(room))
+            if (State != ShiftState.Running || !_completedPatients.Add(room.PatientId))
                 return;
 
+            Debug.Log($"[ProCommVR] {room.PatientId} ({room.RoomName}) cared for.", this);
             TaskCompleted?.Invoke(room);
-            if (_completedRooms.Count >= _assignedRooms.Count)
+            if (_completedPatients.Count >= _assignedRooms.Count)
                 EndShift(ShiftEndReason.AllTasksDone);
         }
 
@@ -158,7 +190,7 @@ namespace ProCommVR.Shift
             foreach (var room in _assignedRooms)
                 room.Close();
 
-            Debug.Log($"[ProCommVR] Shift ended ({reason}): {_completedRooms.Count} / {_assignedRooms.Count} patients cared for.", this);
+            Debug.Log($"[ProCommVR] Shift ended ({reason}): {_completedPatients.Count} / {_assignedRooms.Count} patients cared for.", this);
             if (_resultsScreen != null)
                 _resultsScreen.ShowText(BuildSubtitle(), BuildReport());
             ShiftEnded?.Invoke(reason);
@@ -176,7 +208,7 @@ namespace ProCommVR.Shift
                 best += room.Task.Scenario.BestScore;
             }
             var reason = EndReason == ShiftEndReason.TimeUp ? "Time is up" : "All patients cared for";
-            return $"{reason}. Patients cared for: {_completedRooms.Count} / {_assignedRooms.Count}. Score: {total} / {best}";
+            return $"{reason}. Patients cared for: {_completedPatients.Count} / {_assignedRooms.Count}. Score: {total} / {best}";
         }
 
         /// <summary>

@@ -170,6 +170,9 @@ namespace ProCommVR.Editor.Testing
             Check(profile != null && light.color == profile.LightColor && Mathf.Approximately(light.intensity, profile.LightIntensity),
                 "main light has the Somber color and intensity");
             Check(profile != null && RenderSettings.ambientLight == profile.AmbientColor, "ambient light has the Somber color");
+            var audio = UnityEngine.Object.FindAnyObjectByType<Atmosphere.MoodAudio>();
+            Check(audio != null && profile != null && audio.CurrentSource.isPlaying && audio.CurrentSource.clip == profile.Sound,
+                $"the Somber sound plays ({(audio != null && audio.CurrentSource.clip != null ? audio.CurrentSource.clip.name : "none")})");
         }
     }
 }

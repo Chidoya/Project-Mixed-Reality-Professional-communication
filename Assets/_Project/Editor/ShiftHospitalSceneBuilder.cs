@@ -339,9 +339,10 @@ namespace ProCommVR.Editor
             var drawers = Scenario01SceneBuilder.PlaceGradd(root, "Drawers On Wheels", "Drawers_on_Wheels_001", 0f);
             Scenario01SceneBuilder.Align(drawers, new Vector3(0.5f, 0f, 0.5f), room.Point(0.35f, 0f, 3.7f));
 
-            // Visitor chair by the window; the patient sits in it (placeholder for Scenario 1, where he sits on the bed).
-            var chairPosition = room.Point(-0.75f, 0f, 2.75f);
-            var patientFacing = room.Facing(0.5f, -1f);
+            // The patient sits in a chair beside the bed, not on the bed edge: the Sitting animation expects a seat of
+            // about 0.45 m, the mattress is 0.66 m high and the side rails (up to 0.83 m) run along both long sides.
+            var chairPosition = room.Point(0.3f, 0f, 2.9f);
+            var patientFacing = room.Facing(-0.3f, -1f);
             PlaceKenney(root, "chairCushion", "Visitor Chair", chairPosition, patientFacing, 0.9f, false);
             PlaceKenney(root, "pottedPlant", "Plant", room.Point(-1.2f, 0f, 0.4f), Quaternion.identity, 0.7f, false);
             PlaceKenney(root, "lampSquareCeiling", "Ceiling Lamp", room.Point(0.5f, WallHeight, 2f), Quaternion.identity, 0.5f, true);
@@ -352,6 +353,9 @@ namespace ProCommVR.Editor
             var moodObject = new GameObject("Patient Mood");
             moodObject.transform.SetParent(root, false);
             var mood = ScenarioTestSceneBuilder.AddMoodController(moodObject, null);
+            // The mood's sound, 3D and only audible in and right outside this room.
+            moodObject.transform.position = room.Point(0.5f, 1.5f, 2.2f);
+            ScenarioTestSceneBuilder.AddMoodAudio(moodObject, mood, true, 4f);
             var lightObject = new GameObject("Mood Light");
             lightObject.transform.SetParent(root, false);
             lightObject.transform.position = room.Point(0.5f, WallHeight - 0.3f, 2.4f);
@@ -565,13 +569,14 @@ namespace ProCommVR.Editor
         // ---- Assets ---------------------------------------------------------------------------------------------
 
         /// <summary>
-        /// The placeholder shift: Scenario 1 five times, every patient Happy.
+        /// The placeholder shift: Scenario 1 five times, every patient Happy, ids patient-01 to patient-05.
+        /// An existing plan is kept; only empty patient ids are filled in.
         /// </summary>
         private static ShiftPlan GetOrCreatePlan()
         {
             var plan = AssetDatabase.LoadAssetAtPath<ShiftPlan>(PlanPath);
             if (plan != null)
-                return plan;
+                return FillMissingPatientIds(plan);
 
             var scenario = ScenarioTestSceneBuilder.LoadRequired<Scenario>(ScenarioPath, "The Scenario 1 asset is missing.");
             XRTestSceneBuilder.EnsureFolder(System.IO.Path.GetDirectoryName(PlanPath));
@@ -584,6 +589,7 @@ namespace ProCommVR.Editor
             for (var i = 0; i < TaskCount; i++)
             {
                 var task = tasks.GetArrayElementAtIndex(i);
+                task.FindPropertyRelative("_patientId").stringValue = PatientId(i);
                 task.FindPropertyRelative("_scenario").objectReferenceValue = scenario;
                 task.FindPropertyRelative("_patientName").stringValue = "";
                 task.FindPropertyRelative("_patientMood").enumValueIndex = (int)Mood.Happy;
@@ -597,6 +603,26 @@ namespace ProCommVR.Editor
         /// The Kenney model inside an empty parent, so scaling and turning the parent works in world-aligned axes
         /// whatever rotation the model's own root has.
         /// </summary>
+        private static string PatientId(int index)
+        {
+            return $"patient-{index + 1:00}";
+        }
+
+        private static ShiftPlan FillMissingPatientIds(ShiftPlan plan)
+        {
+            var serialized = new SerializedObject(plan);
+            var tasks = serialized.FindProperty("_tasks");
+            for (var i = 0; i < tasks.arraySize; i++)
+            {
+                var id = tasks.GetArrayElementAtIndex(i).FindPropertyRelative("_patientId");
+                if (string.IsNullOrWhiteSpace(id.stringValue))
+                    id.stringValue = PatientId(i);
+            }
+            if (serialized.ApplyModifiedPropertiesWithoutUndo())
+                EditorUtility.SetDirty(plan);
+            return plan;
+        }
+
         private static GameObject InstantiateKenney(string model, Transform parent, string name)
         {
             var prefab = ScenarioTestSceneBuilder.LoadRequired<GameObject>($"{KenneyFolder}/{model}.fbx", "Kenney Furniture Kit missing, see CREDITS.md.");

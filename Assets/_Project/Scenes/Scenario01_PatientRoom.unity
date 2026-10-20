@@ -2079,6 +2079,7 @@ GameObject:
   - component: {fileID: 1140623303}
   - component: {fileID: 1140623302}
   - component: {fileID: 1140623305}
+  - component: {fileID: 1140623306}
   m_Layer: 0
   m_Name: Mood Controller
   m_TagString: Untagged
@@ -2232,8 +2233,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Atmosphere.MoodAtmosphere
   _moodController: {fileID: 1140623302}
   _light: {fileID: 342009779}
-  _musicSource: {fileID: 1140623303}
   _fadeDuration: 1.5
+--- !u!114 &1140623306
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1140623301}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 412386229ee9fc54fba689f225b5d1ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Atmosphere.MoodAudio
+  _moodController: {fileID: 1140623302}
+  _fadeDuration: 2
 --- !u!1001 &1148583724
 PrefabInstance:
   m_ObjectHideFlags: 0

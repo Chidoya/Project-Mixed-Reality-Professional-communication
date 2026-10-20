@@ -13,18 +13,23 @@ MonoBehaviour:
   m_Name: Shift_Placeholder
   m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Shift.ShiftPlan
   _tasks:
-  - _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
+  - _patientId: patient-01
+    _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
     _patientName: 
     _patientMood: 3
-  - _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
+  - _patientId: patient-02
+    _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
     _patientName: 
     _patientMood: 3
-  - _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
+  - _patientId: patient-03
+    _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
     _patientName: 
     _patientMood: 3
-  - _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
+  - _patientId: patient-04
+    _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
     _patientName: 
     _patientMood: 3
-  - _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
+  - _patientId: patient-05
+    _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
     _patientName: 
     _patientMood: 3

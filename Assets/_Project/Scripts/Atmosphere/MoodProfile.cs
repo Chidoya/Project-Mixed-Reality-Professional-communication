@@ -1,11 +1,12 @@
 using ProCommVR.Scenarios;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace ProCommVR.Atmosphere
 {
     /// <summary>
     /// What one <see cref="Mood"/> looks and sounds like: its color (door sign, room light), the main light,
-    /// ambient color and background music. Create one via Create > ProCommVR > Mood Profile and add it to
+    /// ambient color and a looping sound (music or ambience, played by <see cref="MoodAudio"/>). Create one via Create > ProCommVR > Mood Profile and add it to
     /// the MoodController(s) in the scene.
     /// </summary>
     [CreateAssetMenu(fileName = "NewMoodProfile", menuName = "ProCommVR/Mood Profile")]
@@ -24,17 +25,19 @@ namespace ProCommVR.Atmosphere
         [Tooltip("Flat ambient light color (fills the shadows).")]
         [SerializeField] private Color _ambientColor = new Color(0.5f, 0.5f, 0.5f);
 
-        [Header("Music")]
-        [Tooltip("Looping background music. Leave empty for silence.")]
-        [SerializeField] private AudioClip _music;
-        [SerializeField, Range(0f, 1f)] private float _musicVolume = 0.4f;
+        [Header("Sound (MoodAudio)")]
+        [Tooltip("Looping sound of this mood: music or ambience. Leave empty for silence.")]
+        [FormerlySerializedAs("_music")]
+        [SerializeField] private AudioClip _sound;
+        [FormerlySerializedAs("_musicVolume")]
+        [SerializeField, Range(0f, 1f)] private float _soundVolume = 0.4f;
 
         public Mood Mood => _mood;
         public Color Color => _color;
         public Color LightColor => _lightColor;
         public float LightIntensity => _lightIntensity;
         public Color AmbientColor => _ambientColor;
-        public AudioClip Music => _music;
-        public float MusicVolume => _musicVolume;
+        public AudioClip Sound => _sound;
+        public float SoundVolume => _soundVolume;
     }
 }
