@@ -42,6 +42,10 @@ namespace ProCommVR.Scenarios
         [Tooltip("Extra distance (meters) before visible options hide again, so they don't flicker at the edge of the range.")]
         [SerializeField, Min(0f)] private float _optionsHideMargin = 0.1f;
 
+        [Tooltip("Height of the player's head above the NPC's pivot (meters, min and max) within which the options can appear, " +
+                 "so an NPC on the floor right above or below the player doesn't show its options.")]
+        [SerializeField] private Vector2 _headHeightRange = new Vector2(-0.5f, 2.5f);
+
         [Tooltip("The player's head. Leave empty to use the main camera.")]
         [SerializeField] private Transform _player;
 
@@ -218,7 +222,9 @@ namespace ProCommVR.Scenarios
         {
             if (_npc == null || Player == null)
                 return true;
-            return HorizontalOffset(Player.position, _npc.position).magnitude <= range;
+            var headHeight = Player.position.y - _npc.position.y;
+            return HorizontalOffset(Player.position, _npc.position).magnitude <= range &&
+                   headHeight >= _headHeightRange.x && headHeight <= _headHeightRange.y;
         }
 
         /// <summary>

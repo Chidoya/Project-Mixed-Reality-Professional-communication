@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using ProCommVR.Atmosphere;
+using ProCommVR.Navigation;
 using ProCommVR.Scenarios;
 using ProCommVR.Shift;
 using Unity.XR.CoreUtils;
@@ -24,8 +25,8 @@ namespace ProCommVR.Editor.Testing
     /// <summary>
     /// Plays one shift in ShiftHospital the way a player would: a simulated headset and right controller
     /// (the XRI simulation devices that the XR Interaction Simulator also uses) point the laser at the start
-    /// computer and the dialogue bubbles and pull the trigger. The player is moved from room to room by
-    /// teleporting the XR Origin. Batchmode, without -quit:
+    /// computer, the lift buttons and the dialogue bubbles and pull the trigger. The player rides the lift to the
+    /// floor of each room and is moved from room to room by teleporting the XR Origin. Batchmode, without -quit:
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftLoop     (all 5 tasks, then results)
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftTimeout  (timer runs out after 1 task)
     /// Optional: -smokeTestScreenshots &lt;folder&gt; saves a few camera images along the way (needs graphics).
@@ -98,6 +99,8 @@ namespace ProCommVR.Editor.Testing
                     CheckMoodSound(room);
                 Check(Object.FindObjectsByType<MoodAudio>(FindObjectsSortMode.None).Length == rooms.Length, "only the patient rooms play a mood sound");
                 Screenshot("briefing");
+                var start = origin.transform.position;
+                var startRotation = _headRotation;
 
                 // One patient's mood changes: only that room follows (sign, light, crossfade to the new sound).
                 var changed = manager.AssignedRooms[2];
@@ -132,11 +135,6 @@ namespace ProCommVR.Editor.Testing
                     _headRotation = Quaternion.LookRotation(briefingBoard.transform.position - _headWorld);
                     yield return 1.5f;
                     Screenshot("briefing-board");
-                    var sign = rooms[1].GetComponentInChildren<RoomSign>().transform;
-                    _headWorld = sign.position - sign.forward * 1.6f + Vector3.up * 0.1f - sign.right * 0.6f;
-                    _headRotation = Quaternion.LookRotation(sign.position - _headWorld);
-                    yield return 0.3f;
-                    Screenshot("corridor-door-sign");
                 }
 
                 var toDo = timeout ? rooms.Take(1).ToArray() : rooms;
@@ -165,9 +163,9 @@ namespace ProCommVR.Editor.Testing
                 Check(results.gameObject.activeInHierarchy, "results screen is shown");
                 var body = results.GetComponentsInChildren<TMPro.TMP_Text>().Select(t => t.text).ToArray();
                 Log($"results: {string.Join(" | ", body).Replace("\n", " / ")}");
-                Check(body.Any(t => t.Contains("Room 5")), "results list every room");
+                Check(rooms.All(r => body.Any(t => t.Contains(r.RoomName))), "results list every room");
                 var boards = Object.FindObjectsByType<ShiftBoard>(FindObjectsSortMode.None);
-                Check(boards.Length == 2, "two shift boards");
+                Check(boards.Length == 3, $"three shift boards: lobby and the corridors of floor 1 and 2 (got {boards.Length})");
                 foreach (var board in boards)
                 {
                     var text = board.GetComponentInChildren<TMPro.TMP_Text>().text;
@@ -178,7 +176,11 @@ namespace ProCommVR.Editor.Testing
                 yield return 0.3f;
                 Screenshot(timeout ? "results-timeout" : "results");
 
-                // The game is over: the start computer does nothing any more.
+                // The game is over: back in the lobby, the start computer does nothing any more.
+                foreach (var step in RideLiftTo(origin, start.y))
+                    yield return step;
+                Teleport(origin, start, start);
+                _headRotation = startRotation;
                 foreach (var step in Click(startButton.GetComponent<Collider>().bounds.center, () => false, quiet: true))
                     yield return step;
                 Check(manager.State == ShiftState.Ended, "nothing restarts after the shift");
@@ -197,15 +199,28 @@ namespace ProCommVR.Editor.Testing
         {
             var patient = room.GetComponentInChildren<NpcReactor>().transform;
             var presenter = room.GetComponentInChildren<ScenarioPresenter>();
+            var first = manager.AssignedRooms[0] == room;
+            foreach (var step in RideLiftTo(origin, room.transform.position.y))
+                yield return step;
+
+            // The door sign in the corridor (screenshots only).
+            var sign = room.GetComponentInChildren<RoomSign>().transform;
+            if (first && !string.IsNullOrEmpty(_screenshotFolder))
+            {
+                _headWorld = sign.position - sign.forward * 1.6f + Vector3.up * 0.1f - sign.right * 0.6f;
+                _headRotation = Quaternion.LookRotation(sign.position - _headWorld);
+                yield return 0.3f;
+                Screenshot("corridor-door-sign");
+            }
 
             // From the doorway, look at the patient (and the NPC bubble).
-            var door = room.GetComponentInChildren<RoomSign>().transform.position;
+            var door = room.transform.position;
             Teleport(origin, Vector3.Lerp(patient.position, door, 0.75f), patient.position);
             yield return 0.4f;
             Check(ClickableBubbles(room).Length == 0, $"{room.RoomName}: no options from the doorway");
-            if (room.RoomName == "Room 1" && !string.IsNullOrEmpty(_screenshotFolder))
+            Screenshot($"{room.RoomName.ToLowerInvariant().Replace(' ', '-')}-doorway");
+            if (first && !string.IsNullOrEmpty(_screenshotFolder))
             {
-                Screenshot("room-doorway");
                 // Side view of the patient, to check the sitting pose (only when taking screenshots).
                 var side = Vector3.Cross(Vector3.up, Flat(patient.position - door)).normalized;
                 _headWorld = patient.position - side * 1.6f + Vector3.up * 1.2f;
@@ -226,7 +241,7 @@ namespace ProCommVR.Editor.Testing
             Check(options.Length == 4, $"{room.RoomName}: 4 options within 1.5 m (got {options.Length})");
             if (options.Length == 0)
                 yield break;
-            if (room.RoomName == "Room 1")
+            if (first)
                 Screenshot("room-options");
 
             var option = options[Array.IndexOf(manager.AssignedRooms.ToArray(), room) % options.Length];
@@ -241,7 +256,7 @@ namespace ProCommVR.Editor.Testing
             Check(finish.Length == 1, $"{room.RoomName}: one Finish bubble after the choice");
             if (finish.Length == 0)
                 yield break;
-            if (room.RoomName == "Room 1")
+            if (first)
                 Screenshot("room-reaction");
 
             foreach (var step in Click(Center(finish[0]), () => manager.IsCompleted(room)))
@@ -290,8 +305,8 @@ namespace ProCommVR.Editor.Testing
             var floor = room.transform.position.y;
             var hips = animator.GetBoneTransform(HumanBodyBones.Hips).position;
             var head = animator.GetBoneTransform(HumanBodyBones.Head).position;
-            var chair = RendererBounds(room.transform.Find("Visitor Chair").gameObject);
-            var bed = RendererBounds(room.transform.Find("Hospital Bed").gameObject);
+            var chair = RendererBounds(room.transform.Find("Furniture/Chair").gameObject);
+            var bed = RendererBounds(room.transform.Find("Furniture/Bed").gameObject);
             var hipsOverSeat = new Vector2(hips.x - chair.center.x, hips.z - chair.center.z).magnitude;
             var chairToBed = Vector2.Distance(new Vector2(chair.center.x, chair.center.z), new Vector2(bed.ClosestPoint(chair.center).x, bed.ClosestPoint(chair.center).z));
 
@@ -300,6 +315,37 @@ namespace ProCommVR.Editor.Testing
             Check(head.y - floor < 1.45f, $"{room.RoomName}: head lower than standing ({head.y - floor:F2} m)");
             Check(hipsOverSeat < 0.3f, $"{room.RoomName}: hips above the chair seat ({hipsOverSeat:F2} m from its center)");
             Check(chairToBed < 0.5f, $"{room.RoomName}: chair stands next to the bed ({chairToBed:F2} m)");
+        }
+
+        /// <summary>
+        /// Rides the lift when the player is on another floor than floorY: walks (teleports) to the lift panel on the
+        /// current floor and points the laser at the button of the target floor.
+        /// </summary>
+        private static IEnumerable RideLiftTo(XROrigin origin, float floorY)
+        {
+            var current = origin.transform.position.y;
+            if (Mathf.Abs(current - floorY) < 0.5f)
+                yield break;
+
+            var button = Object.FindObjectsByType<LiftButton>(FindObjectsSortMode.None).FirstOrDefault(b =>
+                b.transform.position.y > current && b.transform.position.y < current + 2.5f && Mathf.Abs(b.Destination.position.y - floorY) < 0.1f);
+            Check(button != null, $"a lift button on the floor at {current:F1} m to the floor at {floorY:F1} m");
+            if (button == null)
+                yield break;
+
+            var panel = button.transform.position;
+            Teleport(origin, new Vector3(panel.x + 0.9f, 0f, panel.z), panel - Vector3.up * 1.2f);
+            yield return 0.3f;
+            foreach (var step in Click(button.GetComponent<Collider>().bounds.center, () => Mathf.Abs(origin.transform.position.y - floorY) < 0.15f))
+                yield return step;
+            Check(Mathf.Abs(origin.transform.position.y - floorY) < 0.15f,
+                $"lift button {button.name} takes the player to the floor at {floorY:F1} m (origin at {origin.transform.position.y:F2} m)");
+
+            // The simulated head follows the player to the new floor, looking out of the lift.
+            var arrived = origin.transform.position;
+            Teleport(origin, arrived, arrived + button.Destination.forward * 3f);
+            yield return 0.3f;
+            Screenshot($"lift-arrival-{button.Destination.name.Replace("Arrival ", "").ToLowerInvariant()}");
         }
 
         /// <summary>
@@ -328,7 +374,19 @@ namespace ProCommVR.Editor.Testing
             while (!done() && EditorApplication.timeSinceStartup < waitUntil)
                 yield return null;
             if (!done() && !quiet)
-                Log($"click at {target} had no effect; controller at {ControllerWorld()}. {DescribeInteractors()}");
+                Log($"click at {target} had no effect; controller at {ControllerWorld()}. {DescribeBlockers(target)} {DescribeInteractors()}");
+        }
+
+        /// <summary>
+        /// The colliders between the controller and the target, which would catch the ray before it reaches the target.
+        /// </summary>
+        private static string DescribeBlockers(Vector3 target)
+        {
+            var from = ControllerWorld();
+            var hits = Physics.RaycastAll(from, target - from, Vector3.Distance(from, target) - 0.01f, ~0, QueryTriggerInteraction.Collide)
+                .OrderBy(h => h.distance)
+                .Select(h => $"{h.collider.transform.parent?.name}/{h.collider.name} at {h.distance:F2} m");
+            return $"Colliders on the way: [{string.Join(", ", hits)}].";
         }
 
         private static string DescribeInteractors()

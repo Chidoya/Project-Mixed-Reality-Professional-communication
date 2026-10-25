@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using ProCommVR.Atmosphere;
+using ProCommVR.Navigation;
 using ProCommVR.Scenarios;
 using ProCommVR.Shift;
 using TMPro;
@@ -7,7 +10,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.Rendering;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.UI;
@@ -15,34 +17,38 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 namespace ProCommVR.Editor
 {
     /// <summary>
-    /// Builds ShiftHospital: a small hospital ward for the shift game loop. A corridor with a briefing room and
-    /// five patient rooms, built from the Kenney Furniture Kit (walls, floors, furniture); hospital-specific props
-    /// (bed, IV pole, drawers) come from the GRADD set, the patients are Liam's characters (Assets/Character).
+    /// Builds ShiftHospital: the shift game loop in Liam's hospital. Opens Liam's scene (built by
+    /// ProCommVR > Hospital > Build) as a template, adds the shift and saves the result as ShiftHospital; Liam's
+    /// scene itself is not saved. The lobby is the briefing room (start computer on the reception desk), the
+    /// patients are in rooms 1A-1C (floor 1) and 2A-2B (floor 2), and the lift buttons take the player between floors.
     /// Also creates the placeholder shift plan (Scenario 1 five times).
     /// Batchmode: -executeMethod ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene
-    /// Requires the prefabs from ScenarioTestSceneBuilder (bubble, results screen) and the XR rig variant.
-    ///
-    /// Layout (meters, y up): corridor x 0..12, z 0..2.5. North of it rooms 1-3 (z 2.5..6.5), south of it the
-    /// briefing room (x 0..4) and rooms 4-5 (z -4..0). Every room is 4 x 4 m with a 1 m doorway to the corridor.
+    /// Requires the prefabs from ScenarioTestSceneBuilder (bubble, results screen), the XR rig variant and Liam's scene.
     /// </summary>
     public static class ShiftHospitalSceneBuilder
     {
+        private const string HospitalScenePath = "Assets/Scenes/liam_test_scene.unity";
         private const string ScenePath = "Assets/_Project/Scenes/ShiftHospital.unity";
         private const string PlanPath = "Assets/_Project/Dialogue/Shifts/Shift_Placeholder.asset";
         private const string ScenarioPath = "Assets/_Project/Dialogue/Scenarios/Scenario01_DisappointedPatient.asset";
         private const string ResultsPrefabPath = "Assets/_Project/Prefabs/UI/ResultsScreen.prefab";
-        private const string MaterialFolder = "Assets/_Project/Materials/Hospital";
         private const string KenneyFolder = "Assets/ThirdParty/Kenney/FurnitureKit";
         private const string CharacterFolder = "Assets/Character";
 
-        private const float RoomSize = 4f;
-        private const float CorridorWidth = 2.5f;
-        private const float WallHeight = 2.7f;
-        private const float OpeningWidth = 1f;
-        private const float ColliderThickness = 0.15f;
-        private const float KenneyDepthScale = 0.2f; // Kenney walls are 10 units wide and 0.5 deep: 0.2 makes them 10 cm thick
-        private const int Columns = 3;
+        // Layout of Liam's hospital (HospitalBuilder): a root "Hospital" with the levels "Lobby", "Floor1".."Floor3",
+        // 3.5 m apart. The lift is in the west wall (x = 0) at z = 1.5, the corridors run along +x.
+        private const string HospitalRootName = "Hospital";
+        private const float FloorHeight = 3.5f;
+        private const int FloorCount = 3;
+        private const float LiftCenterZ = 1.5f;
+        private const float LiftArrivalX = 1.2f;
+        private const float CorridorBoardX = 9f;    // opposite door B, between the staff Liam placed in the corridors
+        private const float LobbyBoardX = 7.3f;     // on the north wall behind the reception desk, right of the "Lobby" sign
+        private const float LobbyBoardScale = 1.4f; // read from the start position, about 3 m away
         private const int TaskCount = 5;
+
+        // The shift rooms, in task order: task 1 goes to room 1A, ... The other rooms keep Liam's cards.
+        private static readonly string[] RoomLabels = { "1A", "1B", "1C", "2A", "2B" };
 
         // One patient model per room; the shift plan uses Scenario 1 everywhere for now.
         private static readonly string[] PatientModels =
@@ -50,50 +56,29 @@ namespace ProCommVR.Editor
 
         private static readonly Color TextColor = new Color(0.12f, 0.12f, 0.14f);
 
-        /// <summary>
-        /// A room seen from its doorway: origin in the middle of the doorway, Forward into the room, Right along the
-        /// corridor (+x, so rooms on both sides share the same lx range -1.5..2.5). lz runs 0..4 from door to back wall.
-        /// </summary>
-        private readonly struct RoomFrame
-        {
-            public RoomFrame(Vector3 door, Vector3 forward)
-            {
-                Door = door;
-                Forward = forward;
-            }
-
-            public Vector3 Door { get; }
-            public Vector3 Forward { get; }
-            public Vector3 Right => Vector3.right;
-
-            public Vector3 Point(float lx, float y, float lz) => Door + Right * lx + Vector3.up * y + Forward * lz;
-
-            /// <summary>
-            /// Rotation that looks along a direction given in room coordinates.
-            /// </summary>
-            public Quaternion Facing(float dx, float dz) => Quaternion.LookRotation(Right * dx + Forward * dz, Vector3.up);
-        }
-
         [MenuItem("ProCommVR/Setup/8. Build Shift Hospital")]
         public static void BuildScene()
         {
-            // Create the scene first: NewScene unloads assets that were loaded before it.
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            if (!File.Exists(HospitalScenePath))
+                throw new FileNotFoundException($"[ProCommVR] Liam's hospital scene is missing. Pull it from Liam's branch.", HospitalScenePath);
+
+            // Open the scene first: opening a scene unloads assets that were loaded before it.
+            var scene = EditorSceneManager.OpenScene(HospitalScenePath, OpenSceneMode.Single);
+            var hospital = scene.GetRootGameObjects().FirstOrDefault(g => g.name == HospitalRootName)?.transform;
+            if (hospital == null)
+                throw new System.InvalidOperationException($"[ProCommVR] No '{HospitalRootName}' in {HospitalScenePath}. Run 'ProCommVR > Hospital > Build' first.");
 
             var rigVariant = ScenarioTestSceneBuilder.LoadRequired<GameObject>(ScenarioTestSceneBuilder.RigVariantPath, "Run 'Build XR Test Scene' first.");
             var resultsPrefab = ScenarioTestSceneBuilder.LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
             var plan = GetOrCreatePlan();
 
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.5f, 0.5f, 0.52f);
-            var lightObject = new GameObject("Directional Light");
-            lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            var sun = lightObject.AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.shadows = LightShadows.None;
+            // The XR rig brings its own camera.
+            foreach (var camera in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+                Object.DestroyImmediate(camera.gameObject);
 
             // The ward's own mood (Neutral) sets the main light and ambient light at runtime, through the same mood
             // system as the scenario scenes. The patient moods only color the room lights and door signs.
+            var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
             var wardMood = new GameObject("Ward Mood");
             var mood = ScenarioTestSceneBuilder.AddMoodController(wardMood, null);
             var serializedMood = new SerializedObject(mood);
@@ -102,23 +87,23 @@ namespace ProCommVR.Editor
             serializedMood.ApplyModifiedPropertiesWithoutUndo();
             ScenarioTestSceneBuilder.AddMoodAtmosphere(wardMood, mood, sun);
 
-            var building = new GameObject("Building").transform;
-            BuildShell(building);
-
-            var briefing = new RoomFrame(new Vector3(1.5f, 0f, 0f), Vector3.back);
+            var shift = new GameObject("Shift").transform;
             var shiftManager = new GameObject("Shift Manager").AddComponent<ShiftManager>();
-            BuildBriefingRoom(building, briefing, shiftManager);
+            var start = BuildBriefing(hospital, shift, shiftManager);
 
             var rooms = new List<PatientRoom>();
-            var number = 1;
-            for (var column = 0; column < Columns; column++)
-                rooms.Add(BuildPatientRoom(building, number++, new RoomFrame(new Vector3(column * RoomSize + 1.5f, 0f, CorridorWidth), Vector3.forward)));
-            for (var column = 1; column < Columns; column++)
-                rooms.Add(BuildPatientRoom(building, number++, new RoomFrame(new Vector3(column * RoomSize + 1.5f, 0f, 0f), Vector3.back)));
+            for (var i = 0; i < RoomLabels.Length; i++)
+                rooms.Add(BuildPatientRoom(hospital, i, RoomLabels[i]));
+            CloseOtherDoors(hospital);
+            BuildLift(hospital, shift);
 
-            // A second shift board at the east end of the corridor, readable while walking between the rooms.
-            BuildShiftBoard(building, "Shift Board (corridor)", shiftManager,
-                new Vector3(Columns * RoomSize - 0.08f, 1.55f, CorridorWidth * 0.5f), Quaternion.LookRotation(Vector3.right));
+            // A shift board in the corridor of every floor with patients, readable while walking between the rooms.
+            foreach (var floor in RoomLabels.Select(FloorOf).Distinct())
+            {
+                var wall = RendererBounds(RequireChild(hospital, $"Floor{floor}/Wall_South").gameObject);
+                BuildShiftBoard(shift, $"Shift Board (floor {floor})", shiftManager,
+                    new Vector3(CorridorBoardX, floor * FloorHeight + 1.55f, wall.max.z + 0.02f), Quaternion.LookRotation(Vector3.back));
+            }
 
             var results = (GameObject)PrefabUtility.InstantiatePrefab(resultsPrefab, scene);
             results.SetActive(false);
@@ -138,177 +123,48 @@ namespace ProCommVR.Editor
                 roomList.GetArrayElementAtIndex(i).objectReferenceValue = rooms[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            // The player starts in the briefing room, facing the desk with the computer that starts the shift.
+            // The player starts in the lobby, facing the reception desk with the computer that starts the shift.
             var rig = (GameObject)PrefabUtility.InstantiatePrefab(rigVariant, scene);
-            rig.transform.SetPositionAndRotation(briefing.Point(0.3f, 0f, 1.4f), briefing.Facing(0f, 1f));
+            rig.transform.SetPositionAndRotation(start, Quaternion.LookRotation(Vector3.forward));
             new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
 
-            MarkStatic(building);
             Debug.Log($"[ProCommVR] Shift hospital built: {CountTriangles()} triangles in the scene (Quest 3 target: under about 100k).");
+            // Saved under a new path: Liam's scene on disk stays as it is.
             ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);
         }
 
-        // ---- Shell: floors, walls, ceiling, colliders ----------------------------------------------------------
+        // ---- Briefing (lobby) ---------------------------------------------------------------------------------
 
-        private static void BuildShell(Transform building)
+        /// <summary>
+        /// The lobby is the briefing room: the start computer on the visitor side of the reception desk and a shift
+        /// board on the north wall. Returns the start position of the player, in front of the desk.
+        /// </summary>
+        private static Vector3 BuildBriefing(Transform hospital, Transform shift, ShiftManager shiftManager)
         {
-            var shell = new GameObject("Shell").transform;
-            shell.SetParent(building, false);
-            var width = Columns * RoomSize;
-            var south = -RoomSize;
-            var north = CorridorWidth + RoomSize;
+            var root = new GameObject("Briefing (lobby)").transform;
+            root.SetParent(shift, false);
 
-            // Floors: one scaled Kenney tile per room and one for the corridor.
-            for (var column = 0; column < Columns; column++)
-            {
-                PlaceFloor(shell, $"Floor Room North {column + 1}", column * RoomSize, CorridorWidth, RoomSize, RoomSize);
-                PlaceFloor(shell, $"Floor Room South {column + 1}", column * RoomSize, south, RoomSize, RoomSize);
-            }
-            PlaceFloor(shell, "Floor Corridor", 0f, 0f, width, CorridorWidth);
+            var desk = Scenario01SceneBuilder.TightBounds(RequireChild(hospital, "Lobby/Furniture/ReceptionDesk").gameObject);
+            BuildStartComputer(root, desk, shiftManager);
 
-            // Doorway centers along the corridor walls, windows in the outer walls (one per room, beside the bed).
-            var doors = new float[Columns];
-            var windows = new float[Columns];
-            for (var column = 0; column < Columns; column++)
-            {
-                doors[column] = column * RoomSize + 1.5f;
-                windows[column] = column * RoomSize + 1f;
-            }
+            var northWall = RendererBounds(RequireChild(hospital, "Lobby/Wall_North").gameObject);
+            var board = BuildShiftBoard(root, "Shift Board (briefing)", shiftManager,
+                new Vector3(LobbyBoardX, 1.9f, northWall.min.z - 0.02f), Quaternion.LookRotation(Vector3.forward));
+            board.localScale *= LobbyBoardScale;
 
-            var walls = new GameObject("Walls").transform;
-            walls.SetParent(shell, false);
-            BuildWallRun(walls, "Corridor Wall North", new Vector3(0f, 0f, CorridorWidth), new Vector3(width, 0f, CorridorWidth), doors, null);
-            BuildWallRun(walls, "Corridor Wall South", new Vector3(0f, 0f, 0f), new Vector3(width, 0f, 0f), doors, null);
-            BuildWallRun(walls, "Outer Wall North", new Vector3(0f, 0f, north), new Vector3(width, 0f, north), null, windows);
-            BuildWallRun(walls, "Outer Wall South", new Vector3(0f, 0f, south), new Vector3(width, 0f, south), null, windows);
-            BuildWallRun(walls, "Outer Wall West", new Vector3(0f, 0f, south), new Vector3(0f, 0f, north), null, null);
-            BuildWallRun(walls, "Outer Wall East", new Vector3(width, 0f, south), new Vector3(width, 0f, north), null, null);
-            for (var column = 1; column < Columns; column++)
-            {
-                var x = column * RoomSize;
-                BuildWallRun(walls, $"Room Wall North {column}", new Vector3(x, 0f, CorridorWidth), new Vector3(x, 0f, north), null, null);
-                BuildWallRun(walls, $"Room Wall South {column}", new Vector3(x, 0f, south), new Vector3(x, 0f, 0f), null, null);
-            }
-
-            var ceiling = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ceiling.name = "Ceiling";
-            ceiling.transform.SetParent(shell, false);
-            ceiling.transform.SetPositionAndRotation(new Vector3(width * 0.5f, WallHeight, (south + north) * 0.5f), Quaternion.Euler(180f, 0f, 0f));
-            ceiling.transform.localScale = new Vector3(width / 10f, 1f, (north - south) / 10f);
-            Object.DestroyImmediate(ceiling.GetComponent<Collider>());
-            ceiling.GetComponent<Renderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial($"{MaterialFolder}/Ceiling.mat", new Color(0.93f, 0.93f, 0.91f));
-
-            var floorCollider = new GameObject("Floor Collider").AddComponent<BoxCollider>();
-            floorCollider.transform.SetParent(shell, false);
-            floorCollider.transform.position = new Vector3(width * 0.5f, -0.1f, (south + north) * 0.5f);
-            floorCollider.size = new Vector3(width, 0.2f, north - south);
-
-            // Corridor ceiling lamps (visual only, the light comes from the directional light and ambient).
-            for (var x = 2f; x < width; x += 4f)
-                PlaceKenney(shell, "lampSquareCeiling", "Corridor Lamp", new Vector3(x, WallHeight, CorridorWidth * 0.5f), Quaternion.identity, 0.5f, true);
-        }
-
-        private static void PlaceFloor(Transform parent, string name, float x, float z, float sizeX, float sizeZ)
-        {
-            var floor = InstantiateKenney("floorFull", parent, name);
-            var size = Scenario01SceneBuilder.TightBounds(floor).size;
-            floor.transform.localScale = Vector3.Scale(floor.transform.localScale, new Vector3(sizeX / size.x, KenneyDepthScale, sizeZ / size.z));
-            Scenario01SceneBuilder.Align(floor, new Vector3(0.5f, 1f, 0.5f), new Vector3(x + sizeX * 0.5f, 0f, z + sizeZ * 0.5f));
+            return new Vector3(desk.center.x, 0f, desk.min.z - 1.3f);
         }
 
         /// <summary>
-        /// A straight wall from start to end: solid Kenney wall pieces, with a 1 m doorway piece at every door
-        /// and a 1 m window piece at every window (distances measured from start along the wall). Adds box colliders
-        /// for the solid parts and windows.
+        /// The computer on the desk, facing the player (south): point at it with the controller ray and pull the
+        /// trigger to start the shift.
         /// </summary>
-        private static void BuildWallRun(Transform parent, string name, Vector3 start, Vector3 end, float[] doors, float[] windows)
+        private static void BuildStartComputer(Transform parent, Bounds desk, ShiftManager shiftManager)
         {
-            var run = new GameObject(name).transform;
-            run.SetParent(parent, false);
-            var direction = (end - start).normalized;
-            var length = Vector3.Distance(start, end);
-
-            var openings = new List<(float Center, string Model)>();
-            if (doors != null)
-                foreach (var door in doors)
-                    openings.Add((AlongRun(start, direction, door), "wallDoorway"));
-            if (windows != null)
-                foreach (var window in windows)
-                    openings.Add((AlongRun(start, direction, window), "wallWindow"));
-            openings.Sort((a, b) => a.Center.CompareTo(b.Center));
-
-            var cursor = 0f;
-            foreach (var (center, model) in openings)
-            {
-                PlaceWallPiece(run, "wall", start, direction, cursor, center - OpeningWidth * 0.5f, true);
-                PlaceWallPiece(run, model, start, direction, center - OpeningWidth * 0.5f, center + OpeningWidth * 0.5f, model == "wallWindow");
-                cursor = center + OpeningWidth * 0.5f;
-            }
-            PlaceWallPiece(run, "wall", start, direction, cursor, length, true);
-        }
-
-        /// <summary>
-        /// Converts a world x or z coordinate of an opening into a distance along the run.
-        /// </summary>
-        private static float AlongRun(Vector3 start, Vector3 direction, float coordinate)
-        {
-            return Mathf.Abs(direction.x) > 0.5f ? (coordinate - start.x) * Mathf.Sign(direction.x) : (coordinate - start.z) * Mathf.Sign(direction.z);
-        }
-
-        private static void PlaceWallPiece(Transform parent, string model, Vector3 start, Vector3 direction, float from, float to, bool collider)
-        {
-            var length = to - from;
-            if (length < 0.01f)
-                return;
-
-            var piece = InstantiateKenney(model, parent, model);
-            // Kenney wall pieces are modelled along x; scale to the segment length and the wall height, then turn.
-            var size = Scenario01SceneBuilder.TightBounds(piece).size;
-            piece.transform.localScale = Vector3.Scale(piece.transform.localScale, new Vector3(length / size.x, WallHeight / size.y, KenneyDepthScale));
-            piece.transform.rotation = Quaternion.FromToRotation(Vector3.right, direction) * piece.transform.rotation;
-            var middle = start + direction * ((from + to) * 0.5f);
-            Scenario01SceneBuilder.Align(piece, new Vector3(0.5f, 0f, 0.5f), middle);
-
-            if (!collider)
-                return;
-            var box = new GameObject($"{model} Collider").AddComponent<BoxCollider>();
-            box.transform.SetParent(parent, false);
-            box.transform.SetPositionAndRotation(middle + Vector3.up * WallHeight * 0.5f, Quaternion.FromToRotation(Vector3.right, direction));
-            box.size = new Vector3(length, WallHeight, ColliderThickness);
-        }
-
-        // ---- Rooms ------------------------------------------------------------------------------------------
-
-        private static void BuildBriefingRoom(Transform building, RoomFrame room, ShiftManager shiftManager)
-        {
-            var root = new GameObject("Briefing Room").transform;
-            root.SetParent(building, false);
-
-            // Desk against the back wall with the computer that starts the shift.
-            var desk = PlaceKenney(root, "desk", "Desk", room.Point(0.3f, 0f, 3.55f), room.Facing(0f, -1f), 0.76f, false);
-            var deskTop = Scenario01SceneBuilder.TightBounds(desk).max.y;
-            PlaceKenney(root, "chairDesk", "Desk Chair", room.Point(0.3f, 0f, 2.85f), room.Facing(0f, 1f), 0.9f, false);
-            BuildStartComputer(root, room, deskTop, shiftManager);
-
-            PlaceKenney(root, "bookcaseClosedWide", "Bookcase", room.Point(-1.2f, 0f, 2.6f), room.Facing(1f, 0f), 1.9f, false);
-            PlaceKenney(root, "table", "Meeting Table", room.Point(1.4f, 0f, 1.6f), room.Facing(0f, 1f), 0.75f, false);
-            PlaceKenney(root, "chair", "Meeting Chair", room.Point(1.4f, 0f, 1.0f), room.Facing(0f, 1f), 0.9f, false);
-            PlaceKenney(root, "chair", "Meeting Chair", room.Point(1.4f, 0f, 2.2f), room.Facing(0f, -1f), 0.9f, false);
-            PlaceKenney(root, "coatRackStanding", "Coat Rack", room.Point(-1.2f, 0f, 0.4f), room.Facing(1f, 0f), 1.8f, false);
-            PlaceKenney(root, "pottedPlant", "Plant", room.Point(2.2f, 0f, 3.7f), Quaternion.identity, 0.8f, false);
-            PlaceKenney(root, "lampSquareCeiling", "Ceiling Lamp", room.Point(0.5f, WallHeight, 2f), Quaternion.identity, 0.5f, true);
-
-            // The shift board on the right-hand wall, readable from the start position.
-            BuildShiftBoard(root, "Shift Board (briefing)", shiftManager, room.Point(2.42f, 1.5f, 2.3f), room.Facing(1f, 0f));
-        }
-
-        /// <summary>
-        /// The computer on the desk: point at it with the controller ray and pull the trigger to start the shift.
-        /// </summary>
-        private static void BuildStartComputer(Transform parent, RoomFrame room, float deskTop, ShiftManager shiftManager)
-        {
-            var screen = PlaceKenney(parent, "computerScreen", "Computer (start shift)", room.Point(0.3f, deskTop, 3.65f), room.Facing(0f, -1f), 0.45f, false);
-            PlaceKenney(parent, "computerKeyboard", "Keyboard", room.Point(0.3f, deskTop, 3.4f), room.Facing(0f, -1f), 0.03f, false);
+            var towardPlayer = Quaternion.LookRotation(Vector3.back);
+            var screen = PlaceKenney(parent, "computerScreen", "Computer (start shift)",
+                new Vector3(desk.center.x, desk.max.y, desk.center.z + 0.05f), towardPlayer, 0.45f, false);
+            PlaceKenney(parent, "computerKeyboard", "Keyboard", new Vector3(desk.center.x, desk.max.y, desk.min.z + 0.15f), towardPlayer, 0.03f, false);
 
             var bounds = Scenario01SceneBuilder.TightBounds(screen);
             var collider = screen.AddComponent<BoxCollider>();
@@ -317,7 +173,8 @@ namespace ProCommVR.Editor
             collider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
             screen.AddComponent<XRSimpleInteractable>();
 
-            var label = CreateWorldText(parent, "Start Shift Label", room.Point(0.3f, bounds.max.y + 0.2f, 3.6f), room.Facing(0f, 1f), 0.6f);
+            var label = CreateWorldText(parent, "Start Shift Label", new Vector3(bounds.center.x, bounds.max.y + 0.2f, bounds.center.z),
+                Quaternion.LookRotation(Vector3.forward), 0.6f);
             var button = screen.AddComponent<ShiftStartButton>();
             var serialized = new SerializedObject(button);
             serialized.FindProperty("_shiftManager").objectReferenceValue = shiftManager;
@@ -325,61 +182,62 @@ namespace ProCommVR.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static PatientRoom BuildPatientRoom(Transform building, int number, RoomFrame room)
+        // ---- Patient rooms --------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Turns one of Liam's rooms into a shift room. Liam's room has its origin in the middle of the doorway,
+        /// forward into the room, the bed against the back wall, a chair right of the bed and the window in the right
+        /// wall. The room keeps its furniture and light; Liam's patient card and patient for this door make way
+        /// for the door sign and the patient of the shift.
+        /// </summary>
+        private static PatientRoom BuildPatientRoom(Transform hospital, int index, string label)
         {
-            var root = new GameObject($"Room {number}").transform;
-            root.SetParent(building, false);
+            var floor = $"Floor{FloorOf(label)}";
+            var room = RequireChild(hospital, $"{floor}/Room_{label}");
 
-            // Hospital bed (GRADD) with the head end against the back wall, IV pole and drawers beside it.
-            var bed = Scenario01SceneBuilder.PlaceGradd(root, "Hospital Bed", "Hospital_Bed_001", 0f);
-            AlignLongSide(bed, room, 2.1f);
-            Scenario01SceneBuilder.Align(bed, new Vector3(0.5f, 0f, 0.5f), room.Point(1.35f, 0f, 2.9f));
-            var iv = Scenario01SceneBuilder.PlaceGradd(root, "IV Pole", "IV_Bag_Holder_001", 0f);
-            Scenario01SceneBuilder.Align(iv, new Vector3(0.5f, 0f, 0.5f), room.Point(2.2f, 0f, 3.65f));
-            var drawers = Scenario01SceneBuilder.PlaceGradd(root, "Drawers On Wheels", "Drawers_on_Wheels_001", 0f);
-            Scenario01SceneBuilder.Align(drawers, new Vector3(0.5f, 0f, 0.5f), room.Point(0.35f, 0f, 3.7f));
+            var card = RequireChild(hospital, $"{floor}/Card_{label}");
+            var signPosition = card.position - room.forward * 0.03f;
+            Object.DestroyImmediate(card.gameObject);
+            var liamsPatient = hospital.Find($"Characters/Patient_{label}");
+            if (liamsPatient != null)
+                Object.DestroyImmediate(liamsPatient.gameObject);
+            OpenDoor(RequireChild(hospital, $"{floor}/Door_{label}"), room);
 
-            // The patient sits in a chair beside the bed, not on the bed edge: the Sitting animation expects a seat of
-            // about 0.45 m, the mattress is 0.66 m high and the side rails (up to 0.83 m) run along both long sides.
-            var chairPosition = room.Point(0.3f, 0f, 2.9f);
-            var patientFacing = room.Facing(-0.3f, -1f);
-            PlaceKenney(root, "chairCushion", "Visitor Chair", chairPosition, patientFacing, 0.9f, false);
-            PlaceKenney(root, "pottedPlant", "Plant", room.Point(-1.2f, 0f, 0.4f), Quaternion.identity, 0.7f, false);
-            PlaceKenney(root, "lampSquareCeiling", "Ceiling Lamp", room.Point(0.5f, WallHeight, 2f), Quaternion.identity, 0.5f, true);
+            // The patient sits on the chair, turned to the door where the player comes in (as Liam's own patients).
+            var chair = RequireChild(room, "Furniture/Chair");
+            var seat = Scenario01SceneBuilder.TightBounds(chair.gameObject).center;
+            var towardDoor = Flat(room.position - seat).normalized;
+            chair.RotateAround(seat, Vector3.up, Vector3.SignedAngle(RequireChild(room, "Anchor_Sitting").forward, towardDoor, Vector3.up));
+            var patient = PlacePatient(room, PatientModels[index % PatientModels.Length],
+                new Vector3(seat.x, room.position.y, seat.z), Quaternion.LookRotation(towardDoor));
 
-            var patient = PlacePatient(root, PatientModels[(number - 1) % PatientModels.Length], chairPosition, patientFacing);
-
-            // Mood: the data (MoodController) and the colored room light that reads it.
+            // Mood: the data (MoodController), its sound (3D, only audible in and right outside this room) and the
+            // room's own ceiling light, which takes the mood color.
             var moodObject = new GameObject("Patient Mood");
-            moodObject.transform.SetParent(root, false);
+            moodObject.transform.SetParent(room, false);
+            moodObject.transform.localPosition = new Vector3(0.5f, 1.5f, 2.2f);
             var mood = ScenarioTestSceneBuilder.AddMoodController(moodObject, null);
-            // The mood's sound, 3D and only audible in and right outside this room.
-            moodObject.transform.position = room.Point(0.5f, 1.5f, 2.2f);
             ScenarioTestSceneBuilder.AddMoodAudio(moodObject, mood, true, 4f);
-            var lightObject = new GameObject("Mood Light");
-            lightObject.transform.SetParent(root, false);
-            lightObject.transform.position = room.Point(0.5f, WallHeight - 0.3f, 2.4f);
-            var light = lightObject.AddComponent<Light>();
-            light.type = LightType.Point;
-            light.range = 3.3f;
-            light.intensity = 2.5f;
-            light.shadows = LightShadows.None;
-            var roomLight = lightObject.AddComponent<MoodRoomLight>();
+            var roomLight = RequireChild(room, "Light").gameObject.AddComponent<MoodRoomLight>();
             var serialized = new SerializedObject(roomLight);
             serialized.FindProperty("_moodController").objectReferenceValue = mood;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            var sign = BuildRoomSign(root, room, mood);
+            var sign = BuildRoomSign(room, signPosition, Quaternion.LookRotation(room.forward), mood);
 
             var head = patient.position + Vector3.up * 1.75f;
-            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", patient, head, room.Point(-0.2f, 1.15f, 1.5f));
-            presenter.transform.SetParent(root, true);
-            presenter.transform.Find("NPC Bubble Anchor").rotation = Quaternion.LookRotation(Flat(head - room.Point(0f, 0f, 0.3f)));
-            AddReactor(root, presenter, patient, room);
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", patient, head, room.TransformPoint(0.3f, 1.15f, 1.6f));
+            presenter.transform.SetParent(room, true);
+            presenter.transform.Find("NPC Bubble Anchor").rotation = Quaternion.LookRotation(Flat(head - room.TransformPoint(0f, 0f, 0.3f)));
+            // Body language after a choice: to the nurse (the door), away from the nurse (to the bed), or to the window.
+            AddReactor(room, presenter, patient,
+                Quaternion.LookRotation(towardDoor),
+                Quaternion.LookRotation(-room.right + room.forward * 0.3f),
+                Quaternion.LookRotation(room.right - room.forward * 0.3f));
 
-            var patientRoom = root.gameObject.AddComponent<PatientRoom>();
+            var patientRoom = room.gameObject.AddComponent<PatientRoom>();
             serialized = new SerializedObject(patientRoom);
-            serialized.FindProperty("_roomName").stringValue = $"Room {number}";
+            serialized.FindProperty("_roomName").stringValue = $"Room {label}";
             serialized.FindProperty("_presenter").objectReferenceValue = presenter;
             serialized.FindProperty("_moodController").objectReferenceValue = mood;
             serialized.FindProperty("_sign").objectReferenceValue = sign;
@@ -388,14 +246,25 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Turns a GRADD model so its longest horizontal side runs into the room, and scales it to that length.
+        /// Liam's doors are closed models without a collider. A shift room's door swings open into the room, on the
+        /// hinge at its left side seen from the corridor.
         /// </summary>
-        private static void AlignLongSide(GameObject go, RoomFrame room, float length)
+        private static void OpenDoor(Transform door, Transform room)
         {
-            var size = Scenario01SceneBuilder.TightBounds(go).size;
-            var alongX = size.x > size.z;
-            go.transform.rotation = Quaternion.FromToRotation(alongX ? Vector3.right : Vector3.forward, room.Forward) * go.transform.rotation;
-            go.transform.localScale *= length / Mathf.Max(size.x, size.z);
+            var bounds = Scenario01SceneBuilder.TightBounds(door.gameObject);
+            var halfWidth = Mathf.Abs(room.right.x) > 0.5f ? bounds.extents.x : bounds.extents.z;
+            var hinge = bounds.center - room.right * halfWidth;
+            door.RotateAround(hinge, Vector3.up, Vector3.SignedAngle(room.right, room.forward, Vector3.up));
+        }
+
+        /// <summary>
+        /// The doors of the rooms without a shift patient stay closed and get a collider, so nobody walks through them.
+        /// </summary>
+        private static void CloseOtherDoors(Transform hospital)
+        {
+            var open = RoomLabels.Select(label => $"Door_{label}").ToHashSet();
+            foreach (var door in hospital.GetComponentsInChildren<Transform>().Where(t => t.name.StartsWith("Door_") && !open.Contains(t.name)))
+                AddBoxCollider(door.gameObject, Scenario01SceneBuilder.TightBounds(door.gameObject));
         }
 
         /// <summary>
@@ -419,18 +288,16 @@ namespace ProCommVR.Editor
             return patient.transform;
         }
 
-        /// <summary>
-        /// Body language after a choice: turns to the nurse, away from the nurse, or to the window.
-        /// </summary>
-        private static void AddReactor(Transform root, ScenarioPresenter presenter, Transform patient, RoomFrame room)
+        private static void AddReactor(Transform root, ScenarioPresenter presenter, Transform patient,
+            Quaternion engaged, Quaternion turnsAway, Quaternion withdrawn)
         {
             var poses = new GameObject("Poses").transform;
             poses.SetParent(root, false);
             var targets = new List<KeyValuePair<NpcPose, Transform>>
             {
-                new KeyValuePair<NpcPose, Transform>(NpcPose.Engaged, CreatePose(poses, "Engaged", patient.position, room.Facing(0.2f, -1f))),
-                new KeyValuePair<NpcPose, Transform>(NpcPose.TurnsAway, CreatePose(poses, "Turns Away", patient.position, room.Facing(1f, 0.3f))),
-                new KeyValuePair<NpcPose, Transform>(NpcPose.Withdrawn, CreatePose(poses, "Withdrawn", patient.position, room.Facing(-0.3f, 1f))),
+                new KeyValuePair<NpcPose, Transform>(NpcPose.Engaged, CreatePose(poses, "Engaged", patient.position, engaged)),
+                new KeyValuePair<NpcPose, Transform>(NpcPose.TurnsAway, CreatePose(poses, "Turns Away", patient.position, turnsAway)),
+                new KeyValuePair<NpcPose, Transform>(NpcPose.Withdrawn, CreatePose(poses, "Withdrawn", patient.position, withdrawn)),
             };
 
             var reactor = patient.gameObject.AddComponent<NpcReactor>();
@@ -460,16 +327,59 @@ namespace ProCommVR.Editor
             return pose;
         }
 
+        // ---- Lift -------------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Makes the buttons of Liam's lift panels work: each one takes the player to the arrival point in front of
+        /// the lift on its floor ("L" is the lobby).
+        /// </summary>
+        private static void BuildLift(Transform hospital, Transform shift)
+        {
+            var arrivals = new GameObject("Lift Arrivals").transform;
+            arrivals.SetParent(shift, false);
+            var destinations = new Transform[FloorCount + 1];
+            for (var level = 0; level <= FloorCount; level++)
+            {
+                destinations[level] = new GameObject($"Arrival {LevelLabel(level)}").transform;
+                destinations[level].SetParent(arrivals, false);
+                destinations[level].SetPositionAndRotation(new Vector3(LiftArrivalX, level * FloorHeight, LiftCenterZ), Quaternion.LookRotation(Vector3.right));
+            }
+
+            for (var level = 0; level <= FloorCount; level++)
+            {
+                var lift = RequireChild(hospital, $"{(level == 0 ? "Lobby" : $"Floor{level}")}/Lift");
+                for (var target = 0; target <= FloorCount; target++)
+                {
+                    var button = lift.Find($"LiftButton_{LevelLabel(target)}");
+                    if (button == null)
+                        continue;
+                    button.gameObject.AddComponent<XRSimpleInteractable>();
+                    var serialized = new SerializedObject(button.gameObject.AddComponent<LiftButton>());
+                    serialized.FindProperty("_destination").objectReferenceValue = destinations[target];
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+        }
+
+        private static string LevelLabel(int level)
+        {
+            return level == 0 ? "L" : level.ToString();
+        }
+
+        private static int FloorOf(string roomLabel)
+        {
+            return int.Parse(roomLabel.Substring(0, 1));
+        }
+
         // ---- World UI -----------------------------------------------------------------------------------------
 
         /// <summary>
-        /// Door sign on the corridor side, right of the doorway: room, patient, scenario and a mood color patch.
+        /// Door sign on the corridor side, right of the door (where Liam's patient card was): room, patient, scenario
+        /// and a mood color patch.
         /// </summary>
-        private static RoomSign BuildRoomSign(Transform parent, RoomFrame room, MoodController mood)
+        private static RoomSign BuildRoomSign(Transform parent, Vector3 position, Quaternion rotation, MoodController mood)
         {
-            // Faces the corridor: the canvas front looks back out of the room.
-            var canvas = CreateCanvas(parent, "Door Sign", new Vector2(420f, 220f),
-                room.Point(0.95f, 1.5f, -0.07f), Quaternion.LookRotation(room.Forward), Color.white);
+            var canvas = CreateCanvas(parent, "Door Sign", new Vector2(420f, 220f), position, rotation, Color.white);
 
             var patch = new GameObject("Mood Color", typeof(RectTransform)).AddComponent<Image>();
             patch.transform.SetParent(canvas, false);
@@ -495,7 +405,7 @@ namespace ProCommVR.Editor
             return sign;
         }
 
-        private static void BuildShiftBoard(Transform parent, string name, ShiftManager shiftManager, Vector3 position, Quaternion rotation)
+        private static RectTransform BuildShiftBoard(Transform parent, string name, ShiftManager shiftManager, Vector3 position, Quaternion rotation)
         {
             var canvas = CreateCanvas(parent, name, new Vector2(900f, 700f), position, rotation, new Color(1f, 1f, 1f, 0.97f));
             var label = CreateLabel(canvas, "Label", 18f, 44f, TextAlignmentOptions.TopLeft);
@@ -507,6 +417,7 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_shiftManager").objectReferenceValue = shiftManager;
             serialized.FindProperty("_label").objectReferenceValue = label;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            return canvas;
         }
 
         /// <summary>
@@ -579,7 +490,7 @@ namespace ProCommVR.Editor
                 return FillMissingPatientIds(plan);
 
             var scenario = ScenarioTestSceneBuilder.LoadRequired<Scenario>(ScenarioPath, "The Scenario 1 asset is missing.");
-            XRTestSceneBuilder.EnsureFolder(System.IO.Path.GetDirectoryName(PlanPath));
+            XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(PlanPath));
             plan = ScriptableObject.CreateInstance<ShiftPlan>();
             AssetDatabase.CreateAsset(plan, PlanPath);
 
@@ -599,10 +510,6 @@ namespace ProCommVR.Editor
             return plan;
         }
 
-        /// <summary>
-        /// The Kenney model inside an empty parent, so scaling and turning the parent works in world-aligned axes
-        /// whatever rotation the model's own root has.
-        /// </summary>
         private static string PatientId(int index)
         {
             return $"patient-{index + 1:00}";
@@ -623,6 +530,10 @@ namespace ProCommVR.Editor
             return plan;
         }
 
+        /// <summary>
+        /// The Kenney model inside an empty parent, so scaling and turning the parent works in world-aligned axes
+        /// whatever rotation the model's own root has.
+        /// </summary>
         private static GameObject InstantiateKenney(string model, Transform parent, string name)
         {
             var prefab = ScenarioTestSceneBuilder.LoadRequired<GameObject>($"{KenneyFolder}/{model}.fbx", "Kenney Furniture Kit missing, see CREDITS.md.");
@@ -644,6 +555,33 @@ namespace ProCommVR.Editor
             Scenario01SceneBuilder.ScaleToHeight(go, height);
             Scenario01SceneBuilder.Align(go, new Vector3(0.5f, fromTop ? 1f : 0f, 0.5f), point);
             return go;
+        }
+
+        // ---- Helpers ----------------------------------------------------------------------------------------------
+
+        private static Transform RequireChild(Transform parent, string path)
+        {
+            var child = parent.Find(path);
+            if (child == null)
+                throw new System.InvalidOperationException($"[ProCommVR] '{parent.name}/{path}' not found in Liam's hospital. Was the layout of HospitalBuilder changed?");
+            return child;
+        }
+
+        private static void AddBoxCollider(GameObject go, Bounds worldBounds)
+        {
+            var collider = go.AddComponent<BoxCollider>();
+            collider.center = go.transform.InverseTransformPoint(worldBounds.center);
+            var localSize = go.transform.InverseTransformVector(worldBounds.size);
+            collider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+        }
+
+        private static Bounds RendererBounds(GameObject go)
+        {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            var bounds = renderers[0].bounds;
+            foreach (var renderer in renderers)
+                bounds.Encapsulate(renderer.bounds);
+            return bounds;
         }
 
         private static Vector3 Flat(Vector3 vector)
@@ -668,15 +606,6 @@ namespace ProCommVR.Editor
                         triangles += skinned.sharedMesh.GetIndexCount(i) / 3;
             }
             return triangles;
-        }
-
-        private static void MarkStatic(Transform root)
-        {
-            foreach (var child in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.GetComponent<MeshRenderer>() != null)
-                    GameObjectUtility.SetStaticEditorFlags(child.gameObject, StaticEditorFlags.BatchingStatic);
-            }
         }
     }
 }
