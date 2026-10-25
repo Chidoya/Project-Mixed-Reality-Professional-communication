@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfd3b5a78723a44387dd9647a3eafe1, type: 3}
+  m_Name: Scenario02_AngryFamilyMember
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Scenarios.Scenario
+  _id: angry-family-member
+  _title: "The Angry Family Member and the Surgery Countdown"
+  _mood: 1
+  _npcName: "Patient X's daughter"
+  _npcLine: "You don't care about your patients at all!"
+  _options:
+  - _text: "I can hear how worried you are, and you're right: you should have been kept informed. I'm sorry that didn't happen. I'll put your phone number in your father's file right now and ask the surgeon to call you today. I have to get him ready for surgery now, and I'll come back to you as soon as he's on his way."
+    _score: 3
+    _feedback: "Acknowledges her emotion and the real gap in communication, and offers a concrete, realistic next step within nursing scope (her contact details in the file, a call from the surgeon). Honest about the time pressure without brushing her off, so she can let the nurse continue."
+    _npcReaction: "...A call today? All right. Please don't forget us."
+    _npcPose: 1
+    _npcVoice: {fileID: 0}
+  - _text: "I understand your frustration. As his nurse I can't discuss the surgery itself; that's for the surgeon. I'll pass on to the team that you want to speak with a doctor."
+    _score: 1
+    _feedback: "Professional and honest about the nurse's scope, but vague: \"I'll pass it on\" is what she has heard for days. There is no concrete contact, time or meeting, and the missed communication is not acknowledged."
+    _npcReaction: "Pass it on. That's what everyone says."
+    _npcPose: 0
+    _npcVoice: {fileID: 0}
+  - _text: "The doctors have very demanding schedules, with emergencies and operations all day. They simply can't always make time for families, but I'm sure they'll get to you."
+    _score: 0
+    _feedback: "Explains the context but sounds like an excuse: it defends the system instead of listening to the relative. \"I'm sure they'll get to you\" is a promise the nurse cannot keep, and the missing contact information or meeting is not addressed."
+    _npcReaction: "So my father just has to wait his turn. Unbelievable."
+    _npcPose: 3
+    _npcVoice: {fileID: 0}
+  - _text: "Please calm down and lower your voice, there are other patients here. Once you've calmed down, we can talk about it."
+    _score: -1
+    _feedback: "Asking her to calm down before listening invalidates her emotion and sounds like a reprimand. The focus moves to her behaviour instead of her concern, so the tension rises instead of falling."
+    _npcReaction: "Calm down? Nobody in this hospital listens to me!"
+    _npcPose: 2
+    _npcVoice: {fileID: 0}
+  _locationLine: "Finally, someone! I've been trying to speak to a doctor for days, and nobody tells me anything about my father's surgery!"
+  _locations:
+  - _id: corridor
+    _name: Corridor
+    _choiceText: "Let's talk right here."
+    _score: 0
+    _feedback: 
+  - _id: consultation-room
+    _name: Consultation room
+    _choiceText: "Let's step into the consultation room, where we can talk in private."
+    _score: 0
+    _feedback: 
+  _timeLimit: 90
+  _timeLimitLabel: Surgical gurney arrives in
+  _timeUpLine: "There goes the gurney, and you still haven't told me anything! Nobody here listens!"
+  _timeUpFeedback: "The surgical gurney arrived before you had answered the daughter: she is still upset and her father was not ready for surgery. Under time pressure, listen briefly, offer one concrete next step and then continue your task. Replay this case on another day."

@@ -1,0 +1,7 @@
+GRADD Hospital Room
+Author: GRADD CO
+Source: https://poly.pizza/m/9sUalfQ76kn
+License: Creative Commons Attribution 3.0 (CC-BY 3.0)
+https://creativecommons.org/licenses/by/3.0/
+
+Attribution is required. See CREDITS.md in the repository root.

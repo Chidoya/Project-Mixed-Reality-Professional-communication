@@ -105,10 +105,12 @@ Taak in Notion naast de Git workflow
 - GitHub repo: https://github.com/Chidoya/Project-Mixed-Reality-Professional-communication
 - Unity versie: 6000.3.9f1 (Unity 6.3). Beide developers exact deze versie, geen upgrade zonder akkoord.
 - Render pipeline: URP (aanbevolen voor Quest)
-- XR: nog te installeren (XR Interaction Toolkit + OpenXR, of Meta XR SDK)
+- XR: XR Interaction Toolkit 3.6.1 + OpenXR 1.18.0 (XR Plug-in Management 4.7.0),
+  Meta Quest feature, profielen Oculus Touch en Meta Quest Touch Plus. Details: `ARCHITECTURE.md`.
+- Interactie: laserpointer op beide controllers, trigger = select, grip = activate, geen gaze-select.
 - Dialoogsysteem: TODO (Yarn Spinner / Ink / eigen JSON of ScriptableObjects)
 - Spraak (optioneel): TODO
-- Build target: Android, ARM64, IL2CPP
+- Build target: Android, ARM64, IL2CPP, min. API 32, Vulkan, Linear color space
 
 ## Unity en code conventies
 
@@ -118,8 +120,11 @@ Unity
   (zie `instructie.md`, sectie 4): fbx, blend, png, jpg, psd, wav, mp3, mp4.
 - Eén persoon tegelijk in een scene; werk zoveel mogelijk in prefabs. Scene-eigenaar staat in Notion.
 - Mappenstructuur onder `Assets/_Project/`: `Scenes/`, `Scripts/`, `Prefabs/`,
-  `Art/`, `Audio/`, `Dialogue/`, `Materials/`, `Settings/`.
-- Third-party assets buiten `_Project/` laten.
+  `Art/`, `Audio/`, `Dialogue/`, `Materials/`, `Settings/`, `Editor/` (editor-scripts).
+- Third-party assets buiten `_Project/` laten. Package-samples staan in `Assets/Samples/` en
+  worden niet aangepast; wijzigingen aan de XR rig gebeuren in de prefab variant
+  `Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab`.
+- Houd `ARCHITECTURE.md` bij bij elke stap die iets opzet of verandert (zie `GAME_BRIEF.md`).
 
 Code (C#)
 - Namespace: `ProCommVR`.
@@ -128,6 +133,24 @@ Code (C#)
   niet-IT teamleden het script kunnen aanpassen zonder Unity-kennis.
 - Test op de Quest 3 zelf, niet alleen in de editor. Doel: stabiel 72 fps.
   Kan er niet op de headset getest worden, zeg dat dan expliciet in het eindrapport.
+
+## Build validatie
+
+Voor elke commit (zie `instructie.md`, sectie 5, stap 3) draai je een Unity batchmode
+compile-check, niet enkel vertrouwen op wat de editor toont:
+
+```bash
+"/mnt/c/Program Files/Unity/Hub/Editor/6000.3.9f1/Editor/Unity.exe" \
+  -batchmode -quit -nographics \
+  -projectPath "<pad naar dit project>" \
+  -logFile "<pad naar dit project>/build.log"
+```
+
+- Commit enkel als het logbestand geen compile-errors bevat.
+- Kan Unity in deze omgeving niet draaien (geen toegang tot het Windows-bestandssysteem
+  of de Unity-installatie), zeg dat dan expliciet in plaats van te doen alsof er gecheckt is.
+- Dit is een compile-check, geen volledige Android-build. Een Android-build testen
+  (bijvoorbeeld voor een demo) gebeurt apart en enkel na overleg, want dat duurt langer.
 
 ## Hoe Claude moet helpen
 
@@ -151,6 +174,29 @@ Code (C#)
   op `main`; `Jalil` en `Liam` zijn op 2026-10-12 bijgewerkt naar `main`. Nog geen `.gitattributes`/LFS,
   geen XR packages, geen README, geen branch protection gecontroleerd.
   Scenario, rollen en data nog niet beslist.
+- 2026-10-18: Jalil installeerde per ongeluk Unity 6000.6.6f1. Bevestigd dat het project bij
+  de afgesproken versie 6000.3.9f1 blijft, zodat het bestaande lege project niet geüpgraded
+  moet worden. Jalil installeert 6000.3.9f1 ernaast via Unity Hub (beide versies kunnen
+  naast elkaar bestaan).
+- 2026-10-19: PR #10 (`feature/jalil/scenario01-patient-room` naar `Jalil`) gemerged.
+  Scenario 1 uitgewerkt (uit het brondocument, scores 3/0/-2/1, mood Somber) in
+  `Scenario01_PatientRoom.unity` (4x4m kamer, deur-bed-raam). Eigen URP-materialen
+  gebruikt omdat de asset-kit Standard-shaders had. Patient X zit rechtop op de bedrand
+  ipv plat liggend. Proximity-bug opgelost met marge. Directe feedback vervangen door
+  NPC-houding + korte reactiezin; volledige uitleg staat enkel nog op het eindscherm.
+  Enkel compile-check en screenshot-renders gecontroleerd, nog niet getest in Play mode
+  of op de Quest 3 zelf. De 4 reactiezinnen zijn door Claude verzonnen, nog niet
+  nagekeken door content/inhoudsexpert.
+- 2026-10-20: PR #11 (`feature/jalil/shift-gameloop`) en PR #12 (`feature/jalil/shift-followups`)
+  gemerged in `jalil`. Shift-loop in `ShiftHospital.unity` (briefing, 5 patiëntkamers, timer,
+  eindscherm) met mood per kamer (licht, deurbordje, sfeer). Elke patiënt heeft een interne
+  `PatientId` (`patient-01` tot `patient-05`); op het scherm blijft het "Patient X".
+  De patiënt zit op een stoel naast het bed (niet meer op de bedrand). Nieuwe component
+  `MoodAudio` vloeit over naar het geluid van de mood; nu enkel placeholder-tonen.
+  Getest: batchmode compile-check en Play mode smoke tests met de XR-simulator
+  (`RunShiftLoop`, `RunShiftTimeout`, `RunScenario01Mood`, alle drie geslaagd).
+  Nog niet getest op de Quest 3 of via Quest Link, overvloeien van het geluid niet beluisterd.
+
 
 ## Beslissingen
 
@@ -159,13 +205,36 @@ Code (C#)
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
+| 2026-10-18 | XR Interaction Toolkit + OpenXR, geen Meta XR SDK | Gevraagd in `GAME_BRIEF.md`; open standaard, geen vendor lock-in |
+| 2026-10-18 | Trigger = select, grip = activate, geen gaze-select | Dialoogopties kiezen met laser + trigger, zonder tijdsdruk (`GAME_BRIEF.md`) |
+| 2026-10-18 | Projectsetup gescript via menu `ProCommVR > Setup` | Reproduceerbaar voor beide developers, ook in batchmode |
+| 2026-10-18 | Unity 6000.3.9f1 bevestigd, geen upgrade naar 6000.6.6f1 | Bestaand leeg project staat al in 6000.3.9f1, voorkomt onnodige project-upgrade |
+| 2026-10-19 | Directe feedback vervangen door NPC-houding + reactiezin, volledige uitleg enkel op eindscherm | Realistischer, studenten leren non-verbale signalen lezen ipv meteen een score te zien |
+| 2026-10-19 | Patient X zit rechtop op de bedrand ipv plat liggend | Past bij "sitting slumped" uit het scenario, makkelijker te animeren |
+| 2026-10-19 | Eigen URP-materialen ipv de materialen uit de asset-kit | Kit gebruikte Standard-shaders, niet compatibel met URP op Quest |
+| 2026-10-20 | `MoodController` houdt enkel de mood-data bij; lezers (`MoodAtmosphere`, `MoodRoomLight`, `RoomSign`) tonen ze | Eén mood-gegeven per patiënt/kamer, uitbreidbaar zonder dat de data iets van licht, UI of bordjes weet |
+| 2026-10-20 | Shift-loop in een placeholder-ziekenhuis (`ShiftHospital`, Kenney) tot Liam's hospital op GitHub staat | `origin/Liam` bevatte enkel de personages, geen hospital-scene; de shift-scripts hangen niet aan deze layout |
+| 2026-10-20 | `ShiftHospital` eerst in de Build Settings | Een headset-build start met de shift (briefing, 5 taken, eindscherm) |
+| 2026-10-20 | Patiënt in de shift zit op een stoel naast het bed, niet op de bedrand (wijkt af van 2026-10-19) | De zitanimatie verwacht ongeveer 0,45 m zithoogte; de matras ligt op 0,66 m met bedhekken tot 0,83 m |
+| 2026-10-20 | Interne `PatientId` per `ShiftTask`, op het scherm blijft het "Patient X" | Mood, voortgang en latere content per patiënt gescheiden houden zonder namen te tonen |
+| 2026-10-20 | Geluid per mood via een aparte `MoodAudio`, die de mood enkel leest | `MoodController` blijft pure data; een nieuw geluid is enkel een clip in het mood-profiel, zonder code |
+
 
 ## Open vragen
 
-- Welk scenario kiezen we?
-- Hoe "praat" de student: keuzemenu, spraak naar tekst, of een combinatie?
-- Welke XR-aanpak: XR Interaction Toolkit + OpenXR of Meta XR SDK?
-- Branches hernoemen naar `jalil` en `liam` (kleine letters), zodat ze overeenkomen met `instructie.md`?
-- Git LFS instellen, en voor welke bestandstypes?
+- Scenario's: `GAME_BRIEF.md` kiest voor de MVP "de ontslagen patiënt" en "de boze dochter".
+  Nog te bevestigen door het hele team (inhoudsexpert, content).
+- Hoe "praat" de student: `GAME_BRIEF.md` kiest een keuzemenu (4 opties, laser + trigger).
+  Spraak eventueel later?
+- Persoonlijke branch van Jalil: `Jalil` of `jalil`? Er bestaan er nu twee op GitHub; één
+  verwijderen (door een mens), en dan ook `Liam` / `liam` gelijk trekken met `instructie.md`.
+- Git LFS instellen, en voor welke bestandstypes? (De XRI-sample, ongeveer 10 MB, staat nu zonder LFS in Git.)
+- Locomotion uit de Starter Assets (thumbstick, snap turn, teleport) houden, of enkel fysiek rondlopen?
 - Wie is de vijfde persoon en welke opleiding?
 - Hoe meten we "resilience" en communicatie in de ervaring (feedback, score, debrief)?
+- Echte mood-geluiden: de huidige `Mood_*_Placeholder.wav` zijn gegenereerde tonen, geen muziek.
+  Wie maakt of kiest ze (en met welke licentie)?
+- CREDITS.md voor de personages van Liam: bron en licentie nog na te vragen bij Liam.
+- De vier placeholder-WAV's (ongeveer 1 MB) staan zonder LFS in Git; meenemen in de LFS-beslissing.
+- Shift-loop en zithouding nog testen op de Quest 3 (72 fps, geluid op de headset).
+- Oude remote branch `feature/jalil/shift-gameloop` mag door een mens verwijderd worden.

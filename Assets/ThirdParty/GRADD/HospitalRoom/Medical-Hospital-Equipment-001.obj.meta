@@ -1,0 +1,455 @@
+fileFormatVersion: 2
+guid: 887a629ae79583b4b9cefb08c7d27b47
+ModelImporter:
+  serializedVersion: 24200
+  internalIDToNameTable: []
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BTEC_BP_Monitor_001
+    second: {fileID: 2100000, guid: 55ad0066366477a43a58726b98d29895, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: BTEC_Med_Bed_001
+    second: {fileID: 2100000, guid: ab2cf706a7a4ee74cb655b9e5ce784ed, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Bio_Kit_001
+    second: {fileID: 2100000, guid: ca54edb75955ef746a03450689878020, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Bio_Waste_001
+    second: {fileID: 2100000, guid: 8590ddbbc9243cd48a26983e16cb3f4c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Blac_Flat_001
+    second: {fileID: 2100000, guid: b5586d614f9bd0a489b22cd06fd592f6, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Black_Flat_001
+    second: {fileID: 2100000, guid: 20b1b24e907bfec41a6896bf7840e845, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Black_Plexi_Glass_001
+    second: {fileID: 2100000, guid: a0f7340bcb8ef0b40b89a329d262f4a7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Black_Semi_Gloss_001
+    second: {fileID: 2100000, guid: 7dadd9a99baa26e4bb3dcb27e2080f4a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Black_Semi_Gloss_1
+    second: {fileID: 2100000, guid: f147f5e3f24694543a6b05bdac7b8099, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Black_Semi_Gloss_3
+    second: {fileID: 2100000, guid: ef6102279622b4241bf10580c385d1a0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Blinds_Cellular_White
+    second: {fileID: 2100000, guid: 73c239e42c0c505459f4eb6c4c6d23c9, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Blue_SemiGloss_001
+    second: {fileID: 2100000, guid: da504edbb1b4fbe4ab0167b4c9469dbe, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Cash_Register_BTEC_model_CR1206_001
+    second: {fileID: 2100000, guid: dfbd043c89b2676438091249ab8dae2b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Chrome_001
+    second: {fileID: 2100000, guid: 0b8039c651a7e4245bc193a813dddc11, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Cloth_White_001
+    second: {fileID: 2100000, guid: 19fac18e2fd7f5448a3512a75ab68eff, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: ECG_Monitor_001
+    second: {fileID: 2100000, guid: e6dd6f2c9eb562e49a1596849bfee6eb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Fluorescent_Light_001
+    second: {fileID: 2100000, guid: db2d4401741b3534b9a5924013387c79, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: FrontColor
+    second: {fileID: 2100000, guid: f377cb9600aea884fb1d2d00f938c18a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gray_Semi_Gloss_1
+    second: {fileID: 2100000, guid: c28e050ca0976d94b8faec42348a634a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Gray_Semi_Gloss_2
+    second: {fileID: 2100000, guid: d05558bdd29430749b5cec52c4f09979, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Green_LED_Light_001
+    second: {fileID: 2100000, guid: 452304832455ec24a9ba17019b77b26f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: INT_Walls_White_001
+    second: {fileID: 2100000, guid: df0bfda6247e1a445bf2859ff80db737, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: M_0136_Charcoal
+    second: {fileID: 2100000, guid: e4a92c2db1157cc4cb2aedf607fef5b1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Medical_BTEC_Defib_001
+    second: {fileID: 2100000, guid: a88176409a180de469888fdbc2c17531, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Metal_Rust_Color_001
+    second: {fileID: 2100000, guid: 2d9644bd36f918f489a62b13af0f8f7a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Metal_Stainless_Steel_001
+    second: {fileID: 2100000, guid: 9da735928aa7c5e4ab903a8e6193b4f3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Noise_Black_SemiGloss_001
+    second: {fileID: 2100000, guid: 93acfde9146bc7549bed301c03f8fe86, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Noise_Tan_001
+    second: {fileID: 2100000, guid: 7d626c883ae998747a30f024dad2a2c4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Noise_Tan_002
+    second: {fileID: 2100000, guid: 70729f0390539284fa4b5b8cf6cd925f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Noise_Tan_034
+    second: {fileID: 2100000, guid: 3ede45aba3244564b99db32d17903eb4, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Noise_White_089485
+    second: {fileID: 2100000, guid: 46ec89f102503f8459b1267733a20a3e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Red_SemiGloss_001
+    second: {fileID: 2100000, guid: 465de717bfe03a74681812a2b33bc144, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Screen_Off_001
+    second: {fileID: 2100000, guid: 4cd745a30aa00b04bb359a6dec8a7705, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Semi_Transparent_Plastic_001
+    second: {fileID: 2100000, guid: 399c5982c051a574480effb17717c4b0, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Semi_Transparent_Plastic_002
+    second: {fileID: 2100000, guid: efae54bd86d37154c95ee86cdbbaf516, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Stainless_Steel_001
+    second: {fileID: 2100000, guid: 7184f4f790116d5489c1b05a730f873e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Stainless_Steel_2
+    second: {fileID: 2100000, guid: 9c30ad2b33909d2459bb49147269b844, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Tan_SemiGloss_002
+    second: {fileID: 2100000, guid: 1db96a6125955974abe6eadea667d292, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Tile_Ceramic_Natural
+    second: {fileID: 2100000, guid: b2770ed09a658424aac32196e4fe8a23, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: White_Semi_Gloss_1
+    second: {fileID: 2100000, guid: fa3926a0cd8151b4b869308f280ee915, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Xray_Light_001
+    second: {fileID: 2100000, guid: ce466c5815b074c4e976f147ba109e0d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1
+    second: {fileID: 2100000, guid: fc84653d44698174fb12c4f672ba5ab3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_10_
+    second: {fileID: 2100000, guid: 8caf8ee318b58b044bdc926a80ece862, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_11_
+    second: {fileID: 2100000, guid: 523b1a2d6bee0974883c2017a8746653, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_12_
+    second: {fileID: 2100000, guid: c49743cc48a779e4dbd3d09e775a7b40, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_13_
+    second: {fileID: 2100000, guid: b7c22a8af3aa3d540b54bf2de9fdd742, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_14_
+    second: {fileID: 2100000, guid: fff327b1610ad4d4ba8b15e420f18750, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_15_
+    second: {fileID: 2100000, guid: 37fc523bd8ccfeb4881163fcbb3d5932, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_16_
+    second: {fileID: 2100000, guid: 58285e5e5c60a794284ade866776160e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_17_
+    second: {fileID: 2100000, guid: 21027f2d5f2e86145b94aa5512ca174c, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_18_
+    second: {fileID: 2100000, guid: 0849aea602b95314ba9d5e7a7010069f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_19_
+    second: {fileID: 2100000, guid: 3e4fc411a9893dc4996e1d8b5f81c33f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_1_
+    second: {fileID: 2100000, guid: feac0721b4e774f4b8e4cad296505e17, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_20_
+    second: {fileID: 2100000, guid: 7323a197b4b9bfd4daa732801c405bed, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_21_
+    second: {fileID: 2100000, guid: 98b9602cac1f20a46adf7c8a33a6bbfa, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_22_
+    second: {fileID: 2100000, guid: 30d23e62f80e63d409755f1dba370dd1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_23_
+    second: {fileID: 2100000, guid: 689bf18cc4b75a94c97840a911b6150a, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_24_
+    second: {fileID: 2100000, guid: b21a44c1b266a4f44aeea3f502f916d3, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_2_
+    second: {fileID: 2100000, guid: 7efc750920fd6394e94597296ba0d37f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_3_
+    second: {fileID: 2100000, guid: c15205e64703efd4ca2a8cfe14f6ed54, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_4_
+    second: {fileID: 2100000, guid: cf803e1d300ac2e4786bd232bcfb077d, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_5_
+    second: {fileID: 2100000, guid: ced0a076ddc95c840ba578af3168c789, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_6_
+    second: {fileID: 2100000, guid: b79c147c799f4ee44a4ea63baf7bb6d7, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_7_
+    second: {fileID: 2100000, guid: 9ba2f5dc1623dfb418a9cc01d7bfece8, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_8_
+    second: {fileID: 2100000, guid: 76fd72a3052b8f04d8663ee23380721e, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _Blinds_Cellular_White_1_9_
+    second: {fileID: 2100000, guid: 4f2f549ff5c03164db1f17726a5b34e2, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: _CoolGray5_
+    second: {fileID: 2100000, guid: 1740e20549ee89944b030b74e20e528f, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: stainless_steel_001_90deg
+    second: {fileID: 2100000, guid: 03faa9a3f93048d41923a4956b24ef17, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: stainless_steel_1
+    second: {fileID: 2100000, guid: 31d93db155d03d4409918a8df4265071, type: 2}
+  materials:
+    materialImportMode: 2
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleCurves: 1
+    optimizeGameObjects: 0
+    removeConstantScaleCurves: 0
+    motionNodeName: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    importAnimatedCustomProperties: 0
+    importConstraints: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    extraUserProperties: []
+    clipAnimations: []
+    isReadable: 0
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 0.0254
+    meshCompression: 0
+    addColliders: 0
+    useSRGBMaterialColor: 1
+    sortHierarchyByName: 1
+    importPhysicalCameras: 1
+    importVisibility: 1
+    importBlendShapes: 1
+    importCameras: 0
+    importLights: 0
+    nodeNameCollisionStrategy: 1
+    fileIdsGeneration: 2
+    swapUVChannels: 0
+    generateSecondaryUV: 1
+    useFileUnits: 1
+    keepQuads: 0
+    weldVertices: 1
+    bakeAxisConversion: 1
+    preserveHierarchy: 0
+    skinWeightsMode: 0
+    maxBonesPerVertex: 4
+    minBoneWeight: 0.001
+    optimizeBones: 1
+    generateMeshLods: 0
+    meshLodGenerationFlags: 0
+    maximumMeshLod: -1
+    meshOptimizationFlags: -1
+    indexFormat: 0
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVMarginMethod: 1
+    secondaryUVMinLightmapResolution: 40
+    secondaryUVMinObjectScale: 1
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+    strictVertexDataChecks: 0
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+    normalCalculationMode: 4
+    legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
+    blendShapeNormalImportMode: 1
+    normalSmoothingSource: 0
+  referencedClips: []
+  importAnimation: 0
+  humanDescription:
+    serializedVersion: 3
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    globalScale: 0.0254
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+    hasExtraRoot: 0
+    skeletonHasParents: 1
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  autoGenerateAvatarMappingIfUnspecified: 1
+  animationType: 0
+  humanoidOversampling: 1
+  avatarSetup: 0
+  addHumanoidExtraRootOnlyWhenUsingAvatar: 1
+  importBlendShapeDeformPercent: 1
+  remapMaterialsIfMaterialImportModeIsNone: 0
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

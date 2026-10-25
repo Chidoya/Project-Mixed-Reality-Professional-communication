@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aeb7f43e27df0304d810078ac50d9265, type: 3}
+  m_Name: Case_1A
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.PatientCase
+  _difficulty: 0
+  _doorLabel: 1A
+  _patientName: Mr. X
+  _age: 51
+  _room: 1A
+  _situation: Mr. X has a leg infection that needs intravenous antibiotics for a
+    few more days. Today is his granddaughter's birthday, and he refuses physical
+    therapy and mobilization.
+  _watchOut: Acknowledge his disappointment without making promises about his discharge.
+  _patientPrefab: {fileID: 6337038501055911691, guid: e5176871290f3c54daf563c0c59a5c00, type: 3}
+  _startPose: 0
+  _npcLine: What's the point? I just want to stay in bed and go home.
+  _options:
+  - _title: Professional Empathy & Collaborative Encouragement
+    _text: I completely understand how heartbreaking this is, Mr. X. Being there
+      for your granddaughter's special day means the world to you. While the infection
+      means we must keep you here under the doctor's care for a few more days to
+      ensure you heal safely, staying active is actually what will help you get back
+      on your feet faster. How about we do a short walk together today, and afterward,
+      I can help you set up a video call so you can sing happy birthday to her?
+    _score: 3
+    _feedback: Validates emotional distress, stays strictly within nursing scope
+      without making medical promises, and redirects the patient toward recovery
+      and positive connection. Patient agrees to get out of bed.
+  - _title: Dismissive & Rule-Bound
+    _text: Mr. X, staying in bed won't fix anything. The doctor said you have an
+      infection, so you simply cannot be discharged. You need to follow hospital
+      protocol, get out of bed, and start moving. There will be other birthdays.
+    _score: 0
+    _feedback: Emotionally invalidates the patient, damages therapeutic rapport,
+      and triggers resistance. Patient turns away and refuses to communicate further.
+  - _title: Boundary Overstep & False Hope
+    _text: 'Oh, please don''t be sad! Tell you what: let me talk to the doctor and
+      see if we can just discharge you early for the afternoon. If you promise to
+      rest at home, I''m sure it''ll be fine and you can make it to the party.'
+    _score: -2
+    _feedback: Breaches professional boundaries by undermining clinical safety and
+      medical authority, providing false clinical reassurance. Leg infection risks
+      severe complications.
+  - _title: Passive Avoidance / Deflection
+    _text: I'm sorry to hear that. Discharge decisions are entirely up to your doctor,
+      so there's nothing I can really do about it. If you don't feel like getting
+      up right now, I'll just leave you alone and come back later.
+    _score: 1
+    _feedback: Fails to motivate or comfort the patient. Leaves the patient isolated,
+      risking worsening mobility and deepening depressive symptoms.

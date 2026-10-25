@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aeb7f43e27df0304d810078ac50d9265, type: 3}
+  m_Name: Case_2A
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.PatientCase
+  _difficulty: 1
+  _doorLabel: 2A
+  _patientName: Mrs. Y
+  _age: 78
+  _room: 2A
+  _situation: Mrs. Y became tearful during morning care. She says the tone of one
+    of your colleagues frightens her.
+  _watchOut: Make her feel safe without speaking badly about your colleague.
+  _patientPrefab: {fileID: 6453814977494559258, guid: 7f90f7f652777404bb71012e607c81a1, type: 3}
+  _startPose: 1
+  _npcLine: Please don't let Nurse Sarah back in here. Her tone is so blunt and sharp...
+    she honestly terrifies me.
+  _options:
+  - _title: Neutral Empathy & Patient Reassurance
+    _text: Thank you for telling me, and I am sorry you felt uncomfortable. Feeling
+      safe here is our top priority. I will make sure your care is covered comfortably
+      today, and I'll speak privately with our team lead to adjust communication
+      without causing any conflict.
+    _score: 3
+    _feedback: Validates the patient's feelings and ensures their safety while maintaining
+      professional respect for colleagues.
+  - _title: Invalidating & Colleague Defense
+    _text: You shouldn't take it personally. Sarah is just very direct and efficient,
+      but she's actually one of our best nurses. I'm sure she didn't mean to scare
+      you.
+    _score: 0
+    _feedback: Dismisses the patient's vulnerable disclosure, making them feel misunderstood,
+      silenced, and still fearful.
+  - _title: Gossip & Undermining Colleague
+    _text: Honestly, you're not the first person to complain about Sarah. She has
+      a terrible attitude with everyone. Don't worry, I won't let her near you again.
+    _score: -2
+    _feedback: Breaches workplace ethics, damages team cohesion, and undermines the
+      patient's confidence in the entire hospital staff.
+  - _title: Passive Dismissal / Avoidance
+    _text: Hospital assignments are randomized by management, so I can't promise
+      who comes in. You will have to talk to the head nurse if you want someone else.
+    _score: 1
+    _feedback: Passes administrative burdens onto an already vulnerable patient and
+      fails to de-escalate anxiety.
