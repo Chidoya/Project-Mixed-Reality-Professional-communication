@@ -61,13 +61,14 @@ Dependencies zoals `com.unity.xr.core-utils` en `com.unity.inputsystem` komen au
 ```
 Assets/
   _Project/                 alles van ons
-    Audio/Placeholder/      placeholder-geluiden per mood (gegenereerde tonen), zie sectie 10
+    Audio/Placeholder/      placeholder-geluiden per mood en het tikken van de countdown (gegenereerde tonen), zie sectie 10 en 12
     Dialogue/Scenarios/     scenario-data (Scenario assets), zie sectie 8
     Dialogue/Shifts/        shift-plannen (ShiftPlan assets), zie sectie 12
     Editor/                 editor-scripts (setup, tools), niet in de build
     Editor/Testing/         Play mode-tests (batchmode), zie sectie 13
     Materials/              materialen
     Materials/PatientRoom/  URP-materialen voor de patiëntenkamer (scenario 1), zie sectie 11
+    Materials/Characters/   kopieën van kledingmaterialen van Liam's personages in andere kleuren (de dochter van scenario 2)
     Prefabs/                prefabs, o.a. de XR rig variant
     Prefabs/UI/             UI-prefabs, o.a. DialogueBubble
     Scenes/                 scenes
@@ -75,7 +76,7 @@ Assets/
     Scripts/Scenarios/      scenario-systeem, namespace ProCommVR.Scenarios
     Scripts/Atmosphere/     mood-systeem, namespace ProCommVR.Atmosphere
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
-    Scripts/Navigation/     verplaatsen tussen verdiepingen (lift), namespace ProCommVR.Navigation
+    Scripts/Navigation/     verplaatsen: lift en objecten langs een pad (brancard, NPC), namespace ProCommVR.Navigation
     Settings/Input/         input actions
     Settings/Moods/         mood-profielen (kleur, licht, ambient, muziek per mood), zie sectie 10
   Samples/                  geïmporteerde package-samples, niet aanpassen
@@ -156,10 +157,11 @@ Scenario's zijn **data**, geen code: elk scenario is een asset (ScriptableObject
 
 | Klasse | Wat |
 | --- | --- |
-| `Scenario` | Eén gesprek: `Id`, `Title`, `Mood`, `NpcName`, `NpcLine` (openingszin van de NPC) en precies 4 `Options` |
+| `Scenario` | Eén gesprek: `Id`, `Title`, `Mood`, `NpcName`, `NpcLine` (openingszin van de NPC) en precies 4 `Options`. Optioneel: een **locatiekeuze** (`Location Line` en `Locations`) en een **tijdslimiet** (`Time Limit` in seconden, `Time Limit Label`, `Time Up Line`, `Time Up Feedback`), zie hieronder |
+| `ConversationLocation` | Eén plek waar het gesprek kan doorgaan: `Id` (bijvoorbeeld `consultation-room`), `Name` (op het eindscherm), `Choice Text` (wat de speler zegt), `Score` (verborgen, nu overal 0) en optioneel `Feedback` |
 | `DialogueOption` | Eén antwoord van de speler: `Text`, `Score` (verborgen), `Feedback` (uitleg, enkel op het eindscherm) en de NPC-reactie: `Npc Reaction` (korte zin), `Npc Pose` en optioneel `Npc Voice` (audioclip) |
 | `NpcPose` | Lichaamstaal van de NPC na een keuze: `Unchanged`, `Engaged`, `TurnsAway`, `Withdrawn` |
-| `Mood` | Sfeer van het scenario (of humeur van een patiënt): `Neutral`, `Tense`, `Somber`, `Happy`. Zie het mood-systeem (sectie 10) |
+| `Mood` | Sfeer van het scenario (of humeur van een patiënt): `Neutral`, `Tense`, `Somber`, `Happy`, `Alarm` (een taak is mislukt). Zie het mood-systeem (sectie 10) |
 
 Een scenario heeft altijd precies 4 opties. Zijn het er meer of minder, dan geeft Unity een
 waarschuwing en past het de lijst aan naar 4.
@@ -185,6 +187,14 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
   Player` (uit = opties blijven op de `Options Anchor`), `Options Distance` en `Options Height Offset`.
   In `ScenarioTest` staat de NPC (capsule) 2,5 m van het startpunt: stap ongeveer 1 m naar voren
   (of gebruik de linker thumbstick) om de opties te zien.
+- **Locatiekeuze (optioneel):** heeft het scenario `Locations`, dan toont de NPC-ballon eerst de `Location Line` en
+  verschijnt er per plek een ballon (in de volgorde van de data, niet geschud), met dezelfde 1,5 m-regel. Na de keuze
+  (event `LocationChosen`, `ChosenLocation`) zegt de NPC de `Npc Line` en volgen de 4 opties, weer binnen 1,5 m van
+  de NPC. Een `ConversationLocationMover` op de NPC laat hem naar de gekozen plek lopen (een `PathMover` per plek,
+  sectie 12); zolang hij loopt verschijnen er geen opties (`HoldChoices`). Een plek zonder pad houdt de NPC waar hij staat.
+  Elke plek heeft een `Score` die bij de score van de optie wordt opgeteld. Die staat nu overal op 0: de bron zegt niet
+  dat de plek meetelt, maar zo kan het later zonder code. `Interrupt(line)` beëindigt het gesprek zonder keuze
+  (bijvoorbeeld als de tijd op is): de keuzes verdwijnen en de NPC-ballon toont de zin.
 - De speler kiest met **laser + trigger**. De opties verdwijnen en de speler ziet **enkel de reactie
   van de NPC**: de ballon boven de NPC toont de `Npc Reaction` (cursief) en de `NpcReactor` zet de NPC
   in de `Npc Pose` en speelt de `Npc Voice` af (zie hieronder). Er verschijnt **geen** "goed/fout"-uitleg
@@ -206,8 +216,11 @@ Staat in de scene naast de NPC en luistert naar de presenter. Na een keuze:
 - **Houding:** de NPC beweegt in 0,8 s naar het doel-object van de gekozen `Npc Pose` (lijst **Poses**:
   per pose een leeg object in de scene met de positie en rotatie van die houding). Een pose zonder doel
   laat de NPC staan. Bij de start van een scenario springt de NPC terug naar zijn beginhouding.
-- **Animatie:** is er een **Animator** ingevuld, dan krijgt die een trigger met de naam van de pose
-  (`Engaged`, `TurnsAway`, `Withdrawn`). Zo werkt het later ook met een echt personage met animaties.
+- **Animatie:** is er een **Animator** ingevuld en heeft de pose een `Animator State` (bijvoorbeeld `Talking`,
+  `Angry` of `Sad`, de states van Liam's personages), dan speelt die state. Zonder state krijgt de Animator een trigger
+  met de naam van de pose (`Engaged`, `TurnsAway`, `Withdrawn`), maar enkel als de controller die trigger heeft.
+- De beginhouding wordt bewaard **ten opzichte van de ouder** van de NPC, en de pose-doelen mogen kinderen van die ouder
+  zijn. Zo kan de NPC met alles erop en eraan naar een andere plek lopen (scenario 2).
 - **Stem:** is er een **Voice**-AudioSource en heeft de optie een `Npc Voice`-clip, dan wordt die afgespeeld.
 
 Zolang er geen NPC-model is, is de NPC een capsule en zijn de poses enkel verschuivingen en rotaties.
@@ -222,6 +235,10 @@ Zolang er geen NPC-model is, is de NPC een capsule en zijn de poses enkel versch
    - **Title**, **Mood**, **Npc Name** en **Npc Line** (wat de NPC zegt)
    - **Options:** voor elk van de 4 opties de **Text**, **Score** en **Feedback**, en de NPC-reactie:
      **Npc Reaction** (korte zin), **Npc Pose** en eventueel **Npc Voice**
+   - Optioneel **Where to talk:** de `Location Line` en een of meer `Locations` (elk een unieke `Id`). De scene moet
+     dan per `Id` weten waar die plek is (`ConversationLocationMover`).
+   - Optioneel **Time limit:** `Time Limit` in seconden (0 = geen), het label boven de countdown, de zin van de NPC als
+     de tijd op is en de feedback voor het eindscherm. In de shift heeft de taak dan een `TaskCountdown` nodig (sectie 12).
 4. Alle tekst in het Engels (`GAME_BRIEF.md`).
 5. Testen: open `ScenarioTest`, selecteer **Scenario Sequence** en sleep je nieuwe asset in de
    lijst **Scenarios** (de volgorde van de lijst is de speelvolgorde). Druk op Play met de headset via Quest Link (zie sectie 6) of maak een
@@ -238,6 +255,28 @@ overgenomen. Scores: A = 3 (beste), D = 1, B = 0, C = -2 (kritische fout).
 de "Impact"-regels (A: stemt in om op te staan, B: draait zich weg, C: blij met de valse belofte, D: blijft
 alleen en somber). Te laten nakijken door content en de inhoudsexpert. Aanpassen kan in de Inspector.
 
+### Scenario 2: de boze familie
+
+`Scenario02_AngryFamilyMember.asset` ("The Angry Family Member and the Surgery Countdown", mood `Tense`), uit Task 2 van
+`Immersive Storytelling Scenario 2.pdf`. NPC: "Patient X's daughter". Verloop: de dochter blokkeert de gang en klaagt dat ze
+al dagen geen arts kon spreken (`Location Line`), de speler kiest **"Let's talk right here."** (`corridor`) of **"Let's
+step into the consultation room, where we can talk in private."** (`consultation-room`), daarna zegt ze "You don't care
+about your patients at all!" (letterlijk uit de bron) en volgen de 4 opties. Tijdslimiet: **90 s** vanaf het moment
+dat de speler haar tegenkomt ("Surgical gurney arrives in").
+
+De bron geeft enkel de thema's van de 4 opties. **Tekst, scores, feedback en reacties zijn door Claude geschreven en
+nog niet nagekeken door content of de inhoudsexpert:**
+
+| Thema | Score | Reactie (houding, animatie) |
+| --- | --- | --- |
+| Concrete oplossing (contactgegevens in het dossier, de chirurg belt vandaag, eerlijk over de tijdsdruk) | 3 | "A call today? All right..." (`Engaged`, `Talking`) |
+| Professioneel (eigen bevoegdheid, "I'll pass it on") | 1 | "Pass it on. That's what everyone says." (`Unchanged`, blijft `Angry`) |
+| Verwijzen naar het artsenschema ("they'll get to you") | 0 | "So my father just has to wait his turn." (`Withdrawn`, `Sad`) |
+| Kalmeren ("Please calm down and lower your voice") | -1 | "Calm down? Nobody in this hospital listens to me!" (`TurnsAway`, `Angry`) |
+
+Ook verzonnen: de `Location Line`, de `Time Up Line` ("There goes the gurney, and you still haven't told me anything!")
+en de `Time Up Feedback` (met "Replay this case on another day", uit Image 7 van de bron). Beide plekken hebben score 0.
+
 ### Placeholder
 
 `Placeholder_Scenario.asset` ("The waiting patient", mood Neutral) en `Placeholder_Scenario2.asset`
@@ -246,8 +285,10 @@ alleen en somber). Te laten nakijken door content en de inhoudsexpert. Aanpassen
 ### Nog niet gebouwd
 
 Een echt NPC-model in `ScenarioTest` en `Scenario01_PatientRoom` (daar nog een capsule; de shift-scene in sectie 12
-gebruikt al de personages van Liam), opgenomen stemmen, de omgeving voor scenario 2 (gang), en echte muziek of
-geluiden voor de moods (de infrastructuur staat, nu met placeholder-tonen, sectie 10).
+gebruikt al de personages van Liam), opgenomen stemmen, en echte muziek of geluiden voor de moods, het tikken van
+de countdown en het waarschuwingsgeluid (de infrastructuur staat, nu met placeholder-tonen, sectie 10). Scenario 2: de
+patiënt die naar de OK moet (de speler helpt hem in de bron met zijn operatieschort) zit niet in de scene, en "opnieuw
+spelen op een andere dag" bestaat nog niet (er is maar één shift); het eindscherm zegt het enkel.
 
 ## 9. Scoring en eindscherm
 
@@ -283,19 +324,24 @@ niets weet van licht, muziek, UI of bordjes.
 
 | Klasse | Wat |
 | --- | --- |
-| `Mood` (enum) | `Neutral`, `Tense`, `Somber`, `Happy` |
-| `MoodProfile` | Asset per mood: `Mood`, `Color` (de kleur van de mood: deurbordje en kamerlicht), `Light Color`, `Light Intensity`, `Ambient Color`, `Sound` (loopend geluid: muziek of ambiance, leeg = stilte) en `Sound Volume` |
+| `Mood` (enum) | `Neutral`, `Tense`, `Somber`, `Happy`, `Alarm` |
+| `MoodProfile` | Asset per mood: `Mood`, `Color` (de kleur van de mood: deurbordje en kamerlicht), `Flash Rate` (knipperen van het kamerlicht per seconde, 0 = vast licht), `Light Color`, `Light Intensity`, `Ambient Color`, `Sound` (loopend geluid: muziek of ambiance, leeg = stilte) en `Sound Volume` |
 | `MoodController` | **Enkel data.** Houdt de huidige mood van één scene, kamer of patiënt bij (`CurrentMood`, `CurrentProfile`, `CurrentColor`) en meldt elke wijziging via het event `MoodChanged`. De mood komt van code (`ApplyMood`), van een gekoppelde `ScenarioPresenter` (volgt de mood van elk scenario dat start) of van `Initial Mood` bij de start |
 | `MoodAtmosphere` | Lezer: zet het hoofdlicht en het ambient licht in 1,5 s op het profiel van de mood |
 | `MoodAudio` | Lezer: speelt de `Sound` van de mood op de AudioSource van zijn object en **kruisfadet** (2 s) naar het nieuwe geluid als de mood verandert. Maakt daarvoor zelf een kopie van die AudioSource, zodat oud en nieuw geluid even overlappen |
-| `MoodRoomLight` | Lezer: geeft één licht in een kamer de kleur van de mood (`Strength`: 0 = wit, 1 = de volle kleur) |
+| `MoodRoomLight` | Lezer: geeft één licht in een kamer de kleur van de mood (`Strength`: 0 = wit, 1 = de volle kleur). Heeft het profiel een `Flash Rate`, dan knippert het licht tussen 2 keer (`Flash High`) en 0,1 keer (`Flash Low`) zijn eigen intensiteit |
 | `RoomSign` | Lezer (sectie 12): het deurbordje toont de kleur van de mood naast de patiënt |
 
 - De profielen staan in `Assets/_Project/Settings/Moods/` (`Mood_Neutral` grijs, `Mood_Tense` oranje, `Mood_Somber`
-  blauw, `Mood_Happy` groen). Het zijn **placeholders**: kleur, licht en een placeholder-geluid.
+  blauw, `Mood_Happy` groen, `Mood_Alarm` rood en knipperend, 1,5 keer per seconde). Het zijn **placeholders**: kleur,
+  licht en een placeholder-geluid.
+- **Alarm** is de faalstatus van een taak (sectie 12): er komt geen apart systeem voor rode lichten en een
+  waarschuwingsgeluid, de taak zet gewoon zijn mood op `Alarm` en het bordje, de lichten en het geluid volgen.
 - **Placeholder-geluiden:** `Assets/_Project/Audio/Placeholder/Mood_<mood>_Placeholder.wav`, zachte gegenereerde tonen
   van 6 s die naadloos loopen (Happy: majeurakkoord, Somber: laag mineurakkoord, Tense: dissonant met tremolo, Neutral:
-  zachte brom), volume 0,25. Geen echte muziek, geen licentie nodig. De Setup-builders vullen deze clip enkel in bij een
+  zachte brom), volume 0,25. `Mood_Alarm_Placeholder.wav` is een tweetonige pieptoon (880 en 660 Hz, 2 s) als
+  waarschuwingsgeluid; `Countdown_Tick_Placeholder.wav` is één tik per seconde voor de countdown (sectie 12). Geen
+  echte muziek, geen licentie nodig. De Setup-builders vullen deze clip enkel in bij een
   profiel waarvan `Sound` nog leeg is; een gekozen geluid wordt nooit overschreven.
 - In `ScenarioTest` en `Scenario01_PatientRoom` staat een **Mood Controller** (gekoppeld aan de presenter) met een
   `MoodAtmosphere`, een `MoodAudio` en een AudioSource (2D, loop). Het tweede placeholder-scenario staat op `Tense`, dus in
@@ -384,8 +430,8 @@ light zonder schaduwen (het mood-systeem stuurt het aan), nog geen baked lightin
 
 ## 12. Shift (gameloop) en scene `ShiftHospital`
 
-De speler werkt een shift af: briefing, een aantal patiënten verzorgen, eindscherm. Voorlopig is dit **infrastructuur
-met placeholder-inhoud**: 5 keer Scenario 1, elke patiënt `Happy`.
+De speler werkt een shift af: briefing, een aantal patiënten verzorgen, eindscherm. Taak 2 is **Scenario 2** (de boze
+dochter in de gang van verdieping 3, `Tense`); de andere 4 taken zijn nog **placeholders**: Scenario 1, elke patiënt `Happy`.
 
 ### Verloop
 
@@ -394,14 +440,36 @@ met placeholder-inhoud**: 5 keer Scenario 1, elke patiënt `Happy`.
    de kamerlichten hebben de kleur van hun humeur.
 2. **Start:** de speler richt de laser op de **computer op de receptiebalie** en drukt de trigger in. Alle kamers starten
    hun gesprek en de timer loopt.
-3. **Taken:** de patiënten liggen op verdieping 1 (kamers 1A, 1B, 1C) en 2 (2A, 2B). De speler gaat met de **lift**:
+3. **Taken:** de patiënten liggen op verdieping 1 (kamers 1A, 1B, 1C) en 2 (2A); taak 2 speelt in de **gang van
+   verdieping 3** (zie "Taak 2" hieronder). De speler gaat met de **lift**:
    laser + trigger op een knop van het liftpaneel naast de liftdeur brengt hem naar die verdieping. In elke kamer zit een patiënt. De NPC-zin hangt boven de patiënt, de 4 opties verschijnen binnen 1,5 m
    (zoals in sectie 8). Na de keuze reageert de patiënt (houding, zin) en verschijnt de ballon **"Finish"**. Pas daarna
    is de patiënt "verzorgd": het bordje toont "Cared for" en de borden tellen mee.
-4. **Einde:** zodra alle patiënten verzorgd zijn **of** de timer op 0 staat (wat eerst komt) stoppen alle gesprekken
-   en verschijnt het **Shift report** 85 cm voor de speler: per kamer de score en de feedback, of "not cared for".
+4. **Einde:** zodra alle taken afgelopen zijn (verzorgd of mislukt) **of** de timer op 0 staat (wat eerst komt) stoppen
+   alle gesprekken en verschijnt het **Shift report** 85 cm voor de speler: per kamer de score en de feedback (en waar
+   het gesprek plaatsvond), "failed: time ran out" met de feedback van het scenario, of "not cared for".
    Het spel stopt daar. De ballon **"Close game"** sluit de app (in de editor stopt hij Play mode). Er is nog geen
    volgende shift.
+
+### Taak 2: de gang, de locatiekeuze en de countdown
+
+1. De dochter staat midden in de gang van verdieping 3, tussen de lift en kamer 3B, met haar gezicht naar de lift (en
+   een collider, zodat de speler niet door haar loopt). Boven de gang hangt de countdown, als een digitale wandklok.
+2. **Countdown:** de taak krijgt bij de start van de shift de `Time Limit` van het scenario (90 s), maar de tijd loopt
+   pas als de speler binnen 4 m van de dochter komt, op dezelfde verdieping (dus meteen bij het uitstappen van de lift).
+   Dan verschijnt de tijd ("Surgical gurney arrives in 1:29") en tikt het (3D, tot 8 m). Onder 15 s wordt de tijd rood.
+3. **Locatiekeuze:** binnen 1,5 m klaagt de dochter en kiest de speler: blijven (`corridor`) of naar de spreekkamer
+   (`consultation-room`). Bij de spreekkamer loopt ze voor (1,1 m/s, door de deur van 3B naar de tafel); de opties
+   verschijnen pas als ze er is en de speler bij haar staat. De keuze wordt bewaard (`PatientRoom.ChosenLocation`) en
+   staat op het eindscherm ("Talked in: Consultation room"), maar telt nu niet mee in de score.
+4. **Antwoorden op tijd:** de countdown stopt (tikken en display weg) zodra de speler een optie kiest, ook bij een
+   slecht antwoord. "Finish" sluit de taak af: uitkomst `Completed`, met de score van de optie (goed of slecht gereageerd,
+   zoals bij Scenario 1). De mood blijft `Tense`.
+5. **Tijd op:** kiest de speler geen optie voor de countdown op 0 staat, dan **mislukt** de taak (`FailedTimeUp`), los van
+   een slecht antwoord: de opties verdwijnen, de dochter roept de `Time Up Line`, de brancard rolt van het oosteinde van de
+   gang naar de lift (stopt na 3B), en de mood van de taak gaat naar **`Alarm`**: de gang- en spreekkamerlichten worden rood
+   en knipperen, het bordje kleurt rood met "Time ran out", en het waarschuwingsgeluid speelt rond de dochter. De shift
+   loopt verder; op de borden staat de taak als "Failed: time ran out", apart van "Cared for".
 
 ### Klassen (`Assets/_Project/Scripts/Shift/`)
 
@@ -409,14 +477,17 @@ met placeholder-inhoud**: 5 keer Scenario 1, elke patiënt `Happy`.
 | --- | --- |
 | `ShiftPlan` | Asset (Create > ProCommVR > Shift Plan): de lijst **Tasks**. Taak 1 gaat naar de eerste kamer van de ShiftManager, taak 2 naar de tweede, ... |
 | `ShiftTask` | Eén patiënt: `Patient Id` (uniek in het plan, bijvoorbeeld `patient-01`), `Scenario`, `Patient Name` (leeg = de NPC-naam van het scenario, enkel voor weergave) en `Patient Mood` |
-| `ShiftManager` | De gameloop: wijst de taken toe, `StartShift()`, timer (`Shift Duration` in seconden, nu 600 als testwaarde), einde bij alle taken klaar of tijd op, toont het Shift report. Houdt de voortgang bij **per patiënt-id**: `IsCompleted(patientId)`, `FindRoom(patientId)`, `SetPatientMood(patientId, mood)`. Events: `ShiftStarted`, `TaskCompleted`, `ShiftEnded` |
-| `PatientRoom` | Eén kamer: `Room Name`, eigen `ScenarioPresenter`, `MoodController` (het humeur van de patiënt) en `RoomSign`. `PatientId` = de id van de toegewezen taak. Zet bij toewijzing de mood en het bordje, speelt het scenario bij de start en meldt `TaskCompleted` na "Finish" |
-| `RoomSign` | Het deurbordje: kamer, patiënt, scenariotitel en een kleurvlak met de mood-kleur (leest de `MoodController`); toont "Cared for" na de taak |
-| `ShiftBoard` | Wereld-UI-paneel met de patiënten van de shift (Waiting / Cared for), de resterende tijd en de teller. Er staan er drie: in de lobby (achter de receptiebalie) en in de gang van verdieping 1 en 2 |
+| `ShiftManager` | De gameloop: wijst de taken toe, `StartShift()`, timer (`Shift Duration` in seconden, nu 600 als testwaarde), einde bij alle taken afgelopen of tijd op, toont het Shift report. Houdt de **uitkomst per patiënt-id** bij: `GetOutcome(patientId)`, `IsCompleted(patientId)` (verzorgd), `IsFailed(patientId)`, `CompletedCount`, `FailedCount`, `FinishedCount`, `FindRoom(patientId)`, `SetPatientMood(patientId, mood)`. Events: `ShiftStarted`, `TaskCompleted`, `TaskFailed`, `ShiftEnded` |
+| `TaskOutcome` | Hoe een taak afliep: `None` (nog open), `Completed` (beantwoord en "Finish"; de score zegt of het goed of slecht was), `FailedTimeUp` (de countdown van de taak liep af voor er een antwoord was) |
+| `PatientRoom` | Eén plek met een taak, meestal een kamer, voor taak 2 de gang: `Room Name`, eigen `ScenarioPresenter`, `MoodController` (het humeur van de patiënt) en `RoomSign`, optioneel een `TaskCountdown` en de `Failed Mood` (standaard `Alarm`). `PatientId` = de id van de toegewezen taak. Zet bij toewijzing de mood en het bordje, speelt het scenario bij de start (en zet de countdown klaar als het scenario een tijdslimiet heeft), bewaart `ChosenLocation`, `ChosenOption`, `Score` en `Outcome`, en meldt `TaskFinished` na "Finish" of als de tijd op is |
+| `TaskCountdown` | De countdown van één taak, naast de shift-timer: `Arm(seconds, label)`, start als de speler binnen `Start Range` (4 m) van de NPC komt, toont de tijd op een display, speelt het tikken, stopt met `Stop()`. Op 0: `Arrival` speelt (de brancard) en het event `Expired`. `State`: `Idle`, `Armed`, `Running`, `Stopped`, `Expired` |
+| `RoomSign` | Het deurbordje: kamer, patiënt, scenariotitel en een kleurvlak met de mood-kleur (leest de `MoodController`); toont na de taak "Cared for" of in het rood "Time ran out" |
+| `ShiftBoard` | Wereld-UI-paneel met de patiënten van de shift (Waiting / Cared for / Failed: time ran out), de resterende tijd en de teller ("Cared for: 1 / 5", met "Failed: 1" ernaast als er een taak mislukte). Er staan er vier: in de lobby (achter de receptiebalie) en in de gang van verdieping 1, 2 en 3 |
 | `ShiftStartButton` | Op de computer: laser + trigger start de shift (XRSimpleInteractable). Het label erboven kleurt blauw als de laser erop staat |
+| `PathMover` (`Scripts/Navigation/`) | Beweegt zijn object langs waypoints (in de looprichting gedraaid, eindigt in de rotatie van het laatste punt). Optioneel verborgen tot `Play()`. Gebruikt voor de brancard en voor de dochter die naar de spreekkamer loopt. Event `Arrived` |
 | `LiftButton` (`Scripts/Navigation/`) | Op een knop van Liam's liftpaneel: laser + trigger teleporteert de speler (via de `Teleportation Provider` van de rig) naar het aankomstpunt voor de lift op die verdieping, met de blik de gang in. "L" is de lobby. De liftdeuren blijven dicht: de rit is een teleport |
 
-**Patiënt-id:** de weergavenaam mag overal hetzelfde zijn (nu 5 keer "Patient X" met 5 keer Scenario 1); intern
+**Patiënt-id:** de weergavenaam mag overal hetzelfde zijn (nu 4 keer "Patient X" met Scenario 1); intern
 onderscheidt het systeem de patiënten enkel op `Patient Id`. Een taak zonder id, met een dubbele id of zonder scenario
 geeft een waarschuwing in de Inspector (`ShiftPlan.OnValidate`) en wordt bij de start van de shift overgeslagen. Het
 placeholder-plan gebruikt `patient-01` tot `patient-05`. Echte content per patiënt (eigen scenario, mood, later
@@ -434,7 +505,8 @@ De builder opent **Liam's ziekenhuis** (`Assets/Scenes/liam_test_scene.unity`, g
 `ProCommVR > Hospital > Build`) als sjabloon, voegt de shift toe en bewaart het resultaat als `ShiftHospital`. Liam's scene
 en scripts worden niet aangepast. Bouwt Liam zijn ziekenhuis opnieuw, draai dan ook deze builder opnieuw. Verandert
 Liam de namen of de indeling (`Hospital/Floor1/Room_1A`, `Card_1A`, `Door_1A`, `Furniture/Chair`, `Anchor_Sitting`, `Light`,
-`Lift/LiftButton_2`, `Lobby/Furniture/ReceptionDesk`), dan meldt de builder welk object hij niet vindt.
+`Lift/LiftButton_2`, `Lobby/Furniture/ReceptionDesk`, `Floor3/Light_3`, `Room_3B/Furniture/Bed`), dan meldt de builder
+welk object hij niet vindt.
 
 - **Gebouw (Liam):** lobby op de begane grond, 3 verdiepingen van 3,5 m hoog met elk een gang van 18 x 3 m en 3 kamers
   (A, B, C) van 4 x 4 m aan de noordkant. De lift zit in de westmuur. Kamers, meubels (Kenney), deuren (Sketchfab), borden,
@@ -442,28 +514,43 @@ Liam de namen of de indeling (`Hospital/Floor1/Room_1A`, `Card_1A`, `Door_1A`, `
 - **Briefing (lobby):** de computer (`ShiftStartButton`) staat op de bezoekerskant van de receptiebalie, naar de speler
   gericht. Het shift-bord hangt achter de balie aan de noordmuur (1,4 keer groter, want de speler leest het van ongeveer
   3 m). De speler start 1,3 m voor de balie.
-- **Shift-kamers 1A, 1B, 1C, 2A, 2B** (taak 1 naar 1A, ...): Liam's kamer krijgt de `PatientRoom`-component. Liam's
+- **Taken:** `TaskLocations` in de builder: taak 1 naar 1A, taak 2 naar de gang van verdieping 3, taak 3 naar 1B, taak 4
+  naar 1C, taak 5 naar 2A. Kamer 2B is (sinds Scenario 2) weer een kamer van Liam.
+- **Shift-kamers 1A, 1B, 1C, 2A:** Liam's kamer krijgt de `PatientRoom`-component. Liam's
   patiëntkaart en zijn patiënt voor die deur maken plaats voor ons deurbordje (`RoomSign`, op de plek van de kaart, rechts
   van de deur) en onze patiënt. De deur zwaait open, de kamer naar binnen. Liam's plafondlicht van de kamer krijgt de
   `MoodRoomLight` (geen extra licht), het mood-geluid (`MoodAudio`, 3D, tot 4 m) hangt midden in de kamer.
-- **Patiënten:** de personages van Liam (`Patient_Male`, `Patient_Female_Old`, `Patient_Male_Old`, `Patient_Female`,
-  `Patient_Male_Old`), zittend (Animator-state `Sitting`) op Liam's stoel naast het bed. Liam's stoel heeft al de zithoogte
+- **Patiënten:** de personages van Liam (`Patient_Male`, `Patient_Female_Old`, `Patient_Male_Old`, `Patient_Male`),
+  zittend (Animator-state `Sitting`) op Liam's stoel naast het bed. Liam's stoel heeft al de zithoogte
   van de animatie (0,45 m). De builder draait de stoel naar de deur, zoals Liam's eigen patiënten zitten. De `NpcReactor`
   draait de patiënt bij een keuze naar de verpleegkundige (de deur, `Engaged`), naar het bed (`TurnsAway`) of naar het raam
   (`Withdrawn`). Zie de beslissing van 2026-10-20 over de stoel in plaats van de bedrand.
-- **Andere kamers** (2C, 3A, 3B, 3C): blijven zoals Liam ze bouwde (zijn kaart, "Coming soon" of zijn eigen case 3A).
+- **Gang van verdieping 3 (taak 2):** `Shift/Encounter (Corridor 3)` met de dochter (`Patient_Female` met andere
+  kleren: Liam's patiënten dragen pyjama's, dus kopieën van haar kledingmaterialen in blauw en donkergrijs onder
+  `Materials/Characters/`; Liam's materialen blijven ongewijzigd), animatie `Angry`. Haar root draagt de NPC-ballon, de
+  pose-doelen, het mood-geluid (3D, tot 6 m) en de `ConversationLocationMover`. Het bordje (`RoomSign`) hangt aan de
+  zuidmuur bij de lift. De mood van de taak kleurt de ganglichten `Light_3` en `Light_9` en het licht van kamer 3B.
+  Liam's 3 zorgverleners op verdieping 3 maken de gang druk. Countdown-display op 2,6 m hoogte tussen de lift en de dochter.
+- **Spreekkamer (3B):** Liam's bed, nachtkastje en stoel staan uit, een ronde Kenney-tafel met twee stoelen staat in
+  hun plaats, de deur staat open en zijn kaart is vervangen door een bordje "Consultation room".
+- **Brancard:** het ziekenhuisbed van Sketchfab (ansh_artis, CC-BY 4.0, al in `CREDITS.md`), verborgen tot de countdown
+  afloopt; rolt dan aan 1 m/s van x = 17 naar x = 11,3 aan de noordkant van de gang (Liam's personeel staat aan de zuidkant).
+- **Andere kamers** (2B, 2C, 3A, 3C): blijven zoals Liam ze bouwde (zijn kaart, "Coming soon" of zijn eigen case 3A).
   Hun deuren blijven dicht en krijgen een box-collider, zodat niemand erdoor loopt.
 - **Lift:** de knoppen van Liam's liftpanelen (lobby 1, 2, 3; verdiepingen L, 1, 2, 3) krijgen een `XRSimpleInteractable`
-  en een `LiftButton`. Aankomstpunten: `Shift/Lift Arrivals/Arrival L` tot `Arrival 3`, 1,2 m voor de liftdeur.
+  en een `LiftButton`. Aankomstpunten: `Shift/Lift Arrivals/Arrival L` tot `Arrival 3`, 1,2 m voor de liftdeur en 3 cm
+  boven de vloer: Liam's vloer heeft een afwerklaag van 1 cm bovenop de plaat, en zo start de CharacterController van de
+  rig nooit in een vloer-collider. Ook het startpunt in de lobby staat 3 cm hoog.
 - **Licht:** Liam's lichten (één directional light, een point light per gang-segment, per kamer en twee in de lobby, geen
   schaduwen). Daarbovenop een eigen `Ward Mood` (MoodController op `Neutral` + MoodAtmosphere) voor het hoofdlicht en het
   ambient licht, zonder geluid. Liam's `Main Camera` wordt verwijderd: de XR rig heeft zijn eigen camera.
 - **Colliders:** Liam's muren en vloeren zijn primitives met box-colliders, zijn meubels hebben mesh-colliders.
 
-**Performance (Quest 3), nog te controleren op de headset:** de builder logt het totale aantal driehoeken: 42.078 voor
-de hele scene (richtwaarde ongeveer 100k). Realtime lichten: 1 directional en 20 point lights (9 kamers, 9 gang-segmenten,
-2 lobby), geen schaduwen. Geluid: 5 loopende 3D-bronnen (tijdens een crossfade even 2 per kamer), mono 22 kHz, buiten 4 m
-geruisloos.
+**Performance (Quest 3), nog te controleren op de headset:** de builder logt het totale aantal driehoeken: 70.377 voor
+de hele scene (richtwaarde ongeveer 100k). Daarvan is ongeveer 28k de brancard (Sketchfab-bed, ook als hij verborgen is
+telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) in zijn plaats. Realtime lichten: 1 directional en 20 point lights (9 kamers, 9 gang-segmenten,
+2 lobby), geen schaduwen. Geluid: 5 loopende 3D-bronnen voor de moods (tijdens een crossfade even 2 per taak), mono
+22 kHz, buiten 4 m geruisloos (de dochter: 6 m), plus het tikken van de countdown zolang die loopt (tot 8 m).
 
 ### Uitbreiden
 
@@ -473,6 +560,11 @@ geruisloos.
   Tijdens het spel: `ShiftManager.SetPatientMood("patient-03", Mood.Somber)`.
 - **Een nieuwe patiënt in het plan:** geef hem een nieuwe, unieke **Patient Id**.
 - **Duur van de shift:** `Shift Duration` op de **Shift Manager** in de scene.
+- **Een tijdslimiet of locatiekeuze voor een ander scenario:** vul de velden in het scenario in (sectie 8). In de scene
+  heeft de taak dan een `TaskCountdown` nodig (gekoppeld op de `PatientRoom`, met de NPC, een display en eventueel een
+  `PathMover` als `Arrival`) en een `ConversationLocationMover` met een `PathMover` per plek. In de shift-scene bouwt
+  `BuildCorridorEncounter` dat voor taak 2; voor een andere taak moet de builder het ook doen.
+- **De plek laten meetellen:** zet een `Score` (en eventueel `Feedback`) op een `Location` in het scenario. Geen code nodig.
 - **Meer kamers:** voeg een deurlabel van Liam's ziekenhuis (bijvoorbeeld `2C`) toe aan `RoomLabels` in de builder en
   een taak aan het shift-plan, en bouw de scene opnieuw. Op een nieuwe verdieping komt er ook een shift-bord in de gang.
 - **Een andere omgeving:** de shift-scripts hangen niet aan deze layout. Per kamer heb je een `PatientRoom` nodig met
@@ -486,16 +578,22 @@ geruisloos.
 
 | Test | Wat |
 | --- | --- |
-| `RunShiftLoop` | Een volledige shift in `ShiftHospital` (Liam's ziekenhuis): unieke patiënt-id's (ook met 5 keer dezelfde naam), mood Happy in elke kamer (data, kamerlicht en bordje groen, Happy-geluid 3D), elke patiënt **zichtbaar zittend** (Animator in `Sitting`, heupen tussen 0,3 en 0,75 m, hoofd onder 1,45 m, heupen boven de zitting van de stoel, stoel naast het bed), mood van één patiënt wijzigen via zijn id (enkel die kamer verandert, geluid kruisfadet), start via de computer in de lobby, met de **lift** naar verdieping 1 en 2 (laser op de liftknop, de speler komt op de juiste hoogte aan), per kamer: geen opties vanaf de deur, 4 opties binnen 1,5 m (en geen opties van de patiënt recht erboven of eronder), keuze, "Finish", voortgang per id, dan het eindscherm met elke kamer, de drie borden op "Shift ended" en 5 / 5, met de lift terug naar de lobby, waar de computer niets meer doet |
+| `RunShiftLoop` | Een volledige shift in `ShiftHospital` (Liam's ziekenhuis): taak 2 is Scenario 2, unieke patiënt-id's (ook met 4 keer dezelfde naam), de mood van elke taak (Happy, de gang Tense) (data, kamerlicht en bordje groen, Happy-geluid 3D), elke patiënt **zichtbaar zittend** (Animator in `Sitting`, heupen tussen 0,3 en 0,75 m, hoofd onder 1,45 m, heupen boven de zitting van de stoel, stoel naast het bed), mood van één patiënt wijzigen via zijn id (enkel die kamer verandert, geluid kruisfadet), start via de computer in de lobby, met de **lift** naar verdieping 1 en 2 (laser op de liftknop, de speler komt op de juiste hoogte aan en staat op de vloer, niet erin), Scenario 2 via de spreekkamer met het beste antwoord, per kamer: geen opties vanaf de deur, 4 opties binnen 1,5 m (en geen opties van de patiënt recht erboven of eronder), keuze, "Finish", voortgang per id, dan het eindscherm met elke kamer, de vier borden op "Shift ended" en 5 / 5, met de lift terug naar de lobby, waar de computer niets meer doet |
 | `RunShiftTimeout` | Zelfde scene, de shift duurt 4 s: na 1 patiënt loopt de tijd af, het spel stopt met 1 / 5 en de andere kamers stoppen hun gesprek |
+| `RunScenario02Good` | Scenario 2, **op tijd en goed**: de countdown wacht in de lobby en start bij het uitstappen op verdieping 3, display en tikken aan, de 2 plekken binnen 1,5 m, keuze spreekkamer, de dochter loopt naar binnen (geen opties onderweg), 4 opties daar, beste optie: countdown stopt, animatie `Talking`, "Finish", uitkomst `Completed`, score 3, bordje en bord "Cared for", geen brancard, mood blijft Tense; eindscherm "3 / 3" en "Talked in: Consultation room" |
+| `RunScenario02Poor` | Scenario 2, **op tijd maar slecht**: in de gang blijven, slechtste optie (-1): countdown stopt, animatie `Angry`, `Completed` met score -1, eindscherm "-1 / 3" en "Talked in: Corridor" |
+| `RunScenario02TimeUp` | Scenario 2, **tijd op**: in de gang blijven en niet antwoorden (de countdown wordt op 2 s gezet): uitkomst `FailedTimeUp`, 1 mislukt en 0 verzorgd, de shift loopt verder, opties weg, de dochter roept, de brancard rolt de gang in en komt aan, mood `Alarm` (lichten rood en knipperend, bordje rood met "Time ran out", waarschuwingsgeluid), bord "Failed: time ran out"; eindscherm "failed: time ran out" met de feedback en "Failed: 1" |
 | `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel, en het Somber-geluid speelt |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
 ballonnen en drukt de trigger in. Zo gaat elke klik door de echte rig (Near-Far Interactor, XR UI Input Module). Enkel
 het lopen wordt overgeslagen: de test verplaatst de XR Origin naar het liftpaneel, de deur en de patiënt. De liftrit
-zelf gaat door de echte `LiftButton` en de `Teleportation Provider` van de rig. Mislukt een klik, dan logt de test ook
-welke colliders tussen de controller en het doel zitten.
+zelf gaat door de echte `LiftButton` en de `Teleportation Provider` van de rig; verplaatst het spel de XR Origin (de lift),
+dan beweegt het gesimuleerde hoofd mee, zoals een echte headset. Bij een klik blijft de trigger minstens 0,2 s en 3 frames
+ingedrukt (in batchmode kan één frame langer duren dan 0,2 s); had een klik geen effect, dan drukt de test nog één keer
+en logt dat. Mislukt hij dan nog, dan logt de test welke colliders tussen de controller en het doel zitten en wat de
+laser raakt.
 
 **Starten:** via het menu **ProCommVR > Tests** in de editor, of in batchmode (zonder `-quit`):
 
@@ -506,7 +604,8 @@ Unity.exe -batchmode -projectPath <project> -logFile <log> \
 
 Optioneel `-smokeTestScreenshots <map>`: bewaart onderweg beelden van de camera van de speler (zonder `-nographics`):
 de lobby, het shift-bord, elke aankomst met de lift, de deur van elke kamer, de patiënt van zij, de opties, de reactie en
-het eindrapport.
+het eindrapport; bij Scenario 2 de gang met de countdown, de locatiekeuze, de opties op de gekozen plek, de reactie,
+het alarm met de brancard en het eindrapport.
 Een test vervangt geen test op de Quest 3 zelf: performance, leesbaarheid in de headset en echte handbewegingen moet je
 daar nog controleren.
 
