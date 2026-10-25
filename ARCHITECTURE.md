@@ -68,7 +68,6 @@ Assets/
     Editor/Testing/         Play mode-tests (batchmode), zie sectie 13
     Materials/              materialen
     Materials/PatientRoom/  URP-materialen voor de patiëntenkamer (scenario 1), zie sectie 11
-    Materials/Hospital/     materialen voor de shift-scene (plafond), zie sectie 12
     Prefabs/                prefabs, o.a. de XR rig variant
     Prefabs/UI/             UI-prefabs, o.a. DialogueBubble
     Scenes/                 scenes
@@ -76,6 +75,7 @@ Assets/
     Scripts/Scenarios/      scenario-systeem, namespace ProCommVR.Scenarios
     Scripts/Atmosphere/     mood-systeem, namespace ProCommVR.Atmosphere
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
+    Scripts/Navigation/     verplaatsen tussen verdiepingen (lift), namespace ProCommVR.Navigation
     Settings/Input/         input actions
     Settings/Moods/         mood-profielen (kleur, licht, ambient, muziek per mood), zie sectie 10
   Samples/                  geïmporteerde package-samples, niet aanpassen
@@ -89,6 +89,9 @@ Volgens `CLAUDE.md` komt er later nog `Art/` bij onder `_Project/`.
 Lege mappen zetten we niet in Git: maak ze aan zodra er iets in komt.
 Third-party assets blijven buiten `_Project/`. De personages van Liam staan in `Assets/Character/`
 (14 low-poly personages, Mixamo-animaties, zijn eigen setup-script `ProCommVR > Characters > Setup`).
+Liam's ziekenhuis staat in `Assets/Hospital/` (zijn builder `ProCommVR > Hospital > Build`, de kamer-prefab, zijn
+`PatientCase`-data) en `Assets/Scenes/liam_test_scene.unity`. Dat is Liam's werk: wij passen het niet aan, de shift-scene
+gebruikt het enkel als sjabloon (sectie 12).
 
 ## 6. Testscene
 
@@ -131,7 +134,8 @@ De setup is volledig gescript (`Assets/_Project/Editor/`), dus reproduceerbaar:
    blijven behouden als ze al bestaan)
 8. **ProCommVR > Setup > 7. Build Scenario 01 Patient Room** (overschrijft `Scenario01_PatientRoom`, zie sectie 11)
 9. **ProCommVR > Setup > 8. Build Shift Hospital** (overschrijft `ShiftHospital`, zie sectie 12; het shift-plan blijft
-   behouden als het al bestaat)
+   behouden als het al bestaat). Vereist Liam's ziekenhuis-scene: heeft Liam die opnieuw gebouwd (**ProCommVR > Hospital >
+   Build**), draai deze stap dan ook opnieuw.
 
 In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`, daarna
 `ProCommVR.Editor.XRTestSceneBuilder.ImportStarterAssets` en
@@ -169,13 +173,15 @@ en 1 duidelijk foute optie (`GAME_BRIEF.md`). De score is nooit zichtbaar tijden
 - `ScenarioPresenter` (in de scene) toont een `Scenario`: de NPC-zin in een ballon boven de NPC
   en de 4 opties als ballonnen in een 2x2-raster voor de speler, in **willekeurige volgorde**.
 - **Opties enkel dichtbij:** de NPC-zin is meteen zichtbaar, de 4 opties zijn enkel zichtbaar
-  zolang het hoofd van de speler binnen **1,5 m** (horizontaal) van de NPC staat (`GAME_BRIEF.md`).
+  zolang het hoofd van de speler binnen **1,5 m** (horizontaal) van de NPC staat (`GAME_BRIEF.md`) **en** op dezelfde
+  verdieping: het hoofd moet tussen 0,5 m onder en 2,5 m boven het pivot-punt van de NPC zitten (`Head Height Range`).
+  Zonder die grens toonde een patiënt recht boven of onder de speler (kamer 2A boven 1A) ook zijn opties.
   Ze verschijnen tussen de speler en de NPC: 0,7 m voor het hoofd, 25 cm onder ooghoogte, naar
   de speler gericht. Stapt de speler weg (verder dan 1,5 m + 10 cm marge), dan verdwijnen ze weer;
   komt hij terug, dan verschijnen ze opnieuw voor hem, in dezelfde volgorde. De marge voorkomt
   geflikker als de speler net op de grens staat.
   Instelbaar op de presenter onder **Proximity**: `Npc` (leeg = opties meteen tonen),
-  `Options Range`, `Options Hide Margin`, `Player` (leeg = de main camera, dus de headset), `Place Options In Front Of
+  `Options Range`, `Options Hide Margin`, `Head Height Range`, `Player` (leeg = de main camera, dus de headset), `Place Options In Front Of
   Player` (uit = opties blijven op de `Options Anchor`), `Options Distance` en `Options Height Offset`.
   In `ScenarioTest` staat de NPC (capsule) 2,5 m van het startpunt: stap ongeveer 1 m naar voren
   (of gebruik de linker thumbstick) om de opties te zien.
@@ -383,11 +389,13 @@ met placeholder-inhoud**: 5 keer Scenario 1, elke patiënt `Happy`.
 
 ### Verloop
 
-1. **Briefing:** de speler start in de briefing room. De taken uit het shift-plan zijn al aan de kamers toegewezen:
-   de deurbordjes en de shift-borden tonen de patiënten, de kamerlichten hebben de kleur van hun humeur.
-2. **Start:** de speler richt de laser op de **computer op het bureau** en drukt de trigger in. Alle kamers starten
+1. **Briefing:** de speler start in de **lobby** van Liam's ziekenhuis, voor de receptiebalie (die dient als briefing room).
+   De taken uit het shift-plan zijn al aan de kamers toegewezen: de deurbordjes en de shift-borden tonen de patiënten,
+   de kamerlichten hebben de kleur van hun humeur.
+2. **Start:** de speler richt de laser op de **computer op de receptiebalie** en drukt de trigger in. Alle kamers starten
    hun gesprek en de timer loopt.
-3. **Taken:** in elke kamer zit een patiënt. De NPC-zin hangt boven de patiënt, de 4 opties verschijnen binnen 1,5 m
+3. **Taken:** de patiënten liggen op verdieping 1 (kamers 1A, 1B, 1C) en 2 (2A, 2B). De speler gaat met de **lift**:
+   laser + trigger op een knop van het liftpaneel naast de liftdeur brengt hem naar die verdieping. In elke kamer zit een patiënt. De NPC-zin hangt boven de patiënt, de 4 opties verschijnen binnen 1,5 m
    (zoals in sectie 8). Na de keuze reageert de patiënt (houding, zin) en verschijnt de ballon **"Finish"**. Pas daarna
    is de patiënt "verzorgd": het bordje toont "Cared for" en de borden tellen mee.
 4. **Einde:** zodra alle patiënten verzorgd zijn **of** de timer op 0 staat (wat eerst komt) stoppen alle gesprekken
@@ -404,8 +412,9 @@ met placeholder-inhoud**: 5 keer Scenario 1, elke patiënt `Happy`.
 | `ShiftManager` | De gameloop: wijst de taken toe, `StartShift()`, timer (`Shift Duration` in seconden, nu 600 als testwaarde), einde bij alle taken klaar of tijd op, toont het Shift report. Houdt de voortgang bij **per patiënt-id**: `IsCompleted(patientId)`, `FindRoom(patientId)`, `SetPatientMood(patientId, mood)`. Events: `ShiftStarted`, `TaskCompleted`, `ShiftEnded` |
 | `PatientRoom` | Eén kamer: `Room Name`, eigen `ScenarioPresenter`, `MoodController` (het humeur van de patiënt) en `RoomSign`. `PatientId` = de id van de toegewezen taak. Zet bij toewijzing de mood en het bordje, speelt het scenario bij de start en meldt `TaskCompleted` na "Finish" |
 | `RoomSign` | Het deurbordje: kamer, patiënt, scenariotitel en een kleurvlak met de mood-kleur (leest de `MoodController`); toont "Cared for" na de taak |
-| `ShiftBoard` | Wereld-UI-paneel met de patiënten van de shift (Waiting / Cared for), de resterende tijd en de teller. Er staan er twee: in de briefing room en aan het einde van de gang |
+| `ShiftBoard` | Wereld-UI-paneel met de patiënten van de shift (Waiting / Cared for), de resterende tijd en de teller. Er staan er drie: in de lobby (achter de receptiebalie) en in de gang van verdieping 1 en 2 |
 | `ShiftStartButton` | Op de computer: laser + trigger start de shift (XRSimpleInteractable). Het label erboven kleurt blauw als de laser erop staat |
+| `LiftButton` (`Scripts/Navigation/`) | Op een knop van Liam's liftpaneel: laser + trigger teleporteert de speler (via de `Teleportation Provider` van de rig) naar het aankomstpunt voor de lift op die verdieping, met de blik de gang in. "L" is de lobby. De liftdeuren blijven dicht: de rit is een teleport |
 
 **Patiënt-id:** de weergavenaam mag overal hetzelfde zijn (nu 5 keer "Patient X" met 5 keer Scenario 1); intern
 onderscheidt het systeem de patiënten enkel op `Patient Id`. Een taak zonder id, met een dubbele id of zonder scenario
@@ -421,42 +430,40 @@ bijvoorbeeld `Sitting`. `ResultsScreen` kreeg `ShowText(subtitle, body)` zodat d
 `Assets/_Project/Scenes/ShiftHospital.unity` wordt volledig opgebouwd door `Assets/_Project/Editor/ShiftHospitalSceneBuilder.cs`
 (menu **ProCommVR > Setup > 8. Build Shift Hospital**). Staat **eerst** in de Build Settings, dus een headset-build start met de shift.
 
-- Gang van 12 x 2,5 m (x 0..12, z 0..2,5). Ten noorden kamers 1 tot 3, ten zuiden de briefing room (x 0..4) en
-  kamers 4 en 5. Elke kamer is 4 x 4 m met een deuropening van 1 m naar de gang en een raam in de buitenmuur.
-  Plafond op 2,7 m.
-- **Briefing room:** bureau met de start-computer, bureaustoel, boekenkast, vergadertafel, kapstok, plant en een shift-bord.
-- **Patiëntenkamer:** ziekenhuisbed, infuuspaal en ladekast op wieltjes (GRADD), een stoel naast het bed waarin de
-  patiënt zit, een plafondlamp, het **mood-licht** (point light zonder schaduw, kleur via `MoodRoomLight`) en het
-  **mood-geluid** (`Patient Mood` met `MoodAudio`: 3D, lineair hoorbaar tot 4 m, dus enkel in en net buiten de kamer).
-  Het deurbordje hangt rechts van de deur aan de gangkant.
+De builder opent **Liam's ziekenhuis** (`Assets/Scenes/liam_test_scene.unity`, gebouwd door Liam's
+`ProCommVR > Hospital > Build`) als sjabloon, voegt de shift toe en bewaart het resultaat als `ShiftHospital`. Liam's scene
+en scripts worden niet aangepast. Bouwt Liam zijn ziekenhuis opnieuw, draai dan ook deze builder opnieuw. Verandert
+Liam de namen of de indeling (`Hospital/Floor1/Room_1A`, `Card_1A`, `Door_1A`, `Furniture/Chair`, `Anchor_Sitting`, `Light`,
+`Lift/LiftButton_2`, `Lobby/Furniture/ReceptionDesk`), dan meldt de builder welk object hij niet vindt.
+
+- **Gebouw (Liam):** lobby op de begane grond, 3 verdiepingen van 3,5 m hoog met elk een gang van 18 x 3 m en 3 kamers
+  (A, B, C) van 4 x 4 m aan de noordkant. De lift zit in de westmuur. Kamers, meubels (Kenney), deuren (Sketchfab), borden,
+  lichten en de zorgverleners als decor komen uit Liam's builder.
+- **Briefing (lobby):** de computer (`ShiftStartButton`) staat op de bezoekerskant van de receptiebalie, naar de speler
+  gericht. Het shift-bord hangt achter de balie aan de noordmuur (1,4 keer groter, want de speler leest het van ongeveer
+  3 m). De speler start 1,3 m voor de balie.
+- **Shift-kamers 1A, 1B, 1C, 2A, 2B** (taak 1 naar 1A, ...): Liam's kamer krijgt de `PatientRoom`-component. Liam's
+  patiëntkaart en zijn patiënt voor die deur maken plaats voor ons deurbordje (`RoomSign`, op de plek van de kaart, rechts
+  van de deur) en onze patiënt. De deur zwaait open, de kamer naar binnen. Liam's plafondlicht van de kamer krijgt de
+  `MoodRoomLight` (geen extra licht), het mood-geluid (`MoodAudio`, 3D, tot 4 m) hangt midden in de kamer.
 - **Patiënten:** de personages van Liam (`Patient_Male`, `Patient_Female_Old`, `Patient_Male_Old`, `Patient_Female`,
-  `Patient_Male_Old`), zittend (Animator-state `Sitting`) op een stoel **naast het bed**, niet op de bedrand. Dat wijkt
-  af van de beslissing van 2026-10-19 (bedrand, voor de capsule in `Scenario01_PatientRoom`), om deze redenen: de
-  Sitting-animatie gaat uit van een zitting van ongeveer 0,45 m, de matras van het GRADD-bed ligt op 0,66 m en langs
-  beide lange zijden staan zijrails tot 0,65 à 0,83 m. Op de bedrand zou de patiënt met zwevende voeten in een rail
-  zitten. Gemeten in Play mode zitten de heupen op 0,50 à 0,57 m en het hoofd op 1,05 à 1,19 m (staand zijn de personages
-  1,7 à 1,9 m groot). Op de bedrand zitten kan later met een eigen animatie of een lager bed. De `NpcReactor` draait de patiënt
-  bij een keuze naar de verpleegkundige toe (`Engaged`), weg (`TurnsAway`) of naar het raam (`Withdrawn`).
-- **Licht:** één directional light zonder schaduwen en een eigen `Ward Mood` (MoodController op `Neutral` +
-  MoodAtmosphere) voor het hoofdlicht en het ambient licht, zonder geluid. De patiënt-moods kleuren de kamerlichten en
-  bordjes en bepalen het geluid per kamer.
-- **Colliders:** de Kenney-modellen hebben geen colliders. Er is één onzichtbare vloer-collider en per muurstuk een
-  box-collider (deuropeningen blijven open), zodat de thumbstick-beweging binnen de muren blijft.
+  `Patient_Male_Old`), zittend (Animator-state `Sitting`) op Liam's stoel naast het bed. Liam's stoel heeft al de zithoogte
+  van de animatie (0,45 m). De builder draait de stoel naar de deur, zoals Liam's eigen patiënten zitten. De `NpcReactor`
+  draait de patiënt bij een keuze naar de verpleegkundige (de deur, `Engaged`), naar het bed (`TurnsAway`) of naar het raam
+  (`Withdrawn`). Zie de beslissing van 2026-10-20 over de stoel in plaats van de bedrand.
+- **Andere kamers** (2C, 3A, 3B, 3C): blijven zoals Liam ze bouwde (zijn kaart, "Coming soon" of zijn eigen case 3A).
+  Hun deuren blijven dicht en krijgen een box-collider, zodat niemand erdoor loopt.
+- **Lift:** de knoppen van Liam's liftpanelen (lobby 1, 2, 3; verdiepingen L, 1, 2, 3) krijgen een `XRSimpleInteractable`
+  en een `LiftButton`. Aankomstpunten: `Shift/Lift Arrivals/Arrival L` tot `Arrival 3`, 1,2 m voor de liftdeur.
+- **Licht:** Liam's lichten (één directional light, een point light per gang-segment, per kamer en twee in de lobby, geen
+  schaduwen). Daarbovenop een eigen `Ward Mood` (MoodController op `Neutral` + MoodAtmosphere) voor het hoofdlicht en het
+  ambient licht, zonder geluid. Liam's `Main Camera` wordt verwijderd: de XR rig heeft zijn eigen camera.
+- **Colliders:** Liam's muren en vloeren zijn primitives met box-colliders, zijn meubels hebben mesh-colliders.
 
-| Map | Waarvoor |
-| --- | --- |
-| `Assets/ThirdParty/Kenney/FurnitureKit/` | Vloeren, muren (`wall`, `wallDoorway`, `wallWindow`), plafondlampen en alle niet-medische meubels |
-| `Assets/ThirdParty/GRADD/HospitalRoom/` | Ziekenhuisbed (`Hospital_Bed_001`), infuuspaal (`IV_Bag_Holder_001`), ladekast op wieltjes |
-| `Assets/Character/` | De patiënten (Liam) |
-
-De Kenney-modellen hebben hun voorkant op -z en zijn 10 eenheden per tegel; de builder plaatst ze in een lege parent,
-schaalt die (muren 10 cm dik) en draait ze een halve slag, zodat de voorkant de gevraagde kant op kijkt.
-
-**Performance (Quest 3), nog te controleren op de headset:** de builder logt het totale aantal driehoeken: 86.355
-voor de hele scene (richtwaarde ongeveer 100k), vooral de 5 GRADD-bedden. De personages zijn ongeveer 500 driehoeken.
-6 realtime lichten (1 directional + 5 point, geen schaduwen); elke kamer valt binnen het bereik van 1 point light.
-Structuur en meubels staan op Batching Static. Geluid: 5 loopende 3D-bronnen (tijdens een crossfade even 2 per kamer),
-mono 22 kHz, buiten 4 m geruisloos.
+**Performance (Quest 3), nog te controleren op de headset:** de builder logt het totale aantal driehoeken: 42.078 voor
+de hele scene (richtwaarde ongeveer 100k). Realtime lichten: 1 directional en 20 point lights (9 kamers, 9 gang-segmenten,
+2 lobby), geen schaduwen. Geluid: 5 loopende 3D-bronnen (tijdens een crossfade even 2 per kamer), mono 22 kHz, buiten 4 m
+geruisloos.
 
 ### Uitbreiden
 
@@ -466,11 +473,11 @@ mono 22 kHz, buiten 4 m geruisloos.
   Tijdens het spel: `ShiftManager.SetPatientMood("patient-03", Mood.Somber)`.
 - **Een nieuwe patiënt in het plan:** geef hem een nieuwe, unieke **Patient Id**.
 - **Duur van de shift:** `Shift Duration` op de **Shift Manager** in de scene.
-- **Meer kamers:** voeg een kamer toe in de builder (of dupliceer een `Room N` in de scene) en sleep zijn
-  `PatientRoom` in de lijst **Rooms** van de Shift Manager.
-- **Naar Liam's hospital:** de shift-scripts hangen niet aan deze layout. In een andere omgeving heb je per kamer een
-  `PatientRoom` nodig met een presenter, een MoodController (met MoodRoomLight en MoodAudio) en een RoomSign, plus een Shift Manager, een ShiftBoard,
-  een object met `ShiftStartButton` en een ResultsScreen.
+- **Meer kamers:** voeg een deurlabel van Liam's ziekenhuis (bijvoorbeeld `2C`) toe aan `RoomLabels` in de builder en
+  een taak aan het shift-plan, en bouw de scene opnieuw. Op een nieuwe verdieping komt er ook een shift-bord in de gang.
+- **Een andere omgeving:** de shift-scripts hangen niet aan deze layout. Per kamer heb je een `PatientRoom` nodig met
+  een presenter, een MoodController (met MoodRoomLight en MoodAudio) en een RoomSign, plus een Shift Manager, een ShiftBoard,
+  een object met `ShiftStartButton` en een ResultsScreen. Enkel de builder kent Liam's indeling.
 
 ## 13. Automatische tests in Play mode
 
@@ -479,14 +486,16 @@ mono 22 kHz, buiten 4 m geruisloos.
 
 | Test | Wat |
 | --- | --- |
-| `RunShiftLoop` | Een volledige shift in `ShiftHospital`: unieke patiënt-id's (ook met 5 keer dezelfde naam), mood Happy in elke kamer (data, kamerlicht en bordje groen, Happy-geluid 3D), elke patiënt **zichtbaar zittend** (Animator in `Sitting`, heupen tussen 0,3 en 0,75 m, hoofd onder 1,45 m, heupen boven de zitting van de stoel, stoel naast het bed), mood van één patiënt wijzigen via zijn id (enkel die kamer verandert, geluid kruisfadet), start via de computer, per kamer: geen opties vanaf de deur, 4 opties binnen 1,5 m, keuze, "Finish", voortgang per id, dan het eindscherm, beide borden op "Shift ended" en 5 / 5 |
+| `RunShiftLoop` | Een volledige shift in `ShiftHospital` (Liam's ziekenhuis): unieke patiënt-id's (ook met 5 keer dezelfde naam), mood Happy in elke kamer (data, kamerlicht en bordje groen, Happy-geluid 3D), elke patiënt **zichtbaar zittend** (Animator in `Sitting`, heupen tussen 0,3 en 0,75 m, hoofd onder 1,45 m, heupen boven de zitting van de stoel, stoel naast het bed), mood van één patiënt wijzigen via zijn id (enkel die kamer verandert, geluid kruisfadet), start via de computer in de lobby, met de **lift** naar verdieping 1 en 2 (laser op de liftknop, de speler komt op de juiste hoogte aan), per kamer: geen opties vanaf de deur, 4 opties binnen 1,5 m (en geen opties van de patiënt recht erboven of eronder), keuze, "Finish", voortgang per id, dan het eindscherm met elke kamer, de drie borden op "Shift ended" en 5 / 5, met de lift terug naar de lobby, waar de computer niets meer doet |
 | `RunShiftTimeout` | Zelfde scene, de shift duurt 4 s: na 1 patiënt loopt de tijd af, het spel stopt met 1 / 5 en de andere kamers stoppen hun gesprek |
 | `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel, en het Somber-geluid speelt |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
 ballonnen en drukt de trigger in. Zo gaat elke klik door de echte rig (Near-Far Interactor, XR UI Input Module). Enkel
-het lopen wordt overgeslagen: de test verplaatst de XR Origin naar de deur en naar de patiënt.
+het lopen wordt overgeslagen: de test verplaatst de XR Origin naar het liftpaneel, de deur en de patiënt. De liftrit
+zelf gaat door de echte `LiftButton` en de `Teleportation Provider` van de rig. Mislukt een klik, dan logt de test ook
+welke colliders tussen de controller en het doel zitten.
 
 **Starten:** via het menu **ProCommVR > Tests** in de editor, of in batchmode (zonder `-quit`):
 
@@ -495,7 +504,9 @@ Unity.exe -batchmode -projectPath <project> -logFile <log> \
   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftLoop
 ```
 
-Optioneel `-smokeTestScreenshots <map>`: bewaart onderweg beelden van de camera van de speler (zonder `-nographics`).
+Optioneel `-smokeTestScreenshots <map>`: bewaart onderweg beelden van de camera van de speler (zonder `-nographics`):
+de lobby, het shift-bord, elke aankomst met de lift, de deur van elke kamer, de patiënt van zij, de opties, de reactie en
+het eindrapport.
 Een test vervangt geen test op de Quest 3 zelf: performance, leesbaarheid in de headset en echte handbewegingen moet je
 daar nog controleren.
 
