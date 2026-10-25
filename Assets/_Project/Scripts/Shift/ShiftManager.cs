@@ -23,8 +23,9 @@ namespace ProCommVR.Shift
     /// <summary>
     /// The game loop of one shift. In the briefing room the tasks of the <see cref="ShiftPlan"/> are assigned to the
     /// patient rooms (task 1 to room 1, ...). <see cref="StartShift"/> starts the conversations and the timer.
-    /// The shift ends when every task is done or the timer reaches zero, whichever comes first. Then the results
-    /// screen appears and the game stops: its button closes the game (no next shift yet).
+    /// The shift ends when every task is finished (completed, or failed because its own countdown ran out) or the
+    /// shift timer reaches zero, whichever comes first. Then the results screen appears and the game stops: its
+    /// button closes the game (no next shift yet).
     /// </summary>
     public class ShiftManager : MonoBehaviour
     {
@@ -40,7 +41,7 @@ namespace ProCommVR.Shift
 
         private readonly List<PatientRoom> _assignedRooms = new List<PatientRoom>();
         private readonly Dictionary<string, PatientRoom> _roomsByPatient = new Dictionary<string, PatientRoom>();
-        private readonly HashSet<string> _completedPatients = new HashSet<string>();
+        private readonly Dictionary<string, TaskOutcome> _outcomes = new Dictionary<string, TaskOutcome>();
 
         public ShiftState State { get; private set; } = ShiftState.Briefing;
         public ShiftEndReason EndReason { get; private set; }
@@ -52,10 +53,24 @@ namespace ProCommVR.Shift
         /// </summary>
         public IReadOnlyList<PatientRoom> AssignedRooms => _assignedRooms;
 
-        public int CompletedCount => _completedPatients.Count;
+        /// <summary>
+        /// Patients cared for: tasks completed in time.
+        /// </summary>
+        public int CompletedCount { get; private set; }
+
+        /// <summary>
+        /// Tasks that failed because their own countdown ran out.
+        /// </summary>
+        public int FailedCount { get; private set; }
+
+        /// <summary>
+        /// Tasks that ended, completed or failed.
+        /// </summary>
+        public int FinishedCount => _outcomes.Count;
 
         public event Action ShiftStarted;
         public event Action<PatientRoom> TaskCompleted;
+        public event Action<PatientRoom> TaskFailed;
         public event Action<ShiftEndReason> ShiftEnded;
 
         private void Start()
@@ -76,7 +91,7 @@ namespace ProCommVR.Shift
             foreach (var room in _assignedRooms)
             {
                 if (room != null)
-                    room.TaskCompleted -= OnTaskCompleted;
+                    room.TaskFinished -= OnTaskFinished;
             }
         }
 
@@ -90,14 +105,33 @@ namespace ProCommVR.Shift
                 EndShift(ShiftEndReason.TimeUp);
         }
 
+        /// <summary>
+        /// True when the patient was cared for (the task was completed in time).
+        /// </summary>
         public bool IsCompleted(PatientRoom room)
         {
-            return room != null && room.PatientId != null && _completedPatients.Contains(room.PatientId);
+            return room != null && IsCompleted(room.PatientId);
         }
 
         public bool IsCompleted(string patientId)
         {
-            return patientId != null && _completedPatients.Contains(patientId);
+            return GetOutcome(patientId) == TaskOutcome.Completed;
+        }
+
+        /// <summary>
+        /// True when the task failed because its countdown ran out.
+        /// </summary>
+        public bool IsFailed(string patientId)
+        {
+            return GetOutcome(patientId) == TaskOutcome.FailedTimeUp;
+        }
+
+        /// <summary>
+        /// How the task of a patient ended, or None while it is still open.
+        /// </summary>
+        public TaskOutcome GetOutcome(string patientId)
+        {
+            return patientId != null && _outcomes.TryGetValue(patientId, out var outcome) ? outcome : TaskOutcome.None;
         }
 
         /// <summary>
@@ -166,20 +200,32 @@ namespace ProCommVR.Shift
                     continue;
                 }
                 room.Assign(tasks[i]);
-                room.TaskCompleted += OnTaskCompleted;
+                room.TaskFinished += OnTaskFinished;
                 _assignedRooms.Add(room);
                 _roomsByPatient.Add(tasks[i].PatientId, room);
             }
         }
 
-        private void OnTaskCompleted(PatientRoom room)
+        private void OnTaskFinished(PatientRoom room)
         {
-            if (State != ShiftState.Running || !_completedPatients.Add(room.PatientId))
+            if (State != ShiftState.Running || room.Outcome == TaskOutcome.None || _outcomes.ContainsKey(room.PatientId))
                 return;
 
-            Debug.Log($"[ProCommVR] {room.PatientId} ({room.RoomName}) cared for.", this);
-            TaskCompleted?.Invoke(room);
-            if (_completedPatients.Count >= _assignedRooms.Count)
+            _outcomes.Add(room.PatientId, room.Outcome);
+            if (room.Outcome == TaskOutcome.Completed)
+            {
+                CompletedCount++;
+                Debug.Log($"[ProCommVR] {room.PatientId} ({room.RoomName}) cared for.", this);
+                TaskCompleted?.Invoke(room);
+            }
+            else
+            {
+                FailedCount++;
+                Debug.Log($"[ProCommVR] {room.PatientId} ({room.RoomName}) failed: {room.Outcome}.", this);
+                TaskFailed?.Invoke(room);
+            }
+
+            if (FinishedCount >= _assignedRooms.Count)
                 EndShift(ShiftEndReason.AllTasksDone);
         }
 
@@ -190,7 +236,7 @@ namespace ProCommVR.Shift
             foreach (var room in _assignedRooms)
                 room.Close();
 
-            Debug.Log($"[ProCommVR] Shift ended ({reason}): {_completedPatients.Count} / {_assignedRooms.Count} patients cared for.", this);
+            Debug.Log($"[ProCommVR] Shift ended ({reason}): {CompletedCount} / {_assignedRooms.Count} patients cared for, {FailedCount} failed.", this);
             if (_resultsScreen != null)
                 _resultsScreen.ShowText(BuildSubtitle(), BuildReport());
             ShiftEnded?.Invoke(reason);
@@ -204,15 +250,17 @@ namespace ProCommVR.Shift
             {
                 if (!IsCompleted(room) || room.ChosenOption == null)
                     continue;
-                total += room.ChosenOption.Score;
+                total += room.Score;
                 best += room.Task.Scenario.BestScore;
             }
-            var reason = EndReason == ShiftEndReason.TimeUp ? "Time is up" : "All patients cared for";
-            return $"{reason}. Patients cared for: {_completedPatients.Count} / {_assignedRooms.Count}. Score: {total} / {best}";
+            var reason = EndReason == ShiftEndReason.TimeUp ? "Time is up" : FailedCount > 0 ? "All tasks done" : "All patients cared for";
+            var failed = FailedCount > 0 ? $". Failed: {FailedCount}" : "";
+            return $"{reason}. Patients cared for: {CompletedCount} / {_assignedRooms.Count}{failed}. Score: {total} / {best}";
         }
 
         /// <summary>
-        /// Per room: the patient, the score and the feedback on the choice, or that the patient was not cared for.
+        /// Per room: the patient, the score and the feedback on the choice (and where the player chose to talk),
+        /// that the task failed because the time ran out, or that the patient was not cared for.
         /// </summary>
         private string BuildReport()
         {
@@ -222,8 +270,22 @@ namespace ProCommVR.Shift
                 text.Append("<b>").Append(room.RoomName).Append(" - ").Append(room.Task.PatientName).Append("</b>  ");
                 if (IsCompleted(room) && room.ChosenOption != null)
                 {
-                    text.Append(room.ChosenOption.Score).Append(" / ").Append(room.Task.Scenario.BestScore).Append('\n');
+                    text.Append(room.Score).Append(" / ").Append(room.Task.Scenario.BestScore).Append('\n');
+                    if (room.ChosenLocation != null)
+                    {
+                        text.Append("Talked in: ").Append(room.ChosenLocation.Name);
+                        if (!string.IsNullOrWhiteSpace(room.ChosenLocation.Feedback))
+                            text.Append(". <i>").Append(room.ChosenLocation.Feedback).Append("</i>");
+                        text.Append('\n');
+                    }
                     text.Append("<i>").Append(room.ChosenOption.Feedback).Append("</i>\n\n");
+                }
+                else if (IsFailed(room.PatientId))
+                {
+                    text.Append("<color=#C62828>failed: time ran out</color>\n");
+                    if (!string.IsNullOrWhiteSpace(room.Task.Scenario.TimeUpFeedback))
+                        text.Append("<i>").Append(room.Task.Scenario.TimeUpFeedback).Append("</i>");
+                    text.Append("\n\n");
                 }
                 else
                 {

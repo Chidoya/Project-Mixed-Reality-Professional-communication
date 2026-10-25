@@ -47,12 +47,13 @@ namespace ProCommVR.Navigation
                 return;
             }
 
-            _teleportationProvider.QueueTeleportRequest(new TeleportRequest
+            var queued = _teleportationProvider.QueueTeleportRequest(new TeleportRequest
             {
                 destinationPosition = _destination.position,
                 destinationRotation = _destination.rotation,
                 matchOrientation = MatchOrientation.TargetUpAndForward,
             });
+            Debug.Log($"[ProCommVR] Lift button {name} pressed: to {_destination.name}{(queued ? "" : " (teleport not accepted)")}.", this);
         }
     }
 }

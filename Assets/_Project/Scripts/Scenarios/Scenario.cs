@@ -7,7 +7,8 @@ namespace ProCommVR.Scenarios
 {
     /// <summary>
     /// A conversation scenario stored as data: the NPC's opening line, exactly four player options
-    /// and a mood. Create one via Create > ProCommVR > Scenario; no code changes needed.
+    /// and a mood. Optional: a choice of where to talk first (<see cref="Locations"/>) and a time limit
+    /// (<see cref="TimeLimit"/>). Create one via Create > ProCommVR > Scenario; no code changes needed.
     /// </summary>
     [CreateAssetMenu(fileName = "NewScenario", menuName = "ProCommVR/Scenario")]
     public class Scenario : ScriptableObject
@@ -31,20 +32,51 @@ namespace ProCommVR.Scenarios
         [Header("Player options (exactly 4, shown in random order)")]
         [SerializeField] private DialogueOption[] _options = NewOptions();
 
+        [Header("Where to talk (optional)")]
+        [Tooltip("Said by the NPC before the options, while the player chooses where to continue the conversation. " +
+                 "The NPC Line above follows at the chosen place.")]
+        [SerializeField, TextArea(2, 6)] private string _locationLine;
+
+        [Tooltip("The places the player can choose from. Leave empty to go straight to the options.")]
+        [SerializeField] private ConversationLocation[] _locations = Array.Empty<ConversationLocation>();
+
+        [Header("Time limit (optional)")]
+        [Tooltip("Seconds the player has to answer, counted from the moment the encounter starts. 0 = no time limit.")]
+        [SerializeField, Min(0f)] private float _timeLimit;
+
+        [Tooltip("Shown above the countdown, e.g. \"Surgical gurney arrives in\".")]
+        [SerializeField] private string _timeLimitLabel;
+
+        [Tooltip("What the NPC says when the time is up.")]
+        [SerializeField, TextArea(1, 3)] private string _timeUpLine;
+
+        [Tooltip("Shown on the results screen when the time ran out.")]
+        [SerializeField, TextArea(2, 6)] private string _timeUpFeedback;
+
         public string Id => _id;
         public string Title => _title;
         public Mood Mood => _mood;
         public string NpcName => _npcName;
         public string NpcLine => _npcLine;
         public IReadOnlyList<DialogueOption> Options => _options;
+        public string LocationLine => _locationLine;
+        public IReadOnlyList<ConversationLocation> Locations => _locations ?? Array.Empty<ConversationLocation>();
+        public bool HasLocationChoice => Locations.Count > 0;
+        public float TimeLimit => _timeLimit;
+        public bool HasTimeLimit => _timeLimit > 0f;
+        public string TimeLimitLabel => _timeLimitLabel;
+        public string TimeUpLine => _timeUpLine;
+        public string TimeUpFeedback => _timeUpFeedback;
 
         /// <summary>
-        /// Score of the best option: the maximum a player can get in this scenario.
+        /// Score of the best option (plus the best place, if there is a choice of where to talk): the maximum a
+        /// player can get in this scenario.
         /// </summary>
-        public int BestScore => _options.Max(o => o.Score);
+        public int BestScore => _options.Max(o => o.Score) + (HasLocationChoice ? Locations.Max(l => l.Score) : 0);
 
         private void OnValidate()
         {
+            ValidateLocations();
             if (_options != null && _options.Length == OptionCount)
                 return;
 
@@ -53,6 +85,18 @@ namespace ProCommVR.Scenarios
             Array.Resize(ref _options, OptionCount);
             for (var i = oldLength; i < OptionCount; i++)
                 _options[i] = new DialogueOption();
+        }
+
+        private void ValidateLocations()
+        {
+            var ids = new HashSet<string>();
+            foreach (var location in Locations)
+            {
+                if (location == null || string.IsNullOrWhiteSpace(location.Id))
+                    Debug.LogWarning($"[ProCommVR] Scenario '{name}' has a place to talk without an id.", this);
+                else if (!ids.Add(location.Id))
+                    Debug.LogWarning($"[ProCommVR] Scenario '{name}' has two places with the id '{location.Id}'.", this);
+            }
         }
 
         private static DialogueOption[] NewOptions()

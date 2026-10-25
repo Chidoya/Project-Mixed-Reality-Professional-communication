@@ -6,8 +6,10 @@ namespace ProCommVR.Scenarios
 {
     /// <summary>
     /// Shows the NPC's reaction to the chosen option in the world: moves the NPC into the option's
-    /// <see cref="NpcPose"/>, fires an Animator trigger with the pose name (once there is a real character)
-    /// and plays the option's voice clip. Returns to the start pose when a scenario starts.
+    /// <see cref="NpcPose"/>, plays the pose's Animator state (or fires an Animator trigger with the pose name, if the
+    /// controller has one) and plays the option's voice clip. Returns to the start pose when a scenario starts.
+    /// The start pose is kept relative to the body's parent, so the NPC can move together with its parent
+    /// (e.g. <see cref="ConversationLocationMover"/>), with pose targets that are children of that parent.
     /// </summary>
     public class NpcReactor : MonoBehaviour
     {
@@ -16,8 +18,11 @@ namespace ProCommVR.Scenarios
         {
             public NpcPose Pose;
 
-            [Tooltip("Where the NPC body moves to for this pose (position and rotation).")]
+            [Tooltip("Where the NPC body moves to for this pose (position and rotation). Empty: the NPC stays where it is.")]
             public Transform Target;
+
+            [Tooltip("Optional. Animator state to play in this pose, e.g. \"Angry\" or \"Talking\".")]
+            public string AnimatorState;
         }
 
         [SerializeField] private ScenarioPresenter _presenter;
@@ -25,10 +30,10 @@ namespace ProCommVR.Scenarios
         [Tooltip("The NPC body that moves into the pose. Leave empty to use this object.")]
         [SerializeField] private Transform _body;
 
-        [Tooltip("One target per pose. A pose without a target keeps the NPC where it is.")]
+        [Tooltip("One entry per pose. A pose without an entry or target keeps the NPC where it is.")]
         [SerializeField] private PoseTarget[] _poses = Array.Empty<PoseTarget>();
 
-        [Tooltip("Optional. Gets a trigger with the pose name, e.g. \"TurnsAway\".")]
+        [Tooltip("Optional. Plays the pose's Animator State, or gets a trigger with the pose name (e.g. \"TurnsAway\") if it has one.")]
         [SerializeField] private Animator _animator;
 
         [Tooltip("Optional. Plays the option's voice clip.")]
@@ -45,8 +50,8 @@ namespace ProCommVR.Scenarios
 
         private void Awake()
         {
-            _startPosition = Body.position;
-            _startRotation = Body.rotation;
+            _startPosition = Body.localPosition;
+            _startRotation = Body.localRotation;
         }
 
         private void OnEnable()
@@ -70,34 +75,58 @@ namespace ProCommVR.Scenarios
             if (_move != null)
                 StopCoroutine(_move);
             _move = null;
-            Body.SetPositionAndRotation(_startPosition, _startRotation);
+            Body.SetLocalPositionAndRotation(_startPosition, _startRotation);
             if (_voice != null)
                 _voice.Stop();
         }
 
         private void OnOptionChosen(Scenario scenario, DialogueOption option)
         {
-            var target = FindTarget(option.NpcPose);
-            if (target != null)
+            var pose = FindPose(option.NpcPose);
+            if (pose != null && pose.Target != null)
             {
                 if (_move != null)
                     StopCoroutine(_move);
-                _move = StartCoroutine(MoveTo(target.position, target.rotation));
+                _move = StartCoroutine(MoveTo(pose.Target.position, pose.Target.rotation));
             }
 
-            if (_animator != null && option.NpcPose != NpcPose.Unchanged)
-                _animator.SetTrigger(option.NpcPose.ToString());
+            if (_animator != null)
+                Animate(option.NpcPose, pose);
 
             if (_voice != null && option.NpcVoice != null)
                 _voice.PlayOneShot(option.NpcVoice);
         }
 
-        private Transform FindTarget(NpcPose pose)
+        private void Animate(NpcPose pose, PoseTarget target)
+        {
+            if (target != null && !string.IsNullOrEmpty(target.AnimatorState))
+            {
+                var state = Animator.StringToHash(target.AnimatorState);
+                if (_animator.HasState(0, state))
+                    _animator.CrossFade(state, 0.25f);
+                else
+                    Debug.LogWarning($"[ProCommVR] Animator of '{_animator.name}' has no state '{target.AnimatorState}'.", this);
+                return;
+            }
+
+            if (pose == NpcPose.Unchanged)
+                return;
+            foreach (var parameter in _animator.parameters)
+            {
+                if (parameter.type == AnimatorControllerParameterType.Trigger && parameter.name == pose.ToString())
+                {
+                    _animator.SetTrigger(parameter.name);
+                    return;
+                }
+            }
+        }
+
+        private PoseTarget FindPose(NpcPose pose)
         {
             foreach (var poseTarget in _poses)
             {
                 if (poseTarget != null && poseTarget.Pose == pose)
-                    return poseTarget.Target;
+                    return poseTarget;
             }
             return null;
         }

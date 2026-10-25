@@ -29,6 +29,7 @@ namespace ProCommVR.Editor.Testing
     /// floor of each room and is moved from room to room by teleporting the XR Origin. Batchmode, without -quit:
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftLoop     (all 5 tasks, then results)
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftTimeout  (timer runs out after 1 task)
+    /// Scenario 2 (the corridor of floor 3) has its own tests in PlayModeSmokeTest.Scenario02.cs.
     /// Optional: -smokeTestScreenshots &lt;folder&gt; saves a few camera images along the way (needs graphics).
     /// </summary>
     public static partial class PlayModeSmokeTest
@@ -42,6 +43,7 @@ namespace ProCommVR.Editor.Testing
         private static Vector3 _headWorld;
         private static Quaternion _headRotation = Quaternion.identity;
         private static Vector3 _aimTarget;
+        private static Vector3? _lastOriginPosition;
         private static bool _triggerDown;
         private static string _screenshotFolder;
         private static int _screenshotIndex;
@@ -63,7 +65,6 @@ namespace ProCommVR.Editor.Testing
             _screenshotFolder = ReadArgument("-smokeTestScreenshots");
             var manager = Object.FindAnyObjectByType<ShiftManager>();
             var origin = Object.FindAnyObjectByType<XROrigin>();
-            var rooms = Object.FindObjectsByType<PatientRoom>(FindObjectsSortMode.None).OrderBy(r => r.RoomName).ToArray();
             var startButton = Object.FindAnyObjectByType<ShiftStartButton>();
             var results = Object.FindAnyObjectByType<ResultsScreen>(FindObjectsInactive.Include);
             Check(manager != null && origin != null && startButton != null && results != null, "scene has a ShiftManager, XR Origin, start computer and results screen");
@@ -81,18 +82,22 @@ namespace ProCommVR.Editor.Testing
                 yield return 1f;
                 Check(manager.State == ShiftState.Briefing, "shift waits in the briefing room");
                 Check(manager.AssignedRooms.Count == 5, $"5 patients assigned (got {manager.AssignedRooms.Count})");
+                // In task order: room 1A, the corridor of floor 3 (Scenario 2), 1B, 1C, 2A.
+                var rooms = manager.AssignedRooms.ToArray();
+                var seated = rooms.Where(r => r.Countdown == null).ToArray();
+                Check(rooms[1].Countdown != null && rooms[1].Task.Scenario.Id == "angry-family-member", $"task 2 is Scenario 2 in {rooms[1].RoomName}");
                 var ids = manager.AssignedRooms.Select(r => r.PatientId).ToArray();
                 Check(ids.All(id => !string.IsNullOrWhiteSpace(id)) && ids.Distinct().Count() == ids.Length,
                     $"every patient has a unique id ({string.Join(", ", ids)})");
                 Check(manager.AssignedRooms.All(r => manager.FindRoom(r.PatientId) == r), "rooms are found by patient id");
-                Check(manager.AssignedRooms.Select(r => r.Task.PatientName).Distinct().Count() == 1, "display names may stay the same (all 'Patient X')");
+                Check(seated.Select(r => r.Task.PatientName).Distinct().Count() == 1, "display names may stay the same (all 'Patient X')");
                 foreach (var room in rooms)
-                    CheckMood(room, Mood.Happy);
+                    CheckMood(room, room.Task.PatientMood);
                 // Animators of patients out of view may skip updating their bones; animate them all for the check.
                 foreach (var animator in rooms.Select(r => r.GetComponentInChildren<Animator>()))
                     animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 yield return 0.3f;
-                foreach (var room in rooms)
+                foreach (var room in seated)
                     CheckSitting(room);
                 yield return 2.5f; // the mood sounds fade in
                 foreach (var room in rooms)
@@ -114,7 +119,7 @@ namespace ProCommVR.Editor.Testing
                 CheckMoodSound(changed);
                 Check(!oldSource.isPlaying, "the old sound stops after the crossfade");
                 foreach (var room in manager.AssignedRooms.Where(r => r != changed))
-                    Check(room.MoodController.CurrentMood == Mood.Happy, $"{room.PatientId} keeps its own mood");
+                    Check(room.MoodController.CurrentMood == room.Task.PatientMood, $"{room.PatientId} keeps its own mood");
                 manager.SetPatientMood(changed.PatientId, Mood.Happy);
                 yield return 2.5f;
                 CheckMood(changed, Mood.Happy);
@@ -140,7 +145,10 @@ namespace ProCommVR.Editor.Testing
                 var toDo = timeout ? rooms.Take(1).ToArray() : rooms;
                 foreach (var room in toDo)
                 {
-                    foreach (var step in CareFor(manager, origin, room))
+                    var steps = room.Countdown != null
+                        ? CareForCorridor(manager, origin, room, "consultation-room", Answer.Best)
+                        : CareFor(manager, origin, room);
+                    foreach (var step in steps)
                         yield return step;
                 }
 
@@ -165,7 +173,7 @@ namespace ProCommVR.Editor.Testing
                 Log($"results: {string.Join(" | ", body).Replace("\n", " / ")}");
                 Check(rooms.All(r => body.Any(t => t.Contains(r.RoomName))), "results list every room");
                 var boards = Object.FindObjectsByType<ShiftBoard>(FindObjectsSortMode.None);
-                Check(boards.Length == 3, $"three shift boards: lobby and the corridors of floor 1 and 2 (got {boards.Length})");
+                Check(boards.Length == 4, $"four shift boards: lobby and the corridors of floor 1, 2 and 3 (got {boards.Length})");
                 foreach (var board in boards)
                 {
                     var text = board.GetComponentInChildren<TMPro.TMP_Text>().text;
@@ -271,15 +279,29 @@ namespace ProCommVR.Editor.Testing
         private static void CheckMood(PatientRoom room, Mood expected)
         {
             var mood = room.MoodController;
-            var light = room.GetComponentInChildren<MoodRoomLight>().GetComponent<Light>();
+            var lights = RoomLights(room);
             var sign = room.GetComponentInChildren<RoomSign>();
             var patch = sign.GetComponentsInChildren<Image>().First(i => i.gameObject != sign.gameObject);
             var color = mood.CurrentColor;
             Check(mood.CurrentMood == expected, $"{room.RoomName}: mood is {expected} (got {mood.CurrentMood})");
             if (expected == Mood.Happy)
                 Check(color.g > color.r && color.g > color.b, $"{room.RoomName}: Happy color is green ({color})");
-            Check(light.color == color, $"{room.RoomName}: room light has the mood color ({light.color})");
+            if (expected == Mood.Alarm)
+                Check(color.r > 0.8f && color.g < 0.2f && color.b < 0.2f, $"{room.RoomName}: Alarm color is red ({color})");
+            Check(lights.Length > 0 && lights.All(l => l.color == color), $"{room.RoomName}: its {lights.Length} light(s) have the mood color ({string.Join(", ", lights.Select(l => l.color))})");
             Check(patch.color == color, $"{room.RoomName}: door sign shows the mood color ({patch.color})");
+        }
+
+        /// <summary>
+        /// The lights that follow the mood of a room: its own room light, or for the corridor encounter the corridor
+        /// lights and the light of the consultation room.
+        /// </summary>
+        private static Light[] RoomLights(PatientRoom room)
+        {
+            return Object.FindObjectsByType<MoodRoomLight>(FindObjectsSortMode.None)
+                .Where(l => l.MoodController == room.MoodController)
+                .Select(l => l.GetComponent<Light>())
+                .ToArray();
         }
 
         /// <summary>
@@ -345,6 +367,8 @@ namespace ProCommVR.Editor.Testing
             var arrived = origin.transform.position;
             Teleport(origin, arrived, arrived + button.Destination.forward * 3f);
             yield return 0.3f;
+            var standing = origin.transform.position.y - floorY;
+            Check(standing > -0.02f && standing < 0.1f, $"the player stands on the floor after the ride ({standing:F2} m above it), not in it");
             Screenshot($"lift-arrival-{button.Destination.name.Replace("Arrival ", "").ToLowerInvariant()}");
         }
 
@@ -362,17 +386,28 @@ namespace ProCommVR.Editor.Testing
 
         /// <summary>
         /// Aims the controller at a point, holds the trigger briefly and releases it. Stops early once done() is true.
+        /// The trigger stays down for at least 0.2 s and 3 game frames: in batchmode a frame can take longer than
+        /// 0.2 s, and a press and release in the same frame is never seen as a select. A press that still had no effect
+        /// is repeated once, and the retry is logged.
         /// </summary>
         private static IEnumerable Click(Vector3 target, Func<bool> done, bool quiet = false)
         {
             _aimTarget = target;
             yield return 0.25f;
-            _triggerDown = true;
-            yield return 0.2f;
-            _triggerDown = false;
-            var waitUntil = EditorApplication.timeSinceStartup + ClickTimeout;
-            while (!done() && EditorApplication.timeSinceStartup < waitUntil)
-                yield return null;
+            for (var attempt = 1; attempt <= 2 && !done(); attempt++)
+            {
+                if (attempt > 1 && !quiet)
+                    Log($"click at {target} had no effect, pressing the trigger once more.");
+                _triggerDown = true;
+                var pressFrame = Time.frameCount;
+                yield return 0.2f;
+                while (Time.frameCount < pressFrame + 3)
+                    yield return null;
+                _triggerDown = false;
+                var waitUntil = EditorApplication.timeSinceStartup + ClickTimeout;
+                while (!done() && EditorApplication.timeSinceStartup < waitUntil)
+                    yield return null;
+            }
             if (!done() && !quiet)
                 Log($"click at {target} had no effect; controller at {ControllerWorld()}. {DescribeBlockers(target)} {DescribeInteractors()}");
         }
@@ -395,7 +430,8 @@ namespace ProCommVR.Editor.Testing
             foreach (var interactor in Object.FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
                 text.Append($"[{interactor.transform.parent?.name}/{interactor.name} active {interactor.isActiveAndEnabled}, " +
-                            $"pos {interactor.transform.position}, fwd {interactor.transform.forward}, hovered {interactor.interactablesHovered.Count}, " +
+                            $"pos {interactor.transform.position}, fwd {interactor.transform.forward}, hovered {interactor.interactablesHovered.Count} " +
+                            $"({string.Join(", ", interactor.interactablesHovered.Select(i => $"{i.transform.parent?.name}/{i.transform.name}"))}), " +
                             $"selectInput {interactor.selectInput.ReadValue():F2}, uiPress {interactor.uiPressInput.ReadValue():F2}] ");
             }
             text.Append($"controller device tracked {_controller?.isTracked.isPressed}, enabled {_controller?.enabled}, trigger {_controller?.trigger.ReadValue():F2}, pos {_controller?.devicePosition.ReadValue()}; ");
@@ -429,6 +465,7 @@ namespace ProCommVR.Editor.Testing
             if (controller != null)
                 controller.enabled = false;
             origin.transform.position = new Vector3(point.x, origin.transform.position.y, point.z);
+            _lastOriginPosition = origin.transform.position;
             Physics.SyncTransforms();
             if (controller != null)
                 controller.enabled = true;
@@ -476,11 +513,14 @@ namespace ProCommVR.Editor.Testing
             }
             _hmd = null;
             _controller = null;
+            _lastOriginPosition = null;
         }
 
         /// <summary>
         /// Queues the head and controller poses (in tracking space, relative to the Camera Offset) as input events on
         /// every editor tick. The Input System routes these XR device events to the game, also without focus.
+        /// When the game moves the XR Origin (the lift's teleport, gravity), the head moves along, as a real headset
+        /// does; otherwise the head would stay behind on the old floor.
         /// </summary>
         private static void UpdateDevices()
         {
@@ -489,6 +529,9 @@ namespace ProCommVR.Editor.Testing
             var origin = Object.FindAnyObjectByType<XROrigin>();
             if (origin == null)
                 return;
+            if (_lastOriginPosition.HasValue)
+                _headWorld += origin.transform.position - _lastOriginPosition.Value;
+            _lastOriginPosition = origin.transform.position;
             var space = origin.CameraFloorOffsetObject != null ? origin.CameraFloorOffsetObject.transform : origin.transform;
 
             var headPosition = space.InverseTransformPoint(_headWorld);
@@ -532,6 +575,18 @@ namespace ProCommVR.Editor.Testing
                 throw new InvalidOperationException($"Field {field} not found on {target.GetType().Name}.");
             info.SetValue(target, value);
             Log($"{target.GetType().Name}.{field} set to {value} for this test.");
+        }
+
+        /// <summary>
+        /// Sets a property with a private setter, e.g. the time left of a countdown, to shorten a test.
+        /// </summary>
+        private static void SetPrivateProperty(object target, string property, object value)
+        {
+            var setter = target.GetType().GetProperty(property, BindingFlags.Instance | BindingFlags.Public)?.GetSetMethod(true);
+            if (setter == null)
+                throw new InvalidOperationException($"Property {property} with a setter not found on {target.GetType().Name}.");
+            setter.Invoke(target, new[] { value });
+            Log($"{target.GetType().Name}.{property} set to {value} for this test.");
         }
 
         private static Vector3 Flat(Vector3 vector)

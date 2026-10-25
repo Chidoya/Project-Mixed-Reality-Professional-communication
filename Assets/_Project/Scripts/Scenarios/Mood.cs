@@ -10,6 +10,11 @@ namespace ProCommVR.Scenarios
         Neutral,
         Tense,
         Somber,
-        Happy
+        Happy,
+
+        /// <summary>
+        /// A task failed, e.g. the time ran out: red flashing light and a warning sound.
+        /// </summary>
+        Alarm
     }
 }

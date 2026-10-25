@@ -11,6 +11,9 @@ namespace ProCommVR.Scenarios
     /// and a continue bubble appears. The feedback (why the choice was good or not) is only shown on the
     /// <see cref="ResultsScreen"/>. Scoring, scenario flow (<see cref="ScenarioSequence"/>) and the NPC's body
     /// language (<see cref="NpcReactor"/>) listen to <see cref="OptionChosen"/> and <see cref="Continued"/>.
+    /// A scenario with places to talk (<see cref="Scenario.Locations"/>) first shows the Location Line and one bubble
+    /// per place; after that choice (<see cref="LocationChosen"/>) the NPC line and the four options follow, again
+    /// within Options Range of the NPC, who may have moved to that place (<see cref="ConversationLocationMover"/>).
     /// </summary>
     public class ScenarioPresenter : MonoBehaviour
     {
@@ -23,7 +26,7 @@ namespace ProCommVR.Scenarios
         [Tooltip("Where the NPC line appears, e.g. above the NPC's head.")]
         [SerializeField] private Transform _npcBubbleAnchor;
 
-        [Tooltip("Center of the 2x2 option grid, in front of the player. The continue bubble appears here too.")]
+        [Tooltip("Center of the 2x2 option grid (or the row of places), in front of the player. The continue bubble appears here too.")]
         [SerializeField] private Transform _optionsAnchor;
 
         [Tooltip("Distance between the centers of the option bubbles (x: columns, y: rows), in meters.")]
@@ -65,10 +68,24 @@ namespace ProCommVR.Scenarios
         private readonly List<DialogueBubble> _bubbles = new List<DialogueBubble>();
         private readonly List<DialogueBubble> _optionBubbles = new List<DialogueBubble>();
         private DialogueBubble _npcBubble;
-        private bool _waitingForChoice;
+        private Stage _stage;
         private bool _optionsVisible;
 
+        private enum Stage
+        {
+            None,
+            ChoosingLocation,
+            ChoosingOption,
+            AfterChoice
+        }
+
         public event Action<Scenario> ScenarioStarted;
+
+        /// <summary>
+        /// Raised when the player chooses where to continue the conversation, before the options appear.
+        /// </summary>
+        public event Action<Scenario, ConversationLocation> LocationChosen;
+
         public event Action<Scenario, DialogueOption> OptionChosen;
 
         /// <summary>
@@ -77,6 +94,16 @@ namespace ProCommVR.Scenarios
         public event Action Continued;
 
         public Scenario CurrentScenario => _scenario;
+
+        /// <summary>
+        /// Where the player chose to talk in the current scenario, or null (no choice yet, or none to make).
+        /// </summary>
+        public ConversationLocation ChosenLocation { get; private set; }
+
+        /// <summary>
+        /// While true, no choices appear, also within range: e.g. while the NPC walks to the chosen place.
+        /// </summary>
+        public bool HoldChoices { get; set; }
 
         public string ContinueLabel
         {
@@ -102,7 +129,7 @@ namespace ProCommVR.Scenarios
 
         private void Update()
         {
-            if (_waitingForChoice)
+            if (_stage == Stage.ChoosingLocation || _stage == Stage.ChoosingOption)
                 UpdateOptionsVisibility();
         }
 
@@ -110,11 +137,11 @@ namespace ProCommVR.Scenarios
         {
             ClearBubbles();
             _scenario = scenario;
+            ChosenLocation = null;
 
             _npcBubble = CreateBubble(_npcBubbleAnchor, Vector3.zero, false);
-            SetNpcText(scenario.NpcLine);
-
-            _waitingForChoice = true;
+            _stage = scenario.HasLocationChoice ? Stage.ChoosingLocation : Stage.ChoosingOption;
+            SetNpcText(_stage == Stage.ChoosingLocation ? scenario.LocationLine : scenario.NpcLine);
             _optionsVisible = false;
             ScenarioStarted?.Invoke(scenario);
             UpdateOptionsVisibility();
@@ -126,17 +153,31 @@ namespace ProCommVR.Scenarios
         public void Clear()
         {
             ClearBubbles();
-            _waitingForChoice = false;
+            _stage = Stage.None;
             _optionsVisible = false;
         }
 
         /// <summary>
-        /// Shows the options when the player walks into range and hides them again when the player walks away.
+        /// Ends the conversation without a choice, e.g. when the time is up: the choices disappear and the NPC
+        /// bubble shows the line (if any).
+        /// </summary>
+        public void Interrupt(string npcLine)
+        {
+            Clear();
+            if (string.IsNullOrWhiteSpace(npcLine) || _scenario == null)
+                return;
+            _npcBubble = CreateBubble(_npcBubbleAnchor, Vector3.zero, false);
+            SetNpcText($"<i>{npcLine}</i>");
+        }
+
+        /// <summary>
+        /// Shows the choices (places or options) when the player walks into range and hides them again when the
+        /// player walks away.
         /// </summary>
         private void UpdateOptionsVisibility()
         {
             var range = _optionsVisible ? _optionsRange + _optionsHideMargin : _optionsRange;
-            var inRange = PlayerInRange(range);
+            var inRange = !HoldChoices && PlayerInRange(range);
             if (inRange && !_optionsVisible)
                 ShowOptions();
             else if (!inRange && _optionsVisible)
@@ -149,7 +190,12 @@ namespace ProCommVR.Scenarios
                 PlaceOptionsAnchor();
 
             if (_optionBubbles.Count == 0)
-                CreateOptionBubbles();
+            {
+                if (_stage == Stage.ChoosingLocation)
+                    CreateLocationBubbles();
+                else
+                    CreateOptionBubbles();
+            }
             else
                 SetOptionsActive(true);
             _optionsVisible = true;
@@ -173,11 +219,41 @@ namespace ProCommVR.Scenarios
             for (var i = 0; i < options.Count; i++)
             {
                 var option = options[i];
-                var bubble = CreateBubble(_optionsAnchor, GridOffset(i), true);
+                var bubble = CreateBubble(_optionsAnchor, GridOffset(i, options.Count), true);
                 bubble.SetText(option.Text);
                 bubble.Clicked += () => Choose(option);
                 _optionBubbles.Add(bubble);
             }
+        }
+
+        /// <summary>
+        /// One bubble per place, in the order of the scenario data (not shuffled).
+        /// </summary>
+        private void CreateLocationBubbles()
+        {
+            var locations = _scenario.Locations;
+            for (var i = 0; i < locations.Count; i++)
+            {
+                var location = locations[i];
+                var bubble = CreateBubble(_optionsAnchor, GridOffset(i, locations.Count), true);
+                bubble.SetText(location.ChoiceText);
+                bubble.Clicked += () => ChooseLocation(location);
+                _optionBubbles.Add(bubble);
+            }
+        }
+
+        private void ChooseLocation(ConversationLocation location)
+        {
+            if (_stage != Stage.ChoosingLocation || !_optionsVisible)
+                return;
+            DestroyOptionBubbles();
+            _optionsVisible = false;
+            _stage = Stage.ChoosingOption;
+            ChosenLocation = location;
+            SetNpcText(_scenario.NpcLine);
+
+            // The options appear once the player is (still, or again) within range of the NPC at the chosen place.
+            LocationChosen?.Invoke(_scenario, location);
         }
 
         private void SetOptionsActive(bool active)
@@ -188,9 +264,9 @@ namespace ProCommVR.Scenarios
 
         private void Choose(DialogueOption option)
         {
-            if (!_waitingForChoice || !_optionsVisible)
+            if (_stage != Stage.ChoosingOption || !_optionsVisible)
                 return;
-            _waitingForChoice = false;
+            _stage = Stage.AfterChoice;
             _optionsVisible = false;
 
             // No feedback text here: the player only sees the NPC's reaction. The explanation is on the results screen.
@@ -252,10 +328,14 @@ namespace ProCommVR.Scenarios
             return offset;
         }
 
-        private Vector3 GridOffset(int index)
+        /// <summary>
+        /// Two columns; as many rows as needed, centered on the anchor (4 options: a 2x2 grid, 2 places: one row).
+        /// </summary>
+        private Vector3 GridOffset(int index, int count)
         {
-            var column = index % 2 == 0 ? -0.5f : 0.5f;
-            var row = index < 2 ? 0.5f : -0.5f;
+            var column = count == 1 ? 0f : index % 2 == 0 ? -0.5f : 0.5f;
+            var rows = (count + 1) / 2;
+            var row = (rows - 1) * 0.5f - index / 2;
             return new Vector3(column * _optionSpacing.x, row * _optionSpacing.y, 0f);
         }
 
