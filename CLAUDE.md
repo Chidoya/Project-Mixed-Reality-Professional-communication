@@ -209,6 +209,11 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   slapende patiënt in bed, de vrouw staat op als de speler nadert, monitor met vitale functies. Ontdekt: in Liam's
   opgeslagen scene staan zijn patiënten (1A, 2A, 3A) op het nulpunt; de shift-builder verbergt die van 2A en 3A met een
   waarschuwing. Getest: compile-check en alle smoke tests (ook `RunScenario04Good`/`Poor`). Niet op de Quest 3 getest.
+- 2026-10-26: Scenario 5 (verbaal agressieve patiënt, privacy) gebouwd op `feature/jalil/scenario05-aggressive-patient`
+  (bovenop Scenario 4), in de gedeelde kamer 1C met twee bedden, een privacygordijn (plek-keuze, telt 1 punt) en een
+  meeluisterende buurman. Nieuw: een antwoord kan de taak laten mislukken (`Fails Task`, uitkomst `FailedAnswer`, rood
+  alarm). Alle vijf taken uit de bron zitten nu in de shift. Getest: compile-check en alle 13 smoke tests. Niet op de
+  Quest 3 getest; tekst, scores en reacties door Claude geschreven, nog na te kijken door content en inhoudsexpert.
 
 
 ## Beslissingen
@@ -235,6 +240,8 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-26 | Taakindeling: 1A (S1), gang 3 (S2), verpleegpost 2 + bureau 2C (S3), 1B (S4), 1C (S5); 2A terug naar Liam | Scenario 3 heeft een verpleegpost en een werkplek van de arts nodig; elk scenario op een eigen plek |
 | 2026-10-26 | Mood na een keuze als optioneel veld van de optie (`Changes Mood`, `Mood After`), geen nieuw systeem | De bron laat de sfeer veranderen na de keuze (S3 opgelost, S4 paars naar blauw, S5 alarm); bordje, licht en geluid volgen vanzelf |
 | 2026-10-26 | Drukke arts zonder navigatie-AI: een vaste ronde en een bureau (`BusyNpc`) | Volstaat voor de bron ("de arts vinden op een bereikbaar moment"), voorspelbaar en testbaar |
+| 2026-10-26 | Een antwoord kan een taak laten mislukken (`Fails Task`, `FailedAnswer`), naast de bestaande countdown | Task 5 van de bron eindigt bij een fout in rode lichten en "opnieuw op een andere dag", net als een verlopen countdown |
+| 2026-10-26 | In Scenario 5 telt het dichttrekken van het privacygordijn 1 punt (plek-keuze) | De bron maakt het gordijn deel van de goede aanpak (Image 4); bij Scenario 2 telt de plek nog niet mee |
 | 2026-10-26 | Nieuwe mood `Distressed` (paars) en `Room Light Intensity` per mood-profiel | De bron gebruikt paars voor "distressed/challenging" en een gedimde kamer; past in het bestaande mood-systeem |
 
 
