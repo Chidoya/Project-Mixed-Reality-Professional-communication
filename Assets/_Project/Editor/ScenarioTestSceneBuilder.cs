@@ -27,7 +27,7 @@ namespace ProCommVR.Editor
         private const string TmpEssentialsPackage = "Packages/com.unity.ugui/Package Resources/TMP Essential Resources.unitypackage";
         private const string TmpSettingsPath = "Assets/TextMesh Pro/Resources/TMP Settings.asset";
 
-        private const string BubblePrefabPath = "Assets/_Project/Prefabs/UI/DialogueBubble.prefab";
+        internal const string BubblePrefabPath = "Assets/_Project/Prefabs/UI/DialogueBubble.prefab";
         private const string ResultsPrefabPath = "Assets/_Project/Prefabs/UI/ResultsScreen.prefab";
         private const string PlaceholderScenarioPath = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario.asset";
         private const string PlaceholderScenario2Path = "Assets/_Project/Dialogue/Scenarios/Placeholder_Scenario2.asset";

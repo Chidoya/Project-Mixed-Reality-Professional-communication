@@ -12,6 +12,8 @@ namespace ProCommVR.Scenarios
     {
         [SerializeField] private string _stateName = "Idle";
 
+        public string StateName => _stateName;
+
         private void Start()
         {
             var animator = GetComponent<Animator>();

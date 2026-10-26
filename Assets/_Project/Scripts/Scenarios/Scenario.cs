@@ -7,8 +7,9 @@ namespace ProCommVR.Scenarios
 {
     /// <summary>
     /// A conversation scenario stored as data: the NPC's opening line, exactly four player options
-    /// and a mood. Optional: a choice of where to talk first (<see cref="Locations"/>) and a time limit
-    /// (<see cref="TimeLimit"/>). Create one via Create > ProCommVR > Scenario; no code changes needed.
+    /// and a mood. Optional: a choice of where to talk first (<see cref="Locations"/>), a time limit
+    /// (<see cref="TimeLimit"/>), a line for while the NPC is busy (<see cref="BusyLine"/>) and a bystander
+    /// (<see cref="BystanderName"/>). Create one via Create > ProCommVR > Scenario; no code changes needed.
     /// </summary>
     [CreateAssetMenu(fileName = "NewScenario", menuName = "ProCommVR/Scenario")]
     public class Scenario : ScriptableObject
@@ -28,6 +29,18 @@ namespace ProCommVR.Scenarios
 
         [Tooltip("What the NPC says to open the conversation.")]
         [SerializeField, TextArea(3, 8)] private string _npcLine;
+
+        [Tooltip("Optional. What the NPC says while it is busy and cannot talk yet, e.g. \"I don't have time right now.\" " +
+                 "The scene decides when the NPC is busy (BusyNpc).")]
+        [SerializeField, TextArea(1, 3)] private string _busyLine;
+
+        [Header("Bystander (optional)")]
+        [Tooltip("A second character in the scene who is part of the conversation without being the one the player answers, " +
+                 "e.g. the family member at the nurse's station. Leave empty for none.")]
+        [SerializeField] private string _bystanderName;
+
+        [Tooltip("What the bystander says when the player comes near (BystanderSpeech).")]
+        [SerializeField, TextArea(2, 6)] private string _bystanderLine;
 
         [Header("Player options (exactly 4, shown in random order)")]
         [SerializeField] private DialogueOption[] _options = NewOptions();
@@ -58,6 +71,10 @@ namespace ProCommVR.Scenarios
         public Mood Mood => _mood;
         public string NpcName => _npcName;
         public string NpcLine => _npcLine;
+        public string BusyLine => _busyLine;
+        public string BystanderName => _bystanderName;
+        public string BystanderLine => _bystanderLine;
+        public bool HasBystander => !string.IsNullOrWhiteSpace(_bystanderName);
         public IReadOnlyList<DialogueOption> Options => _options;
         public string LocationLine => _locationLine;
         public IReadOnlyList<ConversationLocation> Locations => _locations ?? Array.Empty<ConversationLocation>();

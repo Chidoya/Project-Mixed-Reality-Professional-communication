@@ -10,6 +10,8 @@ namespace ProCommVR.Scenarios
     /// controller has one) and plays the option's voice clip. Returns to the start pose when a scenario starts.
     /// The start pose is kept relative to the body's parent, so the NPC can move together with its parent
     /// (e.g. <see cref="ConversationLocationMover"/>), with pose targets that are children of that parent.
+    /// With React As Bystander it shows the reaction of the scenario's bystander instead (the option's Bystander Pose),
+    /// at the moment its <see cref="BystanderSpeech"/> shows the reaction line.
     /// </summary>
     public class NpcReactor : MonoBehaviour
     {
@@ -38,6 +40,10 @@ namespace ProCommVR.Scenarios
 
         [Tooltip("Optional. Plays the option's voice clip.")]
         [SerializeField] private AudioSource _voice;
+
+        [Tooltip("This character is the bystander of the scenario: it reacts with the option's Bystander Pose (and no voice) instead of its Npc Pose, " +
+                 "when its BystanderSpeech shows the reaction (not right at the choice).")]
+        [SerializeField] private bool _reactAsBystander;
 
         [Tooltip("Time to move into a pose, in seconds.")]
         [SerializeField, Min(0f)] private float _poseDuration = 0.8f;
@@ -82,7 +88,18 @@ namespace ProCommVR.Scenarios
 
         private void OnOptionChosen(Scenario scenario, DialogueOption option)
         {
-            var pose = FindPose(option.NpcPose);
+            if (!_reactAsBystander)
+                React(option);
+        }
+
+        /// <summary>
+        /// Shows the reaction to an option: pose, animation and voice. Called on the choice, or for a bystander by
+        /// its <see cref="BystanderSpeech"/> when it shows the reaction.
+        /// </summary>
+        public void React(DialogueOption option)
+        {
+            var npcPose = _reactAsBystander ? option.BystanderPose : option.NpcPose;
+            var pose = FindPose(npcPose);
             if (pose != null && pose.Target != null)
             {
                 if (_move != null)
@@ -91,9 +108,9 @@ namespace ProCommVR.Scenarios
             }
 
             if (_animator != null)
-                Animate(option.NpcPose, pose);
+                Animate(npcPose, pose);
 
-            if (_voice != null && option.NpcVoice != null)
+            if (!_reactAsBystander && _voice != null && option.NpcVoice != null)
                 _voice.PlayOneShot(option.NpcVoice);
         }
 
@@ -103,7 +120,7 @@ namespace ProCommVR.Scenarios
             {
                 var state = Animator.StringToHash(target.AnimatorState);
                 if (_animator.HasState(0, state))
-                    _animator.CrossFade(state, 0.25f);
+                    _animator.CrossFadeInFixedTime(state, 0.25f);
                 else
                     Debug.LogWarning($"[ProCommVR] Animator of '{_animator.name}' has no state '{target.AnimatorState}'.", this);
                 return;

@@ -105,6 +105,11 @@ namespace ProCommVR.Scenarios
         /// </summary>
         public bool HoldChoices { get; set; }
 
+        /// <summary>
+        /// True while the choices (places or options) are shown to the player.
+        /// </summary>
+        public bool OptionsVisible => _optionsVisible;
+
         public string ContinueLabel
         {
             get => _continueLabel;
@@ -168,6 +173,16 @@ namespace ProCommVR.Scenarios
                 return;
             _npcBubble = CreateBubble(_npcBubbleAnchor, Vector3.zero, false);
             SetNpcText($"<i>{npcLine}</i>");
+        }
+
+        /// <summary>
+        /// Shows another line in the NPC bubble during the conversation, e.g. "I don't have time right now." while the
+        /// NPC is busy (<see cref="BusyNpc"/>). Does nothing when no conversation is shown.
+        /// </summary>
+        public void Say(string npcLine)
+        {
+            if (_npcBubble != null && _scenario != null)
+                SetNpcText(npcLine);
         }
 
         /// <summary>

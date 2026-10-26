@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfd3b5a78723a44387dd9647a3eafe1, type: 3}
+  m_Name: Scenario03_DoctorAndFamily
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Scenarios.Scenario
+  _id: doctor-and-family
+  _title: "Two-Way Communication Between a Doctor and a Family Member"
+  _mood: 0
+  _npcName: Dr. Maes
+  _npcLine: "Yes? Make it quick, please. I still have two patients to see before noon."
+  _busyLine: "I don't have time right now."
+  _bystanderName: "Patient X's son"
+  _bystanderLine: "You've been making promises for days but the doctor never shows up!"
+  _options:
+  - _text: "Sorry to interrupt, doctor, I'll keep it short. Patient X's son has been waiting for days to talk to you and he is very worried. Could you see him for ten minutes today? Give me a time and I'll tell him."
+    _score: 3
+    _feedback: "Respectful and to the point: you chose a moment when the doctor was reachable, explained briefly why it matters (days of waiting, a worried son) and asked for one concrete thing: a time. That is advocating for the patient and the family within the nursing role, without blaming your colleague. The son gets a real appointment instead of another promise."
+    _npcReaction: "You're right, that has gone on too long. Four o'clock, in the family room. I'll be there."
+    _npcPose: 1
+    _npcVoice: {fileID: 0}
+    _changesMood: 1
+    _moodAfter: 3
+    _bystanderReaction: "Four o'clock with the doctor? ...Thank you. That's all I wanted."
+    _bystanderPose: 1
+  - _text: "Doctor, Patient X's son is asking for you again. Could you drop by when you have a moment?"
+    _score: 1
+    _feedback: "Polite and respectful toward your colleague, but too vague: \"when you have a moment\" gives the doctor no reason to make time and no concrete time is agreed. The son gets another promise, which is exactly what he complained about."
+    _npcReaction: "When I have a moment... I'll try, but I can't promise anything today."
+    _npcPose: 0
+    _npcVoice: {fileID: 0}
+    _changesMood: 0
+    _moodAfter: 0
+    _bystanderReaction: "\"When he has a moment.\" That's what you said yesterday."
+    _bystanderPose: 0
+  - _text: "I'll tell the son you're too busy today and that he should ask again tomorrow."
+    _score: 0
+    _feedback: "You avoid any tension with your colleague, but you give up on the family's need: the request is postponed without a time and you become the messenger of bad news. Advocating for the patient also means asking the doctor for what the family needs."
+    _npcReaction: "Fine. Tomorrow, then."
+    _npcPose: 2
+    _npcVoice: {fileID: 0}
+    _changesMood: 0
+    _moodAfter: 0
+    _bystanderReaction: "Tomorrow? Again? Nobody here takes us seriously."
+    _bystanderPose: 3
+  - _text: "Doctor, the family is fed up. You keep ignoring them and it's making my job impossible. You need to go and talk to them, now."
+    _score: -2
+    _feedback: "Blaming and giving orders puts your colleague on the defensive, so the communication breaks down even further and the family still has no appointment. Stay respectful toward the doctor while you advocate: describe the situation and ask for a concrete step."
+    _npcReaction: "Excuse me? Don't tell me how to do my job. I'll see them when I can."
+    _npcPose: 2
+    _npcVoice: {fileID: 0}
+    _changesMood: 1
+    _moodAfter: 1
+    _bystanderReaction: "So now the nurse and the doctor are arguing? Unbelievable."
+    _bystanderPose: 2
+  _locationLine: 
+  _locations: []
+  _timeLimit: 0
+  _timeLimitLabel: 
+  _timeUpLine: 
+  _timeUpFeedback: 

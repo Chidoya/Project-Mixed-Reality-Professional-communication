@@ -22,9 +22,9 @@ MonoBehaviour:
     _patientName: 
     _patientMood: 1
   - _patientId: patient-03
-    _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
-    _patientName: 
-    _patientMood: 3
+    _scenario: {fileID: 11400000, guid: b701893a5eb8481e90cb16727ef0eff8, type: 2}
+    _patientName: Patient X's family
+    _patientMood: 0
   - _patientId: patient-04
     _scenario: {fileID: 11400000, guid: ee590226ac4a43bcb142bf803bc97662, type: 2}
     _patientName: 

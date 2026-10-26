@@ -29,7 +29,8 @@ namespace ProCommVR.Editor.Testing
     /// floor of each room and is moved from room to room by teleporting the XR Origin. Batchmode, without -quit:
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftLoop     (all 5 tasks, then results)
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftTimeout  (timer runs out after 1 task)
-    /// Scenario 2 (the corridor of floor 3) has its own tests in PlayModeSmokeTest.Scenario02.cs.
+    /// Scenario 2 (the corridor of floor 3) and 3 (the nurse's station of floor 2) have their own tests in
+    /// PlayModeSmokeTest.Scenario02.cs and PlayModeSmokeTest.Scenario03.cs.
     /// Optional: -smokeTestScreenshots &lt;folder&gt; saves a few camera images along the way (needs graphics).
     /// </summary>
     public static partial class PlayModeSmokeTest
@@ -37,6 +38,7 @@ namespace ProCommVR.Editor.Testing
         private const string ShiftScenePath = "Assets/_Project/Scenes/ShiftHospital.unity";
         private const float HeadHeight = 1.6f;
         private const float ClickTimeout = 3f;
+        private const string Scenario01Id = "disappointed-patient";
 
         private static XRSimulatedHMD _hmd;
         private static XRSimulatedController _controller;
@@ -82,10 +84,11 @@ namespace ProCommVR.Editor.Testing
                 yield return 1f;
                 Check(manager.State == ShiftState.Briefing, "shift waits in the briefing room");
                 Check(manager.AssignedRooms.Count == 5, $"5 patients assigned (got {manager.AssignedRooms.Count})");
-                // In task order: room 1A, the corridor of floor 3 (Scenario 2), 1B, 1C, 2A.
+                // In task order: room 1A, the corridor of floor 3 (Scenario 2), the nurse's station of floor 2 (Scenario 3), 1B, 1C.
                 var rooms = manager.AssignedRooms.ToArray();
-                var seated = rooms.Where(r => r.Countdown == null).ToArray();
-                Check(rooms[1].Countdown != null && rooms[1].Task.Scenario.Id == "angry-family-member", $"task 2 is Scenario 2 in {rooms[1].RoomName}");
+                var seated = rooms.Where(r => r.Task.Scenario.Id == Scenario01Id).ToArray();
+                Check(rooms[1].Countdown != null && rooms[1].Task.Scenario.Id == Scenario02Id, $"task 2 is Scenario 2 in {rooms[1].RoomName}");
+                Check(rooms[2].Task.Scenario.Id == Scenario03Id && rooms[2].GetComponentInChildren<BusyNpc>() != null, $"task 3 is Scenario 3 in {rooms[2].RoomName}");
                 var ids = manager.AssignedRooms.Select(r => r.PatientId).ToArray();
                 Check(ids.All(id => !string.IsNullOrWhiteSpace(id)) && ids.Distinct().Count() == ids.Length,
                     $"every patient has a unique id ({string.Join(", ", ids)})");
@@ -145,9 +148,13 @@ namespace ProCommVR.Editor.Testing
                 var toDo = timeout ? rooms.Take(1).ToArray() : rooms;
                 foreach (var room in toDo)
                 {
-                    var steps = room.Countdown != null
-                        ? CareForCorridor(manager, origin, room, "consultation-room", Answer.Best)
-                        : CareFor(manager, origin, room);
+                    IEnumerable steps;
+                    if (room.Task.Scenario.Id == Scenario02Id)
+                        steps = CareForCorridor(manager, origin, room, "consultation-room", Answer.Best);
+                    else if (room.Task.Scenario.Id == Scenario03Id)
+                        steps = CareForStation(manager, origin, room, Answer.Best);
+                    else
+                        steps = CareFor(manager, origin, room);
                     foreach (var step in steps)
                         yield return step;
                 }
