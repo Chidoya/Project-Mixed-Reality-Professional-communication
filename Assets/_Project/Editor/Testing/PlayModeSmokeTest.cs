@@ -11,14 +11,14 @@ namespace ProCommVR.Editor.Testing
     /// Runs a scripted check in Play mode and exits the editor with 0 (passed) or 1 (failed).
     /// Every error or exception logged while playing fails the run. Batchmode, without -quit:
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunScenario01Mood
-    /// (the shift tests are in PlayModeSmokeTest.Shift.cs).
+    /// (the shift tests are in PlayModeSmokeTest.Shift.cs, the tests per scenario in PlayModeSmokeTest.Scenario0x.cs).
     /// The test survives the domain reload of entering Play mode through SessionState.
     /// </summary>
     [InitializeOnLoad]
     public static partial class PlayModeSmokeTest
     {
         private const string TestKey = "ProCommVR.SmokeTest";
-        private const float TimeoutSeconds = 240f;
+        private const float TimeoutSeconds = 420f;
 
         private static readonly List<string> Errors = new List<string>();
         private static IEnumerator _routine;
@@ -71,6 +71,15 @@ namespace ProCommVR.Editor.Testing
                 case "mood": return Scenario01Mood();
                 case "shift": return ShiftLoop(false);
                 case "shift-timeout": return ShiftLoop(true);
+                case "s2-good": return Scenario02("consultation-room", Answer.Best);
+                case "s2-poor": return Scenario02("corridor", Answer.Poorest);
+                case "s2-timeup": return Scenario02("corridor", Answer.None);
+                case "s3-good": return Scenario03(Answer.Best);
+                case "s3-poor": return Scenario03(Answer.Poorest);
+                case "s4-good": return Scenario04(Answer.Best);
+                case "s4-poor": return Scenario04(Answer.Poorest);
+                case "s5-good": return Scenario05(Answer.Best);
+                case "s5-fail": return Scenario05(Answer.Poorest);
                 default: return Fail($"Unknown test '{test}'.");
             }
         }

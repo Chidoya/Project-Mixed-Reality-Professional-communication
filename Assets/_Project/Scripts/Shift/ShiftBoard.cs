@@ -5,7 +5,7 @@ using UnityEngine;
 namespace ProCommVR.Shift
 {
     /// <summary>
-    /// A board in the world with the patients of the shift, which ones are cared for, and the time left.
+    /// A board in the world with the patients of the shift, which ones are cared for (or failed), and the time left.
     /// Put one in the briefing room and one in the corridor; they all read the same <see cref="ShiftManager"/>.
     /// </summary>
     public class ShiftBoard : MonoBehaviour
@@ -19,16 +19,18 @@ namespace ProCommVR.Shift
         private int _shownCompleted = -1;
         private ShiftState _shownState;
         private int _shownRooms = -1;
+        private int _shownFailed = -1;
 
         private void Update()
         {
             var seconds = Mathf.CeilToInt(_shiftManager.TimeRemaining);
-            if (seconds == _shownSeconds && _shiftManager.CompletedCount == _shownCompleted &&
+            if (seconds == _shownSeconds && _shiftManager.CompletedCount == _shownCompleted && _shiftManager.FailedCount == _shownFailed &&
                 _shiftManager.State == _shownState && _shiftManager.AssignedRooms.Count == _shownRooms)
                 return;
 
             _shownSeconds = seconds;
             _shownCompleted = _shiftManager.CompletedCount;
+            _shownFailed = _shiftManager.FailedCount;
             _shownState = _shiftManager.State;
             _shownRooms = _shiftManager.AssignedRooms.Count;
             _label.text = BuildText(seconds);
@@ -54,13 +56,29 @@ namespace ProCommVR.Shift
 
             foreach (var room in _shiftManager.AssignedRooms)
             {
-                var caredFor = _shiftManager.IsCompleted(room);
                 text.Append(room.RoomName).Append(": ").Append(room.Task.PatientName).Append("   ")
-                    .Append(caredFor ? "<color=#1E8C3A><b>Cared for</b></color>" : "<color=#8A8A8A>Waiting</color>")
+                    .Append(Status(_shiftManager.GetOutcome(room.PatientId)))
                     .Append('\n');
             }
             text.Append("\nCared for: ").Append(_shiftManager.CompletedCount).Append(" / ").Append(_shiftManager.AssignedRooms.Count);
+            if (_shiftManager.FailedCount > 0)
+                text.Append("   <color=#C62828>Failed: ").Append(_shiftManager.FailedCount).Append("</color>");
             return text.ToString();
+        }
+
+        private static string Status(TaskOutcome outcome)
+        {
+            switch (outcome)
+            {
+                case TaskOutcome.Completed:
+                    return "<color=#1E8C3A><b>Cared for</b></color>";
+                case TaskOutcome.FailedTimeUp:
+                    return "<color=#C62828><b>Failed: time ran out</b></color>";
+                case TaskOutcome.FailedAnswer:
+                    return "<color=#C62828><b>Failed: not resolved</b></color>";
+                default:
+                    return "<color=#8A8A8A>Waiting</color>";
+            }
         }
     }
 }

@@ -9,7 +9,8 @@ namespace ProCommVR.Atmosphere
     /// (color, light, music) that belongs to it. Data only: it does not change anything in the scene itself.
     /// Readers such as <see cref="MoodAtmosphere"/>, <see cref="MoodRoomLight"/> and the door sign listen to
     /// <see cref="MoodChanged"/>. The mood is set by code (<see cref="ApplyMood"/>), by
-    /// <see cref="ScenarioPresenter.ScenarioStarted"/> if a presenter is assigned, or by Initial Mood.
+    /// <see cref="ScenarioPresenter.ScenarioStarted"/> if a presenter is assigned (and by a chosen option that
+    /// changes the mood), or by Initial Mood.
     /// </summary>
     public class MoodController : MonoBehaviour
     {
@@ -45,14 +46,18 @@ namespace ProCommVR.Atmosphere
 
         private void OnEnable()
         {
-            if (_presenter != null)
-                _presenter.ScenarioStarted += OnScenarioStarted;
+            if (_presenter == null)
+                return;
+            _presenter.ScenarioStarted += OnScenarioStarted;
+            _presenter.OptionChosen += OnOptionChosen;
         }
 
         private void OnDisable()
         {
-            if (_presenter != null)
-                _presenter.ScenarioStarted -= OnScenarioStarted;
+            if (_presenter == null)
+                return;
+            _presenter.ScenarioStarted -= OnScenarioStarted;
+            _presenter.OptionChosen -= OnOptionChosen;
         }
 
         public void ApplyMood(Mood mood)
@@ -74,6 +79,12 @@ namespace ProCommVR.Atmosphere
         private void OnScenarioStarted(Scenario scenario)
         {
             ApplyMood(scenario.Mood);
+        }
+
+        private void OnOptionChosen(Scenario scenario, DialogueOption option)
+        {
+            if (option.ChangesMood)
+                ApplyMood(option.MoodAfter);
         }
 
         private MoodProfile FindProfile(Mood mood)

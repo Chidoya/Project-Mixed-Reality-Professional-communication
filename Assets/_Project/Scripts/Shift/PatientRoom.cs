@@ -6,9 +6,14 @@ using UnityEngine;
 namespace ProCommVR.Shift
 {
     /// <summary>
-    /// One patient room of the hospital. The <see cref="ShiftManager"/> assigns a <see cref="ShiftTask"/> to it:
+    /// One place of the hospital where a task of the shift happens: usually a patient room, but it can also be a
+    /// corridor (Scenario 2, the angry daughter). The <see cref="ShiftManager"/> assigns a <see cref="ShiftTask"/> to it:
     /// the room sets the patient's mood and door sign, and plays the scenario once the shift starts. The task is
-    /// done when the player has made a choice and clicks the continue bubble ("Finish").
+    /// done (<see cref="TaskOutcome.Completed"/>) when the player has made a choice and clicks the continue bubble
+    /// ("Finish"). A scenario with a Time Limit also needs a <see cref="TaskCountdown"/>: if it runs out before the
+    /// player answers, the task fails (<see cref="TaskOutcome.FailedTimeUp"/>) and the mood turns to Failed Mood.
+    /// An option with Changes Mood sets the mood of the room right after the choice; an option with Fails Task ends the
+    /// task as <see cref="TaskOutcome.FailedAnswer"/> when the player clicks "Finish".
     /// </summary>
     public class PatientRoom : MonoBehaviour
     {
@@ -25,6 +30,13 @@ namespace ProCommVR.Shift
         [Tooltip("Label of the bubble that finishes the task after the choice.")]
         [SerializeField] private string _finishLabel = "Finish";
 
+        [Header("Time limit")]
+        [Tooltip("Optional. Runs the scenario's Time Limit; needed when the scenario has one.")]
+        [SerializeField] private TaskCountdown _countdown;
+
+        [Tooltip("Mood when the task fails because the time ran out: red flashing light and a warning sound.")]
+        [SerializeField] private Mood _failedMood = Mood.Alarm;
+
         private ShiftTask _task;
         private bool _active;
 
@@ -37,6 +49,12 @@ namespace ProCommVR.Shift
         public string PatientId => _task?.PatientId;
 
         public MoodController MoodController => _moodController;
+        public TaskCountdown Countdown => _countdown;
+
+        /// <summary>
+        /// How the task in this room ended so far: None while it is still open.
+        /// </summary>
+        public TaskOutcome Outcome { get; private set; }
 
         /// <summary>
         /// The choice the player made in this room, or null.
@@ -44,20 +62,38 @@ namespace ProCommVR.Shift
         public DialogueOption ChosenOption { get; private set; }
 
         /// <summary>
-        /// Raised when the player finishes the task in this room.
+        /// Where the player chose to talk, or null (no choice made, or the scenario has none).
         /// </summary>
-        public event Action<PatientRoom> TaskCompleted;
+        public ConversationLocation ChosenLocation { get; private set; }
+
+        /// <summary>
+        /// Score of this task: the chosen option plus the chosen place. 0 while the task is not completed.
+        /// </summary>
+        public int Score => Outcome == TaskOutcome.Completed && ChosenOption != null
+            ? ChosenOption.Score + (ChosenLocation?.Score ?? 0)
+            : 0;
+
+        /// <summary>
+        /// Raised when the task in this room ends: completed or failed (see <see cref="Outcome"/>).
+        /// </summary>
+        public event Action<PatientRoom> TaskFinished;
 
         private void OnEnable()
         {
+            _presenter.LocationChosen += OnLocationChosen;
             _presenter.OptionChosen += OnOptionChosen;
             _presenter.Continued += OnContinued;
+            if (_countdown != null)
+                _countdown.Expired += OnCountdownExpired;
         }
 
         private void OnDisable()
         {
+            _presenter.LocationChosen -= OnLocationChosen;
             _presenter.OptionChosen -= OnOptionChosen;
             _presenter.Continued -= OnContinued;
+            if (_countdown != null)
+                _countdown.Expired -= OnCountdownExpired;
         }
 
         /// <summary>
@@ -67,6 +103,8 @@ namespace ProCommVR.Shift
         {
             _task = task;
             ChosenOption = null;
+            ChosenLocation = null;
+            Outcome = TaskOutcome.None;
             if (_moodController != null)
                 _moodController.ApplyMood(task.PatientMood);
             if (_sign != null)
@@ -83,6 +121,15 @@ namespace ProCommVR.Shift
             _active = true;
             _presenter.ContinueLabel = _finishLabel;
             _presenter.Play(_task.Scenario);
+
+            var scenario = _task.Scenario;
+            if (scenario.HasTimeLimit)
+            {
+                if (_countdown != null)
+                    _countdown.Arm(scenario.TimeLimit, scenario.TimeLimitLabel);
+                else
+                    Debug.LogWarning($"[ProCommVR] Scenario '{scenario.Id}' has a time limit, but {_roomName} has no Task Countdown; it plays without one.", this);
+            }
         }
 
         /// <summary>
@@ -92,22 +139,55 @@ namespace ProCommVR.Shift
         {
             _active = false;
             _presenter.Clear();
+            if (_countdown != null)
+                _countdown.Stop();
+        }
+
+        private void OnLocationChosen(Scenario scenario, ConversationLocation location)
+        {
+            if (_active)
+                ChosenLocation = location;
         }
 
         private void OnOptionChosen(Scenario scenario, DialogueOption option)
         {
-            if (_active)
-                ChosenOption = option;
+            if (!_active)
+                return;
+            // Answered in time: the countdown stops, "Finish" only closes the conversation.
+            ChosenOption = option;
+            if (_countdown != null)
+                _countdown.Stop();
+            // Some answers change the mood of the room, e.g. to Happy when the problem is resolved.
+            if (option.ChangesMood && _moodController != null)
+                _moodController.ApplyMood(option.MoodAfter);
         }
 
         private void OnContinued()
         {
             if (!_active)
                 return;
-            Close();
+            Finish(ChosenOption != null && ChosenOption.FailsTask ? TaskOutcome.FailedAnswer : TaskOutcome.Completed);
+        }
+
+        private void OnCountdownExpired(TaskCountdown countdown)
+        {
+            if (!_active || ChosenOption != null)
+                return;
+            _active = false;
+            _presenter.Interrupt(_task.Scenario.TimeUpLine);
+            if (_moodController != null)
+                _moodController.ApplyMood(_failedMood);
+            Finish(TaskOutcome.FailedTimeUp);
+        }
+
+        private void Finish(TaskOutcome outcome)
+        {
+            Outcome = outcome;
+            if (outcome != TaskOutcome.FailedTimeUp)
+                Close();
             if (_sign != null)
-                _sign.SetCaredFor(true);
-            TaskCompleted?.Invoke(this);
+                _sign.SetOutcome(outcome);
+            TaskFinished?.Invoke(this);
         }
     }
 }

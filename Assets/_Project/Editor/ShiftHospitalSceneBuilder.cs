@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using ProCommVR.Atmosphere;
+using ProCommVR.Navigation;
 using ProCommVR.Scenarios;
 using ProCommVR.Shift;
 using TMPro;
@@ -7,7 +10,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.Rendering;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.UI;
@@ -15,85 +17,137 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 namespace ProCommVR.Editor
 {
     /// <summary>
-    /// Builds ShiftHospital: a small hospital ward for the shift game loop. A corridor with a briefing room and
-    /// five patient rooms, built from the Kenney Furniture Kit (walls, floors, furniture); hospital-specific props
-    /// (bed, IV pole, drawers) come from the GRADD set, the patients are Liam's characters (Assets/Character).
-    /// Also creates the placeholder shift plan (Scenario 1 five times).
+    /// Builds ShiftHospital: the shift game loop in Liam's hospital. Opens Liam's scene (built by
+    /// ProCommVR > Hospital > Build) as a template, adds the shift and saves the result as ShiftHospital; Liam's
+    /// scene itself is not saved. The lobby is the briefing room (start computer on the reception desk), the
+    /// patients are in rooms 1A-1C (floor 1; Scenario 4, the family of a patient with a poor prognosis, in 1B and
+    /// Scenario 5, the verbally aggressive patient in a shared room, in 1C),
+    /// Scenario 2 (the angry daughter) plays in the corridor of floor 3 with
+    /// room 3B as the consultation room, Scenario 3 (the doctor and the family member) at the nurse's station of
+    /// floor 2 with room 2C as the doctor's office, and the lift buttons take the player between floors.
+    /// Also creates the shift plan if it is missing (Scenario 1 to 5 as task 1 to 5).
     /// Batchmode: -executeMethod ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene
-    /// Requires the prefabs from ScenarioTestSceneBuilder (bubble, results screen) and the XR rig variant.
-    ///
-    /// Layout (meters, y up): corridor x 0..12, z 0..2.5. North of it rooms 1-3 (z 2.5..6.5), south of it the
-    /// briefing room (x 0..4) and rooms 4-5 (z -4..0). Every room is 4 x 4 m with a 1 m doorway to the corridor.
+    /// Requires the prefabs from ScenarioTestSceneBuilder (bubble, results screen), the XR rig variant and Liam's scene.
     /// </summary>
     public static class ShiftHospitalSceneBuilder
     {
+        private const string HospitalScenePath = "Assets/Scenes/liam_test_scene.unity";
         private const string ScenePath = "Assets/_Project/Scenes/ShiftHospital.unity";
         private const string PlanPath = "Assets/_Project/Dialogue/Shifts/Shift_Placeholder.asset";
         private const string ScenarioPath = "Assets/_Project/Dialogue/Scenarios/Scenario01_DisappointedPatient.asset";
+        private const string Scenario2Path = "Assets/_Project/Dialogue/Scenarios/Scenario02_AngryFamilyMember.asset";
+        private const string Scenario3Path = "Assets/_Project/Dialogue/Scenarios/Scenario03_DoctorAndFamily.asset";
+        private const string Scenario4Path = "Assets/_Project/Dialogue/Scenarios/Scenario04_PoorPrognosis.asset";
+        private const string Scenario5Path = "Assets/_Project/Dialogue/Scenarios/Scenario05_AggressivePatient.asset";
+        private const string GurneyModelPath = "Assets/ThirdParty/Sketchfab/HospitalBed_anshartis/source/BED ASSEST_2.fbx";
+        private const string TickSoundPath = "Assets/_Project/Audio/Placeholder/Countdown_Tick_Placeholder.wav";
+        private const string CharacterMaterialFolder = "Assets/_Project/Materials/Characters";
+        private const string PaperMaterialPath = "Assets/_Project/Materials/Paper.mat";
+        private const string NewspaperMaterialPath = "Assets/_Project/Materials/Newspaper.mat";
+        private const string CurtainMaterialPath = "Assets/_Project/Materials/PrivacyCurtain.mat";
         private const string ResultsPrefabPath = "Assets/_Project/Prefabs/UI/ResultsScreen.prefab";
-        private const string MaterialFolder = "Assets/_Project/Materials/Hospital";
         private const string KenneyFolder = "Assets/ThirdParty/Kenney/FurnitureKit";
         private const string CharacterFolder = "Assets/Character";
 
-        private const float RoomSize = 4f;
-        private const float CorridorWidth = 2.5f;
-        private const float WallHeight = 2.7f;
-        private const float OpeningWidth = 1f;
-        private const float ColliderThickness = 0.15f;
-        private const float KenneyDepthScale = 0.2f; // Kenney walls are 10 units wide and 0.5 deep: 0.2 makes them 10 cm thick
-        private const int Columns = 3;
-        private const int TaskCount = 5;
+        // Layout of Liam's hospital (HospitalBuilder): a root "Hospital" with the levels "Lobby", "Floor1".."Floor3",
+        // 3.5 m apart. The lift is in the west wall (x = 0) at z = 1.5, the corridors run along +x.
+        private const string HospitalRootName = "Hospital";
+        private const float FloorHeight = 3.5f;
+        private const int FloorCount = 3;
+        private const float LiftCenterZ = 1.5f;
+        private const float LiftArrivalX = 1.2f;
+        // Liam's floors have a 1 cm finish on top of the slab: the rig starts and arrives just above it, so its
+        // CharacterController never starts inside the floor collider.
+        private const float LiftArrivalHeight = 0.03f;
+        private const float CorridorBoardX = 9f;    // opposite door B, between the staff Liam placed in the corridors
+        private const float LobbyBoardX = 7.3f;     // on the north wall behind the reception desk, right of the "Lobby" sign
+        private const float LobbyBoardScale = 1.4f; // read from the start position, about 3 m away
+        // The places of the shift tasks, in task order: task 1 goes to room 1A, task 2 to the corridor of floor 3
+        // (Scenario 2), task 3 to the nurse's station of floor 2 (Scenario 3), task 4 to room 1B, task 5 to 1C.
+        // The other rooms keep Liam's cards (2A and 2B are Liam's rooms again).
+        private const string CorridorTask = "Corridor 3";
+        private const string StationTask = "Station 2";
+        private static readonly string[] TaskLocations = { "1A", CorridorTask, StationTask, "1B", "1C" };
+        private static readonly string[] RoomLabels = TaskLocations.Where(l => l != CorridorTask && l != StationTask).ToArray();
 
-        // One patient model per room; the shift plan uses Scenario 1 everywhere for now.
-        private static readonly string[] PatientModels =
-            { "Patient_Male", "Patient_Female_Old", "Patient_Male_Old", "Patient_Female", "Patient_Male_Old" };
+        // One patient model per room, in the order of RoomLabels; these rooms play Scenario 1 for now.
+        private static readonly string[] PatientModels = { "Patient_Male", "Patient_Female_Old", "Patient_Male_Old", "Patient_Male" };
+
+        // Scenario 2 (Liam's floor 3): the daughter blocks the corridor between the lift and room 3B, which is the
+        // consultation room. The countdown hangs from the ceiling between the lift and the daughter; the gurney
+        // comes from the east end of the corridor, on the north side (Liam's staff stand on the south side).
+        private const int EncounterFloor = 3;
+        private const string ConsultationRoomLabel = "3B";
+        private const string DaughterModel = "Patient_Female";
+        private static readonly Vector3 DaughterSpot = new Vector3(5f, 0f, 1.6f);
+        private static readonly Vector3 CountdownPosition = new Vector3(3.6f, 2.6f, 1.5f);
+        private static readonly Vector3 EncounterSignPosition = new Vector3(2.6f, 1.5f, 0f);
+        private static readonly Vector3 GurneyStart = new Vector3(17f, 0f, 2.15f);
+        private static readonly Vector3 GurneyEnd = new Vector3(11.3f, 0f, 2.15f);
+        private static readonly string[] EncounterCorridorLights = { "Light_3", "Light_9" };
+
+        // Scenario 3 (Liam's floor 2): the nurse's station stands against the south wall near the lift, where the
+        // patient's son waits. The doctor rushes between the doors of 2A and 2C on the north side (Liam's staff stand on
+        // the south side) and reviews paperwork at his desk in room 2C, the doctor's office.
+        private const int StationFloor = 2;
+        private const string OfficeLabel = "2C";
+        private const string SonModel = "Patient_Male";
+        private const string DoctorModel = "Doctor_Male";
+        private static readonly Vector3 StationDeskSpot = new Vector3(3.4f, 0f, 0.1f);
+        private static readonly Vector3 SonSpot = new Vector3(3.9f, 0f, 1.05f);
+        private static readonly Vector3 StationSignPosition = new Vector3(2.15f, 1.55f, 0f);
+        private static readonly Vector3[] DoctorRound = { new Vector3(13f, 0f, 2.3f), new Vector3(5.6f, 0f, 2.3f) };
+        private static readonly string[] StationCorridorLights = { "Light_3" };
+
+        // Liam's patient models wear pyjamas; visitors (the daughter, the son) get everyday colors for top and trousers.
+        private static readonly Color VisitorTopColor = new Color(0.24f, 0.34f, 0.56f);
+        private static readonly Color VisitorBottomColor = new Color(0.17f, 0.19f, 0.26f);
+        private static readonly Color SonTopColor = new Color(0.55f, 0.33f, 0.2f);
+        private static readonly Color SonBottomColor = new Color(0.22f, 0.24f, 0.2f);
+
+        // Scenario 4 (room 1B): the patient sleeps in bed (on the mattress, posed on the first frame of "Laying") and his
+        // wife keeps watch on the chair next to the bed.
+        private const string BedsideRoomLabel = "1B";
+        private const string SleepingPatientModel = "Patient_Male_Old";
+        private const string WifeModel = "Patient_Female_Old";
+        private static readonly Color WifeTopColor = new Color(0.45f, 0.38f, 0.52f);
+        private static readonly Color WifeBottomColor = new Color(0.2f, 0.2f, 0.24f);
+
+        // Scenario 5 (room 1C): a shared room. Liam's bed moves to the window side (Patient X), a copy stands on the
+        // other side (the next patient, lying in it), with a privacy curtain between them. Liam's chair and nightstand go.
+        private const string SharedRoomLabel = "1C";
+        private const string AggressivePatientModel = "Patient_Male";
+        private const string NextPatientModel = "Patient_Male_Old";
+        private const float SharedBedCenterX = 1.0f;   // room-local x of each bed (window side +, other side -)
+        private const float CurtainFrontZ = 1.0f;      // room-local z where the drawn curtain ends, toward the door
+        private const float CurtainBottom = 0.15f;
+        private const float CurtainTop = 2.3f;
 
         private static readonly Color TextColor = new Color(0.12f, 0.12f, 0.14f);
-
-        /// <summary>
-        /// A room seen from its doorway: origin in the middle of the doorway, Forward into the room, Right along the
-        /// corridor (+x, so rooms on both sides share the same lx range -1.5..2.5). lz runs 0..4 from door to back wall.
-        /// </summary>
-        private readonly struct RoomFrame
-        {
-            public RoomFrame(Vector3 door, Vector3 forward)
-            {
-                Door = door;
-                Forward = forward;
-            }
-
-            public Vector3 Door { get; }
-            public Vector3 Forward { get; }
-            public Vector3 Right => Vector3.right;
-
-            public Vector3 Point(float lx, float y, float lz) => Door + Right * lx + Vector3.up * y + Forward * lz;
-
-            /// <summary>
-            /// Rotation that looks along a direction given in room coordinates.
-            /// </summary>
-            public Quaternion Facing(float dx, float dz) => Quaternion.LookRotation(Right * dx + Forward * dz, Vector3.up);
-        }
 
         [MenuItem("ProCommVR/Setup/8. Build Shift Hospital")]
         public static void BuildScene()
         {
-            // Create the scene first: NewScene unloads assets that were loaded before it.
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            if (!File.Exists(HospitalScenePath))
+                throw new FileNotFoundException($"[ProCommVR] Liam's hospital scene is missing. Pull it from Liam's branch.", HospitalScenePath);
+
+            // Open the scene first: opening a scene unloads assets that were loaded before it.
+            var scene = EditorSceneManager.OpenScene(HospitalScenePath, OpenSceneMode.Single);
+            var hospital = scene.GetRootGameObjects().FirstOrDefault(g => g.name == HospitalRootName)?.transform;
+            if (hospital == null)
+                throw new System.InvalidOperationException($"[ProCommVR] No '{HospitalRootName}' in {HospitalScenePath}. Run 'ProCommVR > Hospital > Build' first.");
 
             var rigVariant = ScenarioTestSceneBuilder.LoadRequired<GameObject>(ScenarioTestSceneBuilder.RigVariantPath, "Run 'Build XR Test Scene' first.");
             var resultsPrefab = ScenarioTestSceneBuilder.LoadRequired<GameObject>(ResultsPrefabPath, "Run 'Build Results Screen Prefab' first.");
             var plan = GetOrCreatePlan();
 
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.5f, 0.5f, 0.52f);
-            var lightObject = new GameObject("Directional Light");
-            lightObject.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
-            var sun = lightObject.AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.shadows = LightShadows.None;
+            // The XR rig brings its own camera.
+            foreach (var camera in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+                Object.DestroyImmediate(camera.gameObject);
 
             // The ward's own mood (Neutral) sets the main light and ambient light at runtime, through the same mood
             // system as the scenario scenes. The patient moods only color the room lights and door signs.
+            var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
             var wardMood = new GameObject("Ward Mood");
             var mood = ScenarioTestSceneBuilder.AddMoodController(wardMood, null);
             var serializedMood = new SerializedObject(mood);
@@ -102,23 +156,36 @@ namespace ProCommVR.Editor
             serializedMood.ApplyModifiedPropertiesWithoutUndo();
             ScenarioTestSceneBuilder.AddMoodAtmosphere(wardMood, mood, sun);
 
-            var building = new GameObject("Building").transform;
-            BuildShell(building);
-
-            var briefing = new RoomFrame(new Vector3(1.5f, 0f, 0f), Vector3.back);
+            var shift = new GameObject("Shift").transform;
             var shiftManager = new GameObject("Shift Manager").AddComponent<ShiftManager>();
-            BuildBriefingRoom(building, briefing, shiftManager);
+            var start = BuildBriefing(hospital, shift, shiftManager);
 
             var rooms = new List<PatientRoom>();
-            var number = 1;
-            for (var column = 0; column < Columns; column++)
-                rooms.Add(BuildPatientRoom(building, number++, new RoomFrame(new Vector3(column * RoomSize + 1.5f, 0f, CorridorWidth), Vector3.forward)));
-            for (var column = 1; column < Columns; column++)
-                rooms.Add(BuildPatientRoom(building, number++, new RoomFrame(new Vector3(column * RoomSize + 1.5f, 0f, 0f), Vector3.back)));
+            var roomIndex = 0;
+            foreach (var location in TaskLocations)
+            {
+                if (location == CorridorTask)
+                    rooms.Add(BuildCorridorEncounter(hospital, shift));
+                else if (location == StationTask)
+                    rooms.Add(BuildStationEncounter(hospital, shift));
+                else if (location == BedsideRoomLabel)
+                    rooms.Add(BuildBedsideRoom(hospital, location));
+                else if (location == SharedRoomLabel)
+                    rooms.Add(BuildSharedRoom(hospital, location));
+                else
+                    rooms.Add(BuildPatientRoom(hospital, roomIndex++, location));
+            }
+            CloseOtherDoors(hospital);
+            HideMisplacedPatients(hospital);
+            BuildLift(hospital, shift);
 
-            // A second shift board at the east end of the corridor, readable while walking between the rooms.
-            BuildShiftBoard(building, "Shift Board (corridor)", shiftManager,
-                new Vector3(Columns * RoomSize - 0.08f, 1.55f, CorridorWidth * 0.5f), Quaternion.LookRotation(Vector3.right));
+            // A shift board in the corridor of every floor with a task, readable while walking between the rooms.
+            foreach (var floor in TaskLocations.Select(FloorOf).Distinct())
+            {
+                var wall = RendererBounds(RequireChild(hospital, $"Floor{floor}/Wall_South").gameObject);
+                BuildShiftBoard(shift, $"Shift Board (floor {floor})", shiftManager,
+                    new Vector3(CorridorBoardX, floor * FloorHeight + 1.55f, wall.max.z + 0.02f), Quaternion.LookRotation(Vector3.back));
+            }
 
             var results = (GameObject)PrefabUtility.InstantiatePrefab(resultsPrefab, scene);
             results.SetActive(false);
@@ -138,177 +205,48 @@ namespace ProCommVR.Editor
                 roomList.GetArrayElementAtIndex(i).objectReferenceValue = rooms[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
-            // The player starts in the briefing room, facing the desk with the computer that starts the shift.
+            // The player starts in the lobby, facing the reception desk with the computer that starts the shift.
             var rig = (GameObject)PrefabUtility.InstantiatePrefab(rigVariant, scene);
-            rig.transform.SetPositionAndRotation(briefing.Point(0.3f, 0f, 1.4f), briefing.Facing(0f, 1f));
+            rig.transform.SetPositionAndRotation(start, Quaternion.LookRotation(Vector3.forward));
             new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
 
-            MarkStatic(building);
             Debug.Log($"[ProCommVR] Shift hospital built: {CountTriangles()} triangles in the scene (Quest 3 target: under about 100k).");
+            // Saved under a new path: Liam's scene on disk stays as it is.
             ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);
         }
 
-        // ---- Shell: floors, walls, ceiling, colliders ----------------------------------------------------------
+        // ---- Briefing (lobby) ---------------------------------------------------------------------------------
 
-        private static void BuildShell(Transform building)
+        /// <summary>
+        /// The lobby is the briefing room: the start computer on the visitor side of the reception desk and a shift
+        /// board on the north wall. Returns the start position of the player, in front of the desk.
+        /// </summary>
+        private static Vector3 BuildBriefing(Transform hospital, Transform shift, ShiftManager shiftManager)
         {
-            var shell = new GameObject("Shell").transform;
-            shell.SetParent(building, false);
-            var width = Columns * RoomSize;
-            var south = -RoomSize;
-            var north = CorridorWidth + RoomSize;
+            var root = new GameObject("Briefing (lobby)").transform;
+            root.SetParent(shift, false);
 
-            // Floors: one scaled Kenney tile per room and one for the corridor.
-            for (var column = 0; column < Columns; column++)
-            {
-                PlaceFloor(shell, $"Floor Room North {column + 1}", column * RoomSize, CorridorWidth, RoomSize, RoomSize);
-                PlaceFloor(shell, $"Floor Room South {column + 1}", column * RoomSize, south, RoomSize, RoomSize);
-            }
-            PlaceFloor(shell, "Floor Corridor", 0f, 0f, width, CorridorWidth);
+            var desk = Scenario01SceneBuilder.TightBounds(RequireChild(hospital, "Lobby/Furniture/ReceptionDesk").gameObject);
+            BuildStartComputer(root, desk, shiftManager);
 
-            // Doorway centers along the corridor walls, windows in the outer walls (one per room, beside the bed).
-            var doors = new float[Columns];
-            var windows = new float[Columns];
-            for (var column = 0; column < Columns; column++)
-            {
-                doors[column] = column * RoomSize + 1.5f;
-                windows[column] = column * RoomSize + 1f;
-            }
+            var northWall = RendererBounds(RequireChild(hospital, "Lobby/Wall_North").gameObject);
+            var board = BuildShiftBoard(root, "Shift Board (briefing)", shiftManager,
+                new Vector3(LobbyBoardX, 1.9f, northWall.min.z - 0.02f), Quaternion.LookRotation(Vector3.forward));
+            board.localScale *= LobbyBoardScale;
 
-            var walls = new GameObject("Walls").transform;
-            walls.SetParent(shell, false);
-            BuildWallRun(walls, "Corridor Wall North", new Vector3(0f, 0f, CorridorWidth), new Vector3(width, 0f, CorridorWidth), doors, null);
-            BuildWallRun(walls, "Corridor Wall South", new Vector3(0f, 0f, 0f), new Vector3(width, 0f, 0f), doors, null);
-            BuildWallRun(walls, "Outer Wall North", new Vector3(0f, 0f, north), new Vector3(width, 0f, north), null, windows);
-            BuildWallRun(walls, "Outer Wall South", new Vector3(0f, 0f, south), new Vector3(width, 0f, south), null, windows);
-            BuildWallRun(walls, "Outer Wall West", new Vector3(0f, 0f, south), new Vector3(0f, 0f, north), null, null);
-            BuildWallRun(walls, "Outer Wall East", new Vector3(width, 0f, south), new Vector3(width, 0f, north), null, null);
-            for (var column = 1; column < Columns; column++)
-            {
-                var x = column * RoomSize;
-                BuildWallRun(walls, $"Room Wall North {column}", new Vector3(x, 0f, CorridorWidth), new Vector3(x, 0f, north), null, null);
-                BuildWallRun(walls, $"Room Wall South {column}", new Vector3(x, 0f, south), new Vector3(x, 0f, 0f), null, null);
-            }
-
-            var ceiling = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ceiling.name = "Ceiling";
-            ceiling.transform.SetParent(shell, false);
-            ceiling.transform.SetPositionAndRotation(new Vector3(width * 0.5f, WallHeight, (south + north) * 0.5f), Quaternion.Euler(180f, 0f, 0f));
-            ceiling.transform.localScale = new Vector3(width / 10f, 1f, (north - south) / 10f);
-            Object.DestroyImmediate(ceiling.GetComponent<Collider>());
-            ceiling.GetComponent<Renderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial($"{MaterialFolder}/Ceiling.mat", new Color(0.93f, 0.93f, 0.91f));
-
-            var floorCollider = new GameObject("Floor Collider").AddComponent<BoxCollider>();
-            floorCollider.transform.SetParent(shell, false);
-            floorCollider.transform.position = new Vector3(width * 0.5f, -0.1f, (south + north) * 0.5f);
-            floorCollider.size = new Vector3(width, 0.2f, north - south);
-
-            // Corridor ceiling lamps (visual only, the light comes from the directional light and ambient).
-            for (var x = 2f; x < width; x += 4f)
-                PlaceKenney(shell, "lampSquareCeiling", "Corridor Lamp", new Vector3(x, WallHeight, CorridorWidth * 0.5f), Quaternion.identity, 0.5f, true);
-        }
-
-        private static void PlaceFloor(Transform parent, string name, float x, float z, float sizeX, float sizeZ)
-        {
-            var floor = InstantiateKenney("floorFull", parent, name);
-            var size = Scenario01SceneBuilder.TightBounds(floor).size;
-            floor.transform.localScale = Vector3.Scale(floor.transform.localScale, new Vector3(sizeX / size.x, KenneyDepthScale, sizeZ / size.z));
-            Scenario01SceneBuilder.Align(floor, new Vector3(0.5f, 1f, 0.5f), new Vector3(x + sizeX * 0.5f, 0f, z + sizeZ * 0.5f));
+            return new Vector3(desk.center.x, LiftArrivalHeight, desk.min.z - 1.3f);
         }
 
         /// <summary>
-        /// A straight wall from start to end: solid Kenney wall pieces, with a 1 m doorway piece at every door
-        /// and a 1 m window piece at every window (distances measured from start along the wall). Adds box colliders
-        /// for the solid parts and windows.
+        /// The computer on the desk, facing the player (south): point at it with the controller ray and pull the
+        /// trigger to start the shift.
         /// </summary>
-        private static void BuildWallRun(Transform parent, string name, Vector3 start, Vector3 end, float[] doors, float[] windows)
+        private static void BuildStartComputer(Transform parent, Bounds desk, ShiftManager shiftManager)
         {
-            var run = new GameObject(name).transform;
-            run.SetParent(parent, false);
-            var direction = (end - start).normalized;
-            var length = Vector3.Distance(start, end);
-
-            var openings = new List<(float Center, string Model)>();
-            if (doors != null)
-                foreach (var door in doors)
-                    openings.Add((AlongRun(start, direction, door), "wallDoorway"));
-            if (windows != null)
-                foreach (var window in windows)
-                    openings.Add((AlongRun(start, direction, window), "wallWindow"));
-            openings.Sort((a, b) => a.Center.CompareTo(b.Center));
-
-            var cursor = 0f;
-            foreach (var (center, model) in openings)
-            {
-                PlaceWallPiece(run, "wall", start, direction, cursor, center - OpeningWidth * 0.5f, true);
-                PlaceWallPiece(run, model, start, direction, center - OpeningWidth * 0.5f, center + OpeningWidth * 0.5f, model == "wallWindow");
-                cursor = center + OpeningWidth * 0.5f;
-            }
-            PlaceWallPiece(run, "wall", start, direction, cursor, length, true);
-        }
-
-        /// <summary>
-        /// Converts a world x or z coordinate of an opening into a distance along the run.
-        /// </summary>
-        private static float AlongRun(Vector3 start, Vector3 direction, float coordinate)
-        {
-            return Mathf.Abs(direction.x) > 0.5f ? (coordinate - start.x) * Mathf.Sign(direction.x) : (coordinate - start.z) * Mathf.Sign(direction.z);
-        }
-
-        private static void PlaceWallPiece(Transform parent, string model, Vector3 start, Vector3 direction, float from, float to, bool collider)
-        {
-            var length = to - from;
-            if (length < 0.01f)
-                return;
-
-            var piece = InstantiateKenney(model, parent, model);
-            // Kenney wall pieces are modelled along x; scale to the segment length and the wall height, then turn.
-            var size = Scenario01SceneBuilder.TightBounds(piece).size;
-            piece.transform.localScale = Vector3.Scale(piece.transform.localScale, new Vector3(length / size.x, WallHeight / size.y, KenneyDepthScale));
-            piece.transform.rotation = Quaternion.FromToRotation(Vector3.right, direction) * piece.transform.rotation;
-            var middle = start + direction * ((from + to) * 0.5f);
-            Scenario01SceneBuilder.Align(piece, new Vector3(0.5f, 0f, 0.5f), middle);
-
-            if (!collider)
-                return;
-            var box = new GameObject($"{model} Collider").AddComponent<BoxCollider>();
-            box.transform.SetParent(parent, false);
-            box.transform.SetPositionAndRotation(middle + Vector3.up * WallHeight * 0.5f, Quaternion.FromToRotation(Vector3.right, direction));
-            box.size = new Vector3(length, WallHeight, ColliderThickness);
-        }
-
-        // ---- Rooms ------------------------------------------------------------------------------------------
-
-        private static void BuildBriefingRoom(Transform building, RoomFrame room, ShiftManager shiftManager)
-        {
-            var root = new GameObject("Briefing Room").transform;
-            root.SetParent(building, false);
-
-            // Desk against the back wall with the computer that starts the shift.
-            var desk = PlaceKenney(root, "desk", "Desk", room.Point(0.3f, 0f, 3.55f), room.Facing(0f, -1f), 0.76f, false);
-            var deskTop = Scenario01SceneBuilder.TightBounds(desk).max.y;
-            PlaceKenney(root, "chairDesk", "Desk Chair", room.Point(0.3f, 0f, 2.85f), room.Facing(0f, 1f), 0.9f, false);
-            BuildStartComputer(root, room, deskTop, shiftManager);
-
-            PlaceKenney(root, "bookcaseClosedWide", "Bookcase", room.Point(-1.2f, 0f, 2.6f), room.Facing(1f, 0f), 1.9f, false);
-            PlaceKenney(root, "table", "Meeting Table", room.Point(1.4f, 0f, 1.6f), room.Facing(0f, 1f), 0.75f, false);
-            PlaceKenney(root, "chair", "Meeting Chair", room.Point(1.4f, 0f, 1.0f), room.Facing(0f, 1f), 0.9f, false);
-            PlaceKenney(root, "chair", "Meeting Chair", room.Point(1.4f, 0f, 2.2f), room.Facing(0f, -1f), 0.9f, false);
-            PlaceKenney(root, "coatRackStanding", "Coat Rack", room.Point(-1.2f, 0f, 0.4f), room.Facing(1f, 0f), 1.8f, false);
-            PlaceKenney(root, "pottedPlant", "Plant", room.Point(2.2f, 0f, 3.7f), Quaternion.identity, 0.8f, false);
-            PlaceKenney(root, "lampSquareCeiling", "Ceiling Lamp", room.Point(0.5f, WallHeight, 2f), Quaternion.identity, 0.5f, true);
-
-            // The shift board on the right-hand wall, readable from the start position.
-            BuildShiftBoard(root, "Shift Board (briefing)", shiftManager, room.Point(2.42f, 1.5f, 2.3f), room.Facing(1f, 0f));
-        }
-
-        /// <summary>
-        /// The computer on the desk: point at it with the controller ray and pull the trigger to start the shift.
-        /// </summary>
-        private static void BuildStartComputer(Transform parent, RoomFrame room, float deskTop, ShiftManager shiftManager)
-        {
-            var screen = PlaceKenney(parent, "computerScreen", "Computer (start shift)", room.Point(0.3f, deskTop, 3.65f), room.Facing(0f, -1f), 0.45f, false);
-            PlaceKenney(parent, "computerKeyboard", "Keyboard", room.Point(0.3f, deskTop, 3.4f), room.Facing(0f, -1f), 0.03f, false);
+            var towardPlayer = Quaternion.LookRotation(Vector3.back);
+            var screen = PlaceKenney(parent, "computerScreen", "Computer (start shift)",
+                new Vector3(desk.center.x, desk.max.y, desk.center.z + 0.05f), towardPlayer, 0.45f, false);
+            PlaceKenney(parent, "computerKeyboard", "Keyboard", new Vector3(desk.center.x, desk.max.y, desk.min.z + 0.15f), towardPlayer, 0.03f, false);
 
             var bounds = Scenario01SceneBuilder.TightBounds(screen);
             var collider = screen.AddComponent<BoxCollider>();
@@ -317,7 +255,8 @@ namespace ProCommVR.Editor
             collider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
             screen.AddComponent<XRSimpleInteractable>();
 
-            var label = CreateWorldText(parent, "Start Shift Label", room.Point(0.3f, bounds.max.y + 0.2f, 3.6f), room.Facing(0f, 1f), 0.6f);
+            var label = CreateWorldText(parent, "Start Shift Label", new Vector3(bounds.center.x, bounds.max.y + 0.2f, bounds.center.z),
+                Quaternion.LookRotation(Vector3.forward), 0.6f);
             var button = screen.AddComponent<ShiftStartButton>();
             var serialized = new SerializedObject(button);
             serialized.FindProperty("_shiftManager").objectReferenceValue = shiftManager;
@@ -325,61 +264,43 @@ namespace ProCommVR.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static PatientRoom BuildPatientRoom(Transform building, int number, RoomFrame room)
+        // ---- Patient rooms --------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Turns one of Liam's rooms into a shift room. Liam's room has its origin in the middle of the doorway,
+        /// forward into the room, the bed against the back wall, a chair right of the bed and the window in the right
+        /// wall. The room keeps its furniture and light; Liam's patient card and patient for this door make way
+        /// for the door sign and the patient of the shift.
+        /// </summary>
+        private static PatientRoom BuildPatientRoom(Transform hospital, int index, string label)
         {
-            var root = new GameObject($"Room {number}").transform;
-            root.SetParent(building, false);
+            var room = RequireChild(hospital, $"Floor{FloorOf(label)}/Room_{label}");
+            var signPosition = ReplaceCardAndOpenDoor(hospital, room, label);
 
-            // Hospital bed (GRADD) with the head end against the back wall, IV pole and drawers beside it.
-            var bed = Scenario01SceneBuilder.PlaceGradd(root, "Hospital Bed", "Hospital_Bed_001", 0f);
-            AlignLongSide(bed, room, 2.1f);
-            Scenario01SceneBuilder.Align(bed, new Vector3(0.5f, 0f, 0.5f), room.Point(1.35f, 0f, 2.9f));
-            var iv = Scenario01SceneBuilder.PlaceGradd(root, "IV Pole", "IV_Bag_Holder_001", 0f);
-            Scenario01SceneBuilder.Align(iv, new Vector3(0.5f, 0f, 0.5f), room.Point(2.2f, 0f, 3.65f));
-            var drawers = Scenario01SceneBuilder.PlaceGradd(root, "Drawers On Wheels", "Drawers_on_Wheels_001", 0f);
-            Scenario01SceneBuilder.Align(drawers, new Vector3(0.5f, 0f, 0.5f), room.Point(0.35f, 0f, 3.7f));
+            // The patient sits on the chair, turned to the door where the player comes in (as Liam's own patients).
+            var chair = RequireChild(room, "Furniture/Chair");
+            var seat = Scenario01SceneBuilder.TightBounds(chair.gameObject).center;
+            var towardDoor = Flat(room.position - seat).normalized;
+            chair.RotateAround(seat, Vector3.up, Vector3.SignedAngle(RequireChild(room, "Anchor_Sitting").forward, towardDoor, Vector3.up));
+            var patient = PlaceCharacter(room, PatientModels[index % PatientModels.Length],
+                new Vector3(seat.x, room.position.y, seat.z), Quaternion.LookRotation(towardDoor), "Sitting");
 
-            // The patient sits in a chair beside the bed, not on the bed edge: the Sitting animation expects a seat of
-            // about 0.45 m, the mattress is 0.66 m high and the side rails (up to 0.83 m) run along both long sides.
-            var chairPosition = room.Point(0.3f, 0f, 2.9f);
-            var patientFacing = room.Facing(-0.3f, -1f);
-            PlaceKenney(root, "chairCushion", "Visitor Chair", chairPosition, patientFacing, 0.9f, false);
-            PlaceKenney(root, "pottedPlant", "Plant", room.Point(-1.2f, 0f, 0.4f), Quaternion.identity, 0.7f, false);
-            PlaceKenney(root, "lampSquareCeiling", "Ceiling Lamp", room.Point(0.5f, WallHeight, 2f), Quaternion.identity, 0.5f, true);
-
-            var patient = PlacePatient(root, PatientModels[(number - 1) % PatientModels.Length], chairPosition, patientFacing);
-
-            // Mood: the data (MoodController) and the colored room light that reads it.
-            var moodObject = new GameObject("Patient Mood");
-            moodObject.transform.SetParent(root, false);
-            var mood = ScenarioTestSceneBuilder.AddMoodController(moodObject, null);
-            // The mood's sound, 3D and only audible in and right outside this room.
-            moodObject.transform.position = room.Point(0.5f, 1.5f, 2.2f);
-            ScenarioTestSceneBuilder.AddMoodAudio(moodObject, mood, true, 4f);
-            var lightObject = new GameObject("Mood Light");
-            lightObject.transform.SetParent(root, false);
-            lightObject.transform.position = room.Point(0.5f, WallHeight - 0.3f, 2.4f);
-            var light = lightObject.AddComponent<Light>();
-            light.type = LightType.Point;
-            light.range = 3.3f;
-            light.intensity = 2.5f;
-            light.shadows = LightShadows.None;
-            var roomLight = lightObject.AddComponent<MoodRoomLight>();
-            var serialized = new SerializedObject(roomLight);
-            serialized.FindProperty("_moodController").objectReferenceValue = mood;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-
-            var sign = BuildRoomSign(root, room, mood);
+            var mood = AddRoomMood(room);
+            var sign = BuildRoomSign(room, signPosition, Quaternion.LookRotation(room.forward), mood);
 
             var head = patient.position + Vector3.up * 1.75f;
-            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", patient, head, room.Point(-0.2f, 1.15f, 1.5f));
-            presenter.transform.SetParent(root, true);
-            presenter.transform.Find("NPC Bubble Anchor").rotation = Quaternion.LookRotation(Flat(head - room.Point(0f, 0f, 0.3f)));
-            AddReactor(root, presenter, patient, room);
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", patient, head, room.TransformPoint(0.3f, 1.15f, 1.6f));
+            presenter.transform.SetParent(room, true);
+            presenter.transform.Find("NPC Bubble Anchor").rotation = Quaternion.LookRotation(Flat(head - room.TransformPoint(0f, 0f, 0.3f)));
+            // Body language after a choice: to the nurse (the door), away from the nurse (to the bed), or to the window.
+            AddReactor(room, presenter, patient,
+                Quaternion.LookRotation(towardDoor),
+                Quaternion.LookRotation(-room.right + room.forward * 0.3f),
+                Quaternion.LookRotation(room.right - room.forward * 0.3f));
 
-            var patientRoom = root.gameObject.AddComponent<PatientRoom>();
-            serialized = new SerializedObject(patientRoom);
-            serialized.FindProperty("_roomName").stringValue = $"Room {number}";
+            var patientRoom = room.gameObject.AddComponent<PatientRoom>();
+            var serialized = new SerializedObject(patientRoom);
+            serialized.FindProperty("_roomName").stringValue = $"Room {label}";
             serialized.FindProperty("_presenter").objectReferenceValue = presenter;
             serialized.FindProperty("_moodController").objectReferenceValue = mood;
             serialized.FindProperty("_sign").objectReferenceValue = sign;
@@ -388,20 +309,63 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Turns a GRADD model so its longest horizontal side runs into the room, and scales it to that length.
+        /// Liam's patient card and his patient for this door make way for the shift: returns where the card was (the
+        /// place of the door sign). The door swings open.
         /// </summary>
-        private static void AlignLongSide(GameObject go, RoomFrame room, float length)
+        private static Vector3 ReplaceCardAndOpenDoor(Transform hospital, Transform room, string label)
         {
-            var size = Scenario01SceneBuilder.TightBounds(go).size;
-            var alongX = size.x > size.z;
-            go.transform.rotation = Quaternion.FromToRotation(alongX ? Vector3.right : Vector3.forward, room.Forward) * go.transform.rotation;
-            go.transform.localScale *= length / Mathf.Max(size.x, size.z);
+            var floor = $"Floor{FloorOf(label)}";
+            var card = RequireChild(hospital, $"{floor}/Card_{label}");
+            var signPosition = card.position - room.forward * 0.03f;
+            Object.DestroyImmediate(card.gameObject);
+            var liamsPatient = hospital.Find($"Characters/Patient_{label}");
+            if (liamsPatient != null)
+                Object.DestroyImmediate(liamsPatient.gameObject);
+            OpenDoor(RequireChild(hospital, $"{floor}/Door_{label}"), room);
+            return signPosition;
         }
 
         /// <summary>
-        /// One of Liam's characters, sitting (Animator state "Sitting"), root on the floor at the chair.
+        /// The mood of a room: the data (MoodController), its sound (3D, only audible in and right outside this room) and
+        /// the room's own ceiling light, which takes the mood color.
         /// </summary>
-        private static Transform PlacePatient(Transform parent, string model, Vector3 position, Quaternion facing)
+        private static MoodController AddRoomMood(Transform room)
+        {
+            var moodObject = new GameObject("Patient Mood");
+            moodObject.transform.SetParent(room, false);
+            moodObject.transform.localPosition = new Vector3(0.5f, 1.5f, 2.2f);
+            var mood = ScenarioTestSceneBuilder.AddMoodController(moodObject, null);
+            ScenarioTestSceneBuilder.AddMoodAudio(moodObject, mood, true, 4f);
+            AddMoodRoomLight(RequireChild(room, "Light"), mood);
+            return mood;
+        }
+
+        /// <summary>
+        /// Liam's doors are closed models without a collider. A shift room's door swings open into the room, on the
+        /// hinge at its left side seen from the corridor.
+        /// </summary>
+        private static void OpenDoor(Transform door, Transform room)
+        {
+            var bounds = Scenario01SceneBuilder.TightBounds(door.gameObject);
+            var halfWidth = Mathf.Abs(room.right.x) > 0.5f ? bounds.extents.x : bounds.extents.z;
+            var hinge = bounds.center - room.right * halfWidth;
+            door.RotateAround(hinge, Vector3.up, Vector3.SignedAngle(room.right, room.forward, Vector3.up));
+        }
+
+        /// <summary>
+        /// The doors of the rooms without a shift patient stay closed and get a collider, so nobody walks through them.
+        /// </summary>
+        private static void CloseOtherDoors(Transform hospital)
+        {
+            var open = RoomLabels.Append(ConsultationRoomLabel).Append(OfficeLabel).Select(label => $"Door_{label}").ToHashSet();
+            foreach (var door in hospital.GetComponentsInChildren<Transform>().Where(t => t.name.StartsWith("Door_") && !open.Contains(t.name)))
+                AddBoxCollider(door.gameObject, Scenario01SceneBuilder.TightBounds(door.gameObject));
+        }
+
+        /// <summary>
+        /// One of Liam's characters in an Animator state (e.g. "Sitting"), root on the floor at the position.
+        /// </summary>
+        private static Transform PlaceCharacter(Transform parent, string model, Vector3 position, Quaternion facing, string animatorState)
         {
             var path = $"{CharacterFolder}/{model}/{model}.prefab";
             var prefab = ScenarioTestSceneBuilder.LoadRequired<GameObject>(path, "Character missing; pull Assets/Character from Liam's branch.");
@@ -414,24 +378,44 @@ namespace ProCommVR.Editor
             animator.applyRootMotion = false;
             var state = animator.gameObject.AddComponent<NpcAnimationState>();
             var serialized = new SerializedObject(state);
-            serialized.FindProperty("_stateName").stringValue = "Sitting";
+            serialized.FindProperty("_stateName").stringValue = animatorState;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return patient.transform;
         }
 
-        /// <summary>
-        /// Body language after a choice: turns to the nurse, away from the nurse, or to the window.
-        /// </summary>
-        private static void AddReactor(Transform root, ScenarioPresenter presenter, Transform patient, RoomFrame room)
+        private static void AddReactor(Transform root, ScenarioPresenter presenter, Transform patient,
+            Quaternion engaged, Quaternion turnsAway, Quaternion withdrawn)
         {
-            var poses = new GameObject("Poses").transform;
-            poses.SetParent(root, false);
-            var targets = new List<KeyValuePair<NpcPose, Transform>>
+            AddReactor(root, presenter, patient, null,
+                new PoseSpec(NpcPose.Engaged, engaged, null),
+                new PoseSpec(NpcPose.TurnsAway, turnsAway, null),
+                new PoseSpec(NpcPose.Withdrawn, withdrawn, null));
+        }
+
+        /// <summary>
+        /// A pose of the NPC after a choice: where it turns to (null = it stays as it is), the Animator state
+        /// it plays (null = none) and optionally where it moves to (null = where the NPC is now).
+        /// </summary>
+        private readonly struct PoseSpec
+        {
+            public readonly NpcPose Pose;
+            public readonly Quaternion? Rotation;
+            public readonly string AnimatorState;
+            public readonly Vector3? Position;
+
+            public PoseSpec(NpcPose pose, Quaternion? rotation, string animatorState, Vector3? position = null)
             {
-                new KeyValuePair<NpcPose, Transform>(NpcPose.Engaged, CreatePose(poses, "Engaged", patient.position, room.Facing(0.2f, -1f))),
-                new KeyValuePair<NpcPose, Transform>(NpcPose.TurnsAway, CreatePose(poses, "Turns Away", patient.position, room.Facing(1f, 0.3f))),
-                new KeyValuePair<NpcPose, Transform>(NpcPose.Withdrawn, CreatePose(poses, "Withdrawn", patient.position, room.Facing(-0.3f, 1f))),
-            };
+                Pose = pose;
+                Rotation = rotation;
+                AnimatorState = animatorState;
+                Position = position;
+            }
+        }
+
+        private static void AddReactor(Transform root, ScenarioPresenter presenter, Transform patient, Animator animator, params PoseSpec[] poses)
+        {
+            var poseParent = new GameObject("Poses").transform;
+            poseParent.SetParent(root, false);
 
             var reactor = patient.gameObject.AddComponent<NpcReactor>();
             var voice = patient.gameObject.AddComponent<AudioSource>();
@@ -441,13 +425,17 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_presenter").objectReferenceValue = presenter;
             serialized.FindProperty("_body").objectReferenceValue = patient;
             serialized.FindProperty("_voice").objectReferenceValue = voice;
+            serialized.FindProperty("_animator").objectReferenceValue = animator;
             var poseList = serialized.FindProperty("_poses");
-            poseList.arraySize = targets.Count;
-            for (var i = 0; i < targets.Count; i++)
+            poseList.arraySize = poses.Length;
+            for (var i = 0; i < poses.Length; i++)
             {
                 var element = poseList.GetArrayElementAtIndex(i);
-                element.FindPropertyRelative("Pose").enumValueIndex = (int)targets[i].Key;
-                element.FindPropertyRelative("Target").objectReferenceValue = targets[i].Value;
+                element.FindPropertyRelative("Pose").enumValueIndex = (int)poses[i].Pose;
+                element.FindPropertyRelative("Target").objectReferenceValue = poses[i].Rotation.HasValue
+                    ? CreatePose(poseParent, ObjectNames.NicifyVariableName(poses[i].Pose.ToString()), poses[i].Position ?? patient.position, poses[i].Rotation.Value)
+                    : null;
+                element.FindPropertyRelative("AnimatorState").stringValue = poses[i].AnimatorState ?? "";
             }
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
@@ -460,16 +448,940 @@ namespace ProCommVR.Editor
             return pose;
         }
 
+        // ---- Scenario 2: corridor encounter (floor 3) --------------------------------------------------------------
+
+        /// <summary>
+        /// Scenario 2: the patient's angry daughter blocks the corridor of floor 3. The task countdown (the surgical
+        /// gurney) starts when the player comes near her; she asks to be heard and the player chooses where to
+        /// talk: right there, or in the consultation room (room 3B), where she walks ahead. When the countdown runs
+        /// out, the gurney comes down the corridor and the corridor and room lights turn to Alarm.
+        /// </summary>
+        private static PatientRoom BuildCorridorEncounter(Transform hospital, Transform shift)
+        {
+            var level = RequireChild(hospital, $"Floor{EncounterFloor}");
+            var floorY = EncounterFloor * FloorHeight;
+            var encounter = new GameObject($"Encounter ({CorridorTask})").transform;
+            encounter.SetParent(shift, false);
+            encounter.position = DaughterSpot + Vector3.up * floorY;
+
+            // The daughter faces the lift, where the player comes from. Her root moves to the consultation room
+            // with everything that belongs to her: the NPC bubble, the pose targets and the mood sound.
+            var daughter = new GameObject("Daughter").transform;
+            daughter.SetParent(encounter, false);
+            daughter.SetPositionAndRotation(encounter.position, Quaternion.LookRotation(Vector3.left));
+            var body = PlaceCharacter(daughter, DaughterModel, daughter.position, daughter.rotation, "Angry");
+            DressAsVisitor(body, "Daughter", VisitorTopColor, VisitorBottomColor);
+            AddBlocker(daughter.gameObject);
+
+            var mood = ScenarioTestSceneBuilder.AddMoodController(new GameObject("Mood"), null);
+            mood.transform.SetParent(encounter, false);
+            var moodSound = new GameObject("Mood Sound");
+            moodSound.transform.SetParent(daughter, false);
+            moodSound.transform.localPosition = Vector3.up * 1.5f;
+            ScenarioTestSceneBuilder.AddMoodAudio(moodSound, mood, true, 6f);
+            foreach (var lightName in EncounterCorridorLights)
+                AddMoodRoomLight(RequireChild(level, lightName), mood);
+
+            var room = BuildConsultationRoom(level, mood);
+            var sign = BuildRoomSign(encounter, new Vector3(EncounterSignPosition.x, floorY + EncounterSignPosition.y,
+                RendererBounds(RequireChild(level, "Wall_South").gameObject).max.z + 0.02f), Quaternion.LookRotation(Vector3.back), mood);
+
+            // Bubble above her head, readable from where she looks (it turns with her).
+            var head = body.position + Vector3.up * 2.1f;
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", body, head, head + Vector3.left);
+            presenter.transform.SetParent(encounter, true);
+            var npcAnchor = presenter.transform.Find("NPC Bubble Anchor");
+            npcAnchor.rotation = Quaternion.LookRotation(-daughter.forward);
+            npcAnchor.SetParent(daughter, true);
+
+            // Body language: talking to the nurse (calmer), shouting with her back half turned, or sad and turned aside.
+            var animator = body.GetComponentInChildren<Animator>();
+            AddReactor(daughter, presenter, body, animator,
+                new PoseSpec(NpcPose.Unchanged, null, "Angry"),
+                new PoseSpec(NpcPose.Engaged, daughter.rotation, "Talking"),
+                new PoseSpec(NpcPose.TurnsAway, daughter.rotation * Quaternion.Euler(0f, 150f, 0f), "Angry"),
+                new PoseSpec(NpcPose.Withdrawn, daughter.rotation * Quaternion.Euler(0f, 70f, 0f), "Sad"));
+
+            // Where to talk: "corridor" keeps her here, "consultation-room" walks her through the door of room 3B.
+            var paths = new GameObject("Paths").transform;
+            paths.SetParent(encounter, false);
+            var spot = room.TransformPoint(0.75f, 0f, 1.5f);
+            var toRoom = AddPath(daughter.gameObject, paths, "To Consultation Room", 1.1f, false,
+                new Vector3(8f, floorY, 1.9f),
+                new Vector3(room.position.x, floorY, room.position.z - 0.6f),
+                new Vector3(room.position.x, floorY, room.position.z + 0.5f),
+                spot);
+            paths.Find("To Consultation Room/Waypoint 4").rotation = Quaternion.LookRotation(Flat(room.TransformPoint(0f, 0f, 0.4f) - spot));
+            var mover = daughter.gameObject.AddComponent<ConversationLocationMover>();
+            var serialized = new SerializedObject(mover);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            var places = serialized.FindProperty("_places");
+            places.arraySize = 2;
+            places.GetArrayElementAtIndex(0).FindPropertyRelative("LocationId").stringValue = "corridor";
+            places.GetArrayElementAtIndex(1).FindPropertyRelative("LocationId").stringValue = "consultation-room";
+            places.GetArrayElementAtIndex(1).FindPropertyRelative("Path").objectReferenceValue = toRoom;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var countdown = BuildCountdown(encounter, floorY, body, BuildGurney(encounter, paths, floorY));
+
+            var patientRoom = encounter.gameObject.AddComponent<PatientRoom>();
+            serialized = new SerializedObject(patientRoom);
+            serialized.FindProperty("_roomName").stringValue = CorridorTask;
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.FindProperty("_sign").objectReferenceValue = sign;
+            serialized.FindProperty("_countdown").objectReferenceValue = countdown;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return patientRoom;
+        }
+
+        /// <summary>
+        /// Liam's room 3B as an empty consultation room: his bed, nightstand and chair are hidden, a Kenney round
+        /// table with two chairs takes their place, and his card makes way for a "Consultation room" sign. The room
+        /// light follows the mood of the encounter (red on Alarm).
+        /// </summary>
+        private static Transform BuildConsultationRoom(Transform level, MoodController mood)
+        {
+            var label = ConsultationRoomLabel;
+            var room = RequireChild(level, $"Room_{label}");
+            foreach (var item in new[] { "Bed", "Nightstand", "Chair" })
+                RequireChild(room, $"Furniture/{item}").gameObject.SetActive(false);
+
+            var furniture = new GameObject("Consultation Furniture").transform;
+            furniture.SetParent(room, false);
+            var table = room.TransformPoint(-0.3f, 0f, 2.7f);
+            PlaceKenney(furniture, "tableRound", "Table", table, room.rotation, 0.75f, false);
+            PlaceKenney(furniture, "chairCushion", "Chair (left)", room.TransformPoint(-1.15f, 0f, 2.7f), Quaternion.LookRotation(room.right), 0.85f, false);
+            PlaceKenney(furniture, "chairCushion", "Chair (right)", room.TransformPoint(0.55f, 0f, 2.7f), Quaternion.LookRotation(-room.right), 0.85f, false);
+
+            var card = RequireChild(level, $"Card_{label}");
+            var signPosition = card.position - room.forward * 0.03f;
+            Object.DestroyImmediate(card.gameObject);
+            var canvas = CreateCanvas(room, "Consultation Room Sign", new Vector2(420f, 140f), signPosition, Quaternion.LookRotation(room.forward), Color.white);
+            var text = CreateLabel(canvas, "Label", 20f, 46f, TextAlignmentOptions.Center);
+            text.text = "<b>Consultation room</b>\n<size=60%>Free</size>";
+
+            OpenDoor(RequireChild(level, $"Door_{label}"), room);
+            AddMoodRoomLight(RequireChild(room, "Light"), mood);
+            return room;
+        }
+
+        /// <summary>
+        /// The countdown display hanging from the ceiling above the corridor, like a digital wall clock: dark panel,
+        /// amber digits (red in the last seconds), and the ticking sound.
+        /// </summary>
+        private static TaskCountdown BuildCountdown(Transform parent, float floorY, Transform npc, PathMover gurney)
+        {
+            var root = new GameObject("Countdown").transform;
+            root.SetParent(parent, false);
+            var canvas = CreateCanvas(root, "Countdown Display", new Vector2(700f, 260f), CountdownPosition + Vector3.up * floorY,
+                Quaternion.LookRotation(Vector3.right), new Color(0.06f, 0.06f, 0.07f, 1f));
+            var label = CreateLabel(canvas, "Time", 30f, 150f, TextAlignmentOptions.Center);
+            label.rectTransform.offsetMin = new Vector2(20f, 10f);
+            label.rectTransform.offsetMax = new Vector2(-20f, -10f);
+
+            var ticking = canvas.gameObject.AddComponent<AudioSource>();
+            ticking.clip = ScenarioTestSceneBuilder.LoadRequired<AudioClip>(TickSoundPath, "Placeholder tick sound missing.");
+            ticking.playOnAwake = false;
+            ticking.loop = true;
+            ticking.volume = 0.5f;
+            ticking.spatialBlend = 1f;
+            ticking.rolloffMode = AudioRolloffMode.Linear;
+            ticking.minDistance = 1f;
+            ticking.maxDistance = 8f;
+
+            var countdown = root.gameObject.AddComponent<TaskCountdown>();
+            var serialized = new SerializedObject(countdown);
+            serialized.FindProperty("_npc").objectReferenceValue = npc;
+            serialized.FindProperty("_display").objectReferenceValue = canvas.gameObject;
+            serialized.FindProperty("_label").objectReferenceValue = label;
+            serialized.FindProperty("_ticking").objectReferenceValue = ticking;
+            serialized.FindProperty("_arrival").objectReferenceValue = gurney;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return countdown;
+        }
+
+        /// <summary>
+        /// The surgical gurney (hospital bed with wheels, Sketchfab), hidden until the countdown runs out. Then it
+        /// rolls from the east end of the corridor toward the lift, on its way to the next patient.
+        /// </summary>
+        private static PathMover BuildGurney(Transform parent, Transform paths, float floorY)
+        {
+            var start = GurneyStart + Vector3.up * floorY;
+            var gurney = new GameObject("Surgical Gurney");
+            gurney.transform.SetParent(parent, false);
+            gurney.transform.SetPositionAndRotation(start, Quaternion.LookRotation(Vector3.left));
+            var model = Scenario01SceneBuilder.PlaceModel(GurneyModelPath, gurney.transform, "Model", 0f);
+            // Long side along the direction it rolls (the gurney's forward).
+            var bounds = Scenario01SceneBuilder.TightBounds(model);
+            if (bounds.size.z > bounds.size.x)
+                model.transform.rotation = Quaternion.Euler(0f, 90f, 0f) * model.transform.rotation;
+            Scenario01SceneBuilder.Align(model, new Vector3(0.5f, 0f, 0.5f), start);
+
+            var end = GurneyEnd + Vector3.up * floorY;
+            return AddPath(gurney, paths, "Gurney", 1f, true, end);
+        }
+
+        /// <summary>
+        /// A PathMover on the object with its waypoints under Paths/name (not under the moving object). The last
+        /// waypoint keeps the object's rotation unless the caller turns it.
+        /// </summary>
+        private static PathMover AddPath(GameObject target, Transform paths, string name, float speed, bool hideUntilPlayed, params Vector3[] points)
+        {
+            var path = new GameObject(name).transform;
+            path.SetParent(paths, false);
+            var waypoints = new Transform[points.Length];
+            for (var i = 0; i < points.Length; i++)
+            {
+                waypoints[i] = new GameObject($"Waypoint {i + 1}").transform;
+                waypoints[i].SetParent(path, false);
+                waypoints[i].SetPositionAndRotation(points[i], target.transform.rotation);
+            }
+
+            var mover = target.AddComponent<PathMover>();
+            var serialized = new SerializedObject(mover);
+            var list = serialized.FindProperty("_waypoints");
+            list.arraySize = waypoints.Length;
+            for (var i = 0; i < waypoints.Length; i++)
+                list.GetArrayElementAtIndex(i).objectReferenceValue = waypoints[i];
+            serialized.FindProperty("_speed").floatValue = speed;
+            serialized.FindProperty("_hideUntilPlayed").boolValue = hideUntilPlayed;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return mover;
+        }
+
+        /// <summary>
+        /// Gives a character other clothes colors: copies of its "_Top" and "_Bottom" materials, saved under
+        /// Materials/Characters (Liam's materials stay as they are).
+        /// </summary>
+        private static void DressAsVisitor(Transform character, string name, Color topColor, Color bottomColor)
+        {
+            foreach (var renderer in character.GetComponentsInChildren<Renderer>())
+            {
+                var materials = renderer.sharedMaterials;
+                for (var i = 0; i < materials.Length; i++)
+                {
+                    if (materials[i] == null)
+                        continue;
+                    if (materials[i].name.EndsWith("_Top"))
+                        materials[i] = GetOrCreateClothes(materials[i], $"{name}_Top", topColor);
+                    else if (materials[i].name.EndsWith("_Bottom"))
+                        materials[i] = GetOrCreateClothes(materials[i], $"{name}_Bottom", bottomColor);
+                }
+                renderer.sharedMaterials = materials;
+            }
+        }
+
+        private static Material GetOrCreateClothes(Material source, string name, Color color)
+        {
+            var path = $"{CharacterMaterialFolder}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null)
+                return material;
+            XRTestSceneBuilder.EnsureFolder(CharacterMaterialFolder);
+            material = new Material(source) { name = name };
+            material.SetColor("_BaseColor", color);
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        private static void AddMoodRoomLight(Transform light, MoodController mood)
+        {
+            var serialized = new SerializedObject(light.gameObject.AddComponent<MoodRoomLight>());
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // ---- Scenario 3: nurse's station and doctor's office (floor 2) ----------------------------------------------
+
+        /// <summary>
+        /// Scenario 3: the patient's son waits at the nurse's station of floor 2 and keeps asking for the doctor, who
+        /// rushes between the rooms ("I don't have time right now.", <see cref="BusyNpc"/>) and from time to time reviews
+        /// paperwork at his desk in room 2C. Only there can he be spoken to: the 4 options are addressed to him. The son
+        /// is the scenario's bystander: he complains when the player comes near and reacts to the outcome once the player
+        /// comes back to tell him.
+        /// </summary>
+        private static PatientRoom BuildStationEncounter(Transform hospital, Transform shift)
+        {
+            var level = RequireChild(hospital, $"Floor{StationFloor}");
+            var up = Vector3.up * (StationFloor * FloorHeight);
+            var encounter = new GameObject($"Encounter ({StationTask})").transform;
+            encounter.SetParent(shift, false);
+            encounter.position = StationDeskSpot + up;
+            var wallZ = RendererBounds(RequireChild(level, "Wall_South").gameObject).max.z;
+
+            var mood = ScenarioTestSceneBuilder.AddMoodController(new GameObject("Mood"), null);
+            mood.transform.SetParent(encounter, false);
+            var moodSound = new GameObject("Mood Sound");
+            moodSound.transform.SetParent(encounter, false);
+            moodSound.transform.position = SonSpot + up + Vector3.up * 1.5f;
+            ScenarioTestSceneBuilder.AddMoodAudio(moodSound, mood, true, 6f);
+            foreach (var lightName in StationCorridorLights)
+                AddMoodRoomLight(RequireChild(level, lightName), mood);
+
+            BuildNursesStation(encounter, StationDeskSpot + up, wallZ);
+            var office = BuildDoctorsOffice(level, mood);
+            var sign = BuildRoomSign(encounter, new Vector3(StationSignPosition.x, up.y + StationSignPosition.y, wallZ + 0.02f),
+                Quaternion.LookRotation(Vector3.back), mood);
+
+            // The doctor: his root walks the round (BusyNpc) with the NPC bubble and the pose targets; the model is its child.
+            var doctor = new GameObject("Doctor").transform;
+            doctor.SetParent(encounter, false);
+            doctor.SetPositionAndRotation(DoctorRound[0] + up, Quaternion.LookRotation(Vector3.left));
+            var doctorBody = PlaceCharacter(doctor, DoctorModel, doctor.position, doctor.rotation, "Idle");
+            AddBlocker(doctor.gameObject);
+
+            var head = doctorBody.position + Vector3.up * 2.1f;
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", doctorBody, head, head + Vector3.left);
+            presenter.transform.SetParent(encounter, true);
+            var npcAnchor = presenter.transform.Find("NPC Bubble Anchor");
+            npcAnchor.rotation = Quaternion.LookRotation(-doctor.forward);
+            npcAnchor.SetParent(doctor, true);
+            // He walks around and stands at his desk side-on to the door: his bubble turns to the player.
+            npcAnchor.gameObject.AddComponent<FacePlayer>();
+
+            // Body language after the choice: talking it through with the nurse, short and businesslike, or turning
+            // back to his paperwork (annoyed).
+            var doctorAnimator = doctorBody.GetComponentInChildren<Animator>();
+            AddReactor(doctor, presenter, doctorBody, doctorAnimator,
+                new PoseSpec(NpcPose.Unchanged, null, "Idle"),
+                new PoseSpec(NpcPose.Engaged, doctor.rotation, "Talking"),
+                new PoseSpec(NpcPose.TurnsAway, doctor.rotation * Quaternion.Euler(0f, 150f, 0f), "Idle"),
+                new PoseSpec(NpcPose.Withdrawn, doctor.rotation * Quaternion.Euler(0f, 60f, 0f), "Idle"));
+
+            // His round between the doors of 2A and 2C, and the way into his office to the desk.
+            var paths = new GameObject("Paths").transform;
+            paths.SetParent(encounter, false);
+            var round = CreateWaypoints(paths, "Doctor Round", doctor.rotation, DoctorRound.Select(p => p + up).ToArray());
+            var deskSpot = office.TransformPoint(-0.85f, 0f, 2.4f);
+            var toDesk = CreateWaypoints(paths, "Doctor To Desk", Quaternion.LookRotation(-office.right),
+                new Vector3(office.position.x, up.y, DoctorRound[0].z),
+                office.position + office.forward * 0.6f,
+                deskSpot);
+            var busy = doctor.gameObject.AddComponent<BusyNpc>();
+            var serialized = new SerializedObject(busy);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_animator").objectReferenceValue = doctorAnimator;
+            SetArray(serialized.FindProperty("_round"), round);
+            SetArray(serialized.FindProperty("_toDesk"), toDesk);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            BuildSon(encounter, presenter, up);
+
+            var patientRoom = encounter.gameObject.AddComponent<PatientRoom>();
+            serialized = new SerializedObject(patientRoom);
+            serialized.FindProperty("_roomName").stringValue = "Nurses' station 2";
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.FindProperty("_sign").objectReferenceValue = sign;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return patientRoom;
+        }
+
+        /// <summary>
+        /// The patient's son, a visitor waiting at the nurse's station, facing the lift where the player comes from. When
+        /// the player comes near he steps forward, turns to the player and complains (the scenario's Bystander Line);
+        /// after the choice he reacts once the player is back near him to tell him the outcome.
+        /// </summary>
+        private static void BuildSon(Transform encounter, ScenarioPresenter presenter, Vector3 up)
+        {
+            var son = new GameObject("Son").transform;
+            son.SetParent(encounter, false);
+            son.SetPositionAndRotation(SonSpot + up, Quaternion.LookRotation(Vector3.left));
+            var body = PlaceCharacter(son, SonModel, son.position, son.rotation, "Idle");
+            DressAsVisitor(body, "Son", SonTopColor, SonBottomColor);
+            AddBlocker(son.gameObject);
+            var animator = body.GetComponentInChildren<Animator>();
+
+            var attention = body.gameObject.AddComponent<NpcAttention>();
+            var serialized = new SerializedObject(attention);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_body").objectReferenceValue = body;
+            serialized.FindProperty("_range").floatValue = 3f;
+            serialized.FindProperty("_attentionPose").objectReferenceValue = CreatePose(son, "Attention", son.position + son.forward * 0.35f, son.rotation);
+            serialized.FindProperty("_facePlayer").boolValue = true;
+            serialized.FindProperty("_animator").objectReferenceValue = animator;
+            serialized.FindProperty("_animatorState").stringValue = "Angry";
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // His reaction to the outcome: calmer and talking, still angry, or sad and turned aside.
+            AddReactor(son, presenter, body, animator,
+                new PoseSpec(NpcPose.Unchanged, null, "Angry"),
+                new PoseSpec(NpcPose.Engaged, null, "Talking"),
+                new PoseSpec(NpcPose.TurnsAway, son.rotation * Quaternion.Euler(0f, 150f, 0f), "Angry"),
+                new PoseSpec(NpcPose.Withdrawn, null, "Sad"));
+            var reactor = body.GetComponent<NpcReactor>();
+            serialized = new SerializedObject(reactor);
+            serialized.FindProperty("_reactAsBystander").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var anchor = new GameObject("Bystander Bubble Anchor").transform;
+            anchor.SetParent(son, false);
+            anchor.position = body.position + Vector3.up * 2.1f;
+            anchor.rotation = Quaternion.LookRotation(-son.forward);
+            anchor.localScale = Vector3.one * 1.3f;
+            var speech = son.gameObject.AddComponent<BystanderSpeech>();
+            serialized = new SerializedObject(speech);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_bubblePrefab").objectReferenceValue =
+                ScenarioTestSceneBuilder.LoadRequired<GameObject>(ScenarioTestSceneBuilder.BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.").GetComponent<DialogueBubble>();
+            serialized.FindProperty("_anchor").objectReferenceValue = anchor;
+            serialized.FindProperty("_attention").objectReferenceValue = attention;
+            serialized.FindProperty("_reactor").objectReferenceValue = reactor;
+            serialized.FindProperty("_reactWhenNear").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// The nurse's station against the south wall: a Kenney desk with a computer, a keyboard and a stack of
+        /// files, and a "Nurses' station" sign on the wall above it.
+        /// </summary>
+        private static void BuildNursesStation(Transform parent, Vector3 spot, float wallZ)
+        {
+            var root = new GameObject("Nurses' Station").transform;
+            root.SetParent(parent, false);
+            var towardCorridor = Quaternion.LookRotation(Vector3.forward);
+            var desk = PlaceKenney(root, "desk", "Desk", new Vector3(spot.x, spot.y, wallZ + 0.4f), towardCorridor, 0.78f, false);
+            var top = Scenario01SceneBuilder.TightBounds(desk);
+            PlaceKenney(root, "computerScreen", "Computer", new Vector3(top.center.x - 0.25f, top.max.y, top.center.z - 0.05f), towardCorridor, 0.4f, false);
+            PlaceKenney(root, "computerKeyboard", "Keyboard", new Vector3(top.center.x - 0.25f, top.max.y, top.max.z - 0.15f), towardCorridor, 0.03f, false);
+            CreatePaper(root, "Files", new Vector3(top.center.x + 0.35f, top.max.y, top.center.z), 6);
+
+            var canvas = CreateCanvas(root, "Station Sign", new Vector2(700f, 130f), new Vector3(spot.x, spot.y + 1.75f, wallZ + 0.02f),
+                Quaternion.LookRotation(Vector3.back), Color.white);
+            CreateLabel(canvas, "Label", 20f, 60f, TextAlignmentOptions.Center).text = "<b>Nurses' station</b>";
+        }
+
+        /// <summary>
+        /// Liam's room 2C as the doctor's office: his bed, nightstand and chair are hidden, a desk with a computer and
+        /// files stands against the left wall, his card makes way for a "Doctor's office" sign and the door is open.
+        /// The room light follows the mood of the task. Returns the room.
+        /// </summary>
+        private static Transform BuildDoctorsOffice(Transform level, MoodController mood)
+        {
+            var room = RequireChild(level, $"Room_{OfficeLabel}");
+            foreach (var item in new[] { "Bed", "Nightstand", "Chair" })
+                RequireChild(room, $"Furniture/{item}").gameObject.SetActive(false);
+
+            var furniture = new GameObject("Office Furniture").transform;
+            furniture.SetParent(room, false);
+            var desk = PlaceKenney(furniture, "desk", "Desk", room.TransformPoint(-1.55f, 0f, 2.4f), Quaternion.LookRotation(room.right), 0.78f, false);
+            var top = Scenario01SceneBuilder.TightBounds(desk);
+            PlaceKenney(furniture, "computerScreen", "Computer", new Vector3(top.min.x + 0.15f, top.max.y, top.center.z + 0.3f),
+                Quaternion.LookRotation(room.right), 0.4f, false);
+            CreatePaper(furniture, "Paperwork", new Vector3(top.center.x + 0.05f, top.max.y, top.center.z - 0.15f), 3);
+            PlaceKenney(furniture, "chairDesk", "Desk Chair", room.TransformPoint(-0.9f, 0f, 3.3f), Quaternion.LookRotation(-room.right), 0.95f, false);
+
+            var card = RequireChild(level, $"Card_{OfficeLabel}");
+            var signPosition = card.position - room.forward * 0.03f;
+            Object.DestroyImmediate(card.gameObject);
+            var canvas = CreateCanvas(room, "Office Sign", new Vector2(420f, 140f), signPosition, Quaternion.LookRotation(room.forward), Color.white);
+            CreateLabel(canvas, "Label", 20f, 46f, TextAlignmentOptions.Center).text = "<b>Doctor's office</b>\n<size=60%>Dr. Maes</size>";
+
+            OpenDoor(RequireChild(level, $"Door_{OfficeLabel}"), room);
+            AddMoodRoomLight(RequireChild(room, "Light"), mood);
+            return room;
+        }
+
+        /// <summary>
+        /// A stack of sheets of paper (thin white boxes without colliders), slightly rotated, on a desk.
+        /// </summary>
+        private static void CreatePaper(Transform parent, string name, Vector3 point, int sheets)
+        {
+            var material = XRTestSceneBuilder.GetOrCreateMaterial(PaperMaterialPath, new Color(0.95f, 0.95f, 0.92f));
+            var stack = new GameObject(name).transform;
+            stack.SetParent(parent, false);
+            stack.position = point;
+            for (var i = 0; i < sheets; i++)
+            {
+                var sheet = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.DestroyImmediate(sheet.GetComponent<Collider>());
+                sheet.name = $"Sheet {i + 1}";
+                sheet.transform.SetParent(stack, false);
+                sheet.transform.localScale = new Vector3(0.21f, 0.004f, 0.297f);
+                sheet.transform.position = point + Vector3.up * (0.002f + i * 0.005f);
+                sheet.transform.rotation = Quaternion.Euler(0f, (i * 37 % 11) - 5f, 0f);
+                sheet.GetComponent<MeshRenderer>().sharedMaterial = material;
+            }
+        }
+
+        /// <summary>
+        /// Empty waypoints under Paths/name, all with the given rotation (the last one is where the walker ends up facing).
+        /// </summary>
+        private static Transform[] CreateWaypoints(Transform paths, string name, Quaternion rotation, params Vector3[] points)
+        {
+            var path = new GameObject(name).transform;
+            path.SetParent(paths, false);
+            var waypoints = new Transform[points.Length];
+            for (var i = 0; i < points.Length; i++)
+            {
+                waypoints[i] = new GameObject($"Waypoint {i + 1}").transform;
+                waypoints[i].SetParent(path, false);
+                waypoints[i].SetPositionAndRotation(points[i], rotation);
+            }
+            return waypoints;
+        }
+
+        private static void SetArray(SerializedProperty list, Object[] items)
+        {
+            list.arraySize = items.Length;
+            for (var i = 0; i < items.Length; i++)
+                list.GetArrayElementAtIndex(i).objectReferenceValue = items[i];
+        }
+
+        /// <summary>
+        /// A capsule on a character's root, so the player does not walk through it.
+        /// </summary>
+        private static void AddBlocker(GameObject character)
+        {
+            var blocker = character.AddComponent<CapsuleCollider>();
+            blocker.center = new Vector3(0f, 0.85f, 0f);
+            blocker.height = 1.7f;
+            blocker.radius = 0.3f;
+        }
+
+        // ---- Scenario 4: the family of a patient with a poor prognosis (room 1B) ---------------------------------
+
+        /// <summary>
+        /// Puts a character on the bed of a room, lying on the first frame of its "Laying" animation: the body along the
+        /// bed (head at the headboard), centered on the mattress (Anchor_Laying, or another anchor for a second bed) and
+        /// with its lowest point just on it. Measured on a
+        /// temporary copy in the posed animation, as Liam's HospitalBuilder does for his own patients.
+        /// </summary>
+        private static void LayOnBed(Transform character, Transform room, Transform anchor = null)
+        {
+            anchor = anchor != null ? anchor : RequireChild(room, "Anchor_Laying");
+            var probe = Object.Instantiate(character.gameObject);
+            probe.hideFlags = HideFlags.DontSave;
+            try
+            {
+                var animator = probe.GetComponentInChildren<Animator>();
+                var clip = animator.runtimeAnimatorController.animationClips.FirstOrDefault(c => c.name == "Laying");
+                if (clip == null)
+                    throw new System.InvalidOperationException($"[ProCommVR] {character.name} has no 'Laying' animation.");
+                var start = new Vector3(anchor.position.x, room.position.y, anchor.position.z);
+                probe.transform.SetPositionAndRotation(start, room.rotation);
+                AnimationMode.StartAnimationMode();
+                AnimationMode.BeginSampling();
+                AnimationMode.SampleAnimationClip(animator.gameObject, clip, 0f);
+                AnimationMode.EndSampling();
+                probe.transform.SetPositionAndRotation(start, room.rotation);
+
+                // Feet to head along the bed, toward the headboard at the back wall.
+                probe.transform.Rotate(0f, Vector3.SignedAngle(Flat(Head(animator) - Feet(animator)), room.forward, Vector3.up), 0f, Space.World);
+                var middle = (Head(animator) + Feet(animator)) / 2f;
+                probe.transform.position += new Vector3(anchor.position.x - middle.x, 0f, anchor.position.z - middle.z);
+                probe.transform.position += Vector3.up * (anchor.position.y + 0.01f - LowestPoint(probe));
+                character.SetPositionAndRotation(probe.transform.position, probe.transform.rotation);
+            }
+            finally
+            {
+                if (AnimationMode.InAnimationMode())
+                    AnimationMode.StopAnimationMode();
+                Object.DestroyImmediate(probe);
+            }
+        }
+
+        private static Vector3 Head(Animator animator)
+        {
+            return animator.GetBoneTransform(HumanBodyBones.Head).position;
+        }
+
+        private static Vector3 Feet(Animator animator)
+        {
+            return (animator.GetBoneTransform(HumanBodyBones.LeftFoot).position + animator.GetBoneTransform(HumanBodyBones.RightFoot).position) / 2f;
+        }
+
+        /// <summary>
+        /// Lowest point of the posed (skinned) body in world space.
+        /// </summary>
+        private static float LowestPoint(GameObject character)
+        {
+            var lowest = float.MaxValue;
+            var mesh = new Mesh();
+            foreach (var skin in character.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                skin.BakeMesh(mesh, true);
+                var matrix = Matrix4x4.TRS(skin.transform.position, skin.transform.rotation, Vector3.one);
+                foreach (var vertex in mesh.vertices)
+                    lowest = Mathf.Min(lowest, matrix.MultiplyPoint3x4(vertex).y);
+            }
+            Object.DestroyImmediate(mesh);
+            return lowest;
+        }
+
+        /// <summary>
+        /// In Liam's saved scene his own patients (rooms 1A, 2A, 3A) stand at the origin, in the lobby wall next to the
+        /// lift, instead of in their rooms: his builder only poses them for its screenshots. The ones the shift does not
+        /// replace are hidden here (his scene itself is not changed), with a warning, until his scene places them.
+        /// </summary>
+        private static void HideMisplacedPatients(Transform hospital)
+        {
+            var characters = hospital.Find("Characters");
+            if (characters == null)
+                return;
+            foreach (Transform patient in characters)
+            {
+                if (!patient.name.StartsWith("Patient_"))
+                    continue;
+                var label = patient.name.Substring("Patient_".Length);
+                var room = hospital.Find($"Floor{label.Substring(0, 1)}/Room_{label}");
+                if (room == null)
+                    continue;
+                var local = room.InverseTransformPoint(patient.position);
+                if (local.z > 0f && local.z < 4.2f && Mathf.Abs(local.x) < 2.1f && Mathf.Abs(local.y) < 1f)
+                    continue;
+                patient.gameObject.SetActive(false);
+                Debug.LogWarning($"[ProCommVR] Liam's {patient.name} is not in room {label} (at {patient.position}); hidden in the shift scene. " +
+                                 "Run 'ProCommVR > Hospital > Place Characters' in his scene once his builder saves the poses.");
+            }
+        }
+
+        /// <summary>
+        /// Scenario 4: a quiet private room in a dimmed, soft purple light (mood Distressed). The patient sleeps in bed, his
+        /// wife keeps watch on the chair next to the bed (Liam's chair faces the bed) and a monitor on the nightstand shows
+        /// fluctuating vital signs. When the player comes near she stands up and reaches toward the nurse; after the best
+        /// answer she sits down again and the room turns blue (Somber).
+        /// </summary>
+        private static PatientRoom BuildBedsideRoom(Transform hospital, string label)
+        {
+            var room = RequireChild(hospital, $"Floor{FloorOf(label)}/Room_{label}");
+            var signPosition = ReplaceCardAndOpenDoor(hospital, room, label);
+
+            var patient = PlaceCharacter(room, SleepingPatientModel, room.position, room.rotation, "Laying");
+            patient.name = "Patient (asleep)";
+            LayOnBed(patient, room);
+            var asleep = new SerializedObject(patient.GetComponentInChildren<NpcAnimationState>());
+            asleep.FindProperty("_randomStart").boolValue = false;
+            asleep.ApplyModifiedPropertiesWithoutUndo();
+
+            // The wife on Liam's chair, facing the bed.
+            var seat = Scenario01SceneBuilder.TightBounds(RequireChild(room, "Furniture/Chair").gameObject).center;
+            var towardBed = Flat(RequireChild(room, "Anchor_Sitting").forward).normalized;
+            var wife = new GameObject("Wife").transform;
+            wife.SetParent(room, false);
+            wife.SetPositionAndRotation(new Vector3(seat.x, room.position.y, seat.z), Quaternion.LookRotation(towardBed));
+            var body = PlaceCharacter(wife, WifeModel, wife.position, wife.rotation, "Sitting");
+            DressAsVisitor(body, "Wife", WifeTopColor, WifeBottomColor);
+            var animator = body.GetComponentInChildren<Animator>();
+
+            // Standing up: in front of the chair, toward the door.
+            var towardDoor = Flat(room.position - wife.position).normalized;
+            var standing = wife.position + towardDoor * 0.7f;
+
+            var mood = AddRoomMood(room);
+            BuildVitalSignsMonitor(room);
+            var sign = BuildRoomSign(room, signPosition, Quaternion.LookRotation(room.forward), mood);
+
+            var head = wife.position + Vector3.up * 1.9f;
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", body, head, room.TransformPoint(0.3f, 1.15f, 1.6f));
+            presenter.transform.SetParent(room, true);
+            presenter.transform.Find("NPC Bubble Anchor").gameObject.AddComponent<FacePlayer>();
+
+            var attention = body.gameObject.AddComponent<NpcAttention>();
+            var serialized = new SerializedObject(attention);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_body").objectReferenceValue = body;
+            serialized.FindProperty("_range").floatValue = 2.4f;
+            serialized.FindProperty("_attentionPose").objectReferenceValue = CreatePose(wife, "Attention", standing, Quaternion.LookRotation(towardDoor));
+            serialized.FindProperty("_facePlayer").boolValue = true;
+            serialized.FindProperty("_animator").objectReferenceValue = animator;
+            serialized.FindProperty("_animatorState").stringValue = "Talking";
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // After the choice: sits down again (calmer), keeps talking hopefully, turns to her husband (sad), or turns
+            // away to the window in tears.
+            AddReactor(wife, presenter, body, animator,
+                new PoseSpec(NpcPose.Unchanged, null, "Talking"),
+                new PoseSpec(NpcPose.Engaged, wife.rotation, "Sitting", wife.position),
+                new PoseSpec(NpcPose.TurnsAway, Quaternion.LookRotation(room.right), "Crying", standing),
+                new PoseSpec(NpcPose.Withdrawn, Quaternion.LookRotation(-towardDoor), "Sad", standing));
+
+            var patientRoom = room.gameObject.AddComponent<PatientRoom>();
+            serialized = new SerializedObject(patientRoom);
+            serialized.FindProperty("_roomName").stringValue = $"Room {label}";
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.FindProperty("_sign").objectReferenceValue = sign;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return patientRoom;
+        }
+
+        /// <summary>
+        /// A patient monitor on the nightstand next to the head of the bed, turned to the room: dark screen with heart
+        /// rate, oxygen saturation and blood pressure that fluctuate (<see cref="VitalSignsMonitor"/>).
+        /// </summary>
+        private static void BuildVitalSignsMonitor(Transform room)
+        {
+            var stand = Scenario01SceneBuilder.TightBounds(RequireChild(room, "Furniture/Nightstand").gameObject);
+            var facing = Quaternion.LookRotation(-Flat(room.position - stand.center).normalized);
+            var canvas = CreateCanvas(room, "Vital Signs Monitor", new Vector2(360f, 260f),
+                new Vector3(stand.center.x, stand.max.y + 0.2f, stand.center.z), facing, new Color(0.04f, 0.05f, 0.06f, 1f));
+            var monitor = canvas.gameObject.AddComponent<VitalSignsMonitor>();
+            var serialized = new SerializedObject(monitor);
+            var rows = new[] { ("_heartRate", new Color(0.3f, 0.95f, 0.4f)), ("_saturation", new Color(0.35f, 0.8f, 1f)), ("_bloodPressure", new Color(1f, 0.45f, 0.4f)) };
+            for (var i = 0; i < rows.Length; i++)
+            {
+                var label = CreateLabel(canvas, rows[i].Item1.TrimStart('_'), 20f, 70f, TextAlignmentOptions.Left);
+                label.color = rows[i].Item2;
+                label.rectTransform.anchorMin = new Vector2(0f, 1f - (i + 1) / 3f);
+                label.rectTransform.anchorMax = new Vector2(1f, 1f - i / 3f);
+                label.rectTransform.offsetMin = new Vector2(24f, 4f);
+                label.rectTransform.offsetMax = new Vector2(-24f, -4f);
+                serialized.FindProperty(rows[i].Item1).objectReferenceValue = label;
+            }
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // ---- Scenario 5: the verbally aggressive patient in a shared room (room 1C) ---------------------------------
+
+        /// <summary>
+        /// Scenario 5: Liam's room 1C as a shared room with two beds and a privacy curtain between them (open, bunched at
+        /// the back wall). Patient X stands by his bed near the window and comes at the nurse shouting as soon as the
+        /// player comes in; the patient of the other bed lies reading the newspaper and lowers it to listen. The player chooses to draw the curtain (or not) before the options.
+        /// </summary>
+        private static PatientRoom BuildSharedRoom(Transform hospital, string label)
+        {
+            var room = RequireChild(hospital, $"Floor{FloorOf(label)}/Room_{label}");
+            var signPosition = ReplaceCardAndOpenDoor(hospital, room, label);
+
+            // Two beds: Liam's bed moves to the window side, a copy stands on the other side.
+            var bed = RequireChild(room, "Furniture/Bed");
+            var bedBounds = Scenario01SceneBuilder.TightBounds(bed.gameObject);
+            var bedOffset = room.right * (SharedBedCenterX - room.InverseTransformPoint(bedBounds.center).x);
+            bed.position += bedOffset;
+            var otherBed = Object.Instantiate(bed.gameObject, bed.parent);
+            otherBed.name = "Bed (next patient)";
+            otherBed.transform.position = bed.position - room.right * (2f * SharedBedCenterX);
+            // The mattress of the other bed, where the next patient lies.
+            var otherAnchor = new GameObject("Anchor_Laying (next bed)").transform;
+            otherAnchor.SetParent(room, false);
+            otherAnchor.position = RequireChild(room, "Anchor_Laying").position + (otherBed.transform.position - (bed.position - bedOffset));
+            foreach (var item in new[] { "Nightstand", "Chair" })
+                RequireChild(room, $"Furniture/{item}").gameObject.SetActive(false);
+
+            var mood = AddRoomMood(room);
+            var sign = BuildRoomSign(room, signPosition, Quaternion.LookRotation(room.forward), mood);
+            BuildPrivacyCurtain(room, out var curtain);
+
+            // Patient X stands by his bed, facing the door; when the player comes in he steps toward the nurse.
+            var patientSpot = room.TransformPoint(SharedBedCenterX, 0f, 1.45f);
+            var patient = PlaceCharacter(room, AggressivePatientModel, patientSpot, Quaternion.LookRotation(-room.forward), "Idle");
+            var patientAnimator = patient.GetComponentInChildren<Animator>();
+            AddBlocker(patient.gameObject);
+            var head = patient.position + Vector3.up * 2.05f;
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", patient, head, room.TransformPoint(0.3f, 1.15f, 0.6f));
+            presenter.transform.SetParent(room, true);
+            var npcAnchor = presenter.transform.Find("NPC Bubble Anchor");
+            npcAnchor.SetParent(patient, true);
+            npcAnchor.gameObject.AddComponent<FacePlayer>();
+
+            var approach = room.TransformPoint(0.75f, 0f, 1.05f);
+            var attention = patient.gameObject.AddComponent<NpcAttention>();
+            var serialized = new SerializedObject(attention);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_body").objectReferenceValue = patient;
+            serialized.FindProperty("_range").floatValue = 2.4f;
+            serialized.FindProperty("_attentionPose").objectReferenceValue = CreatePose(room, "Patient X Approach", approach, Quaternion.LookRotation(-room.forward));
+            serialized.FindProperty("_facePlayer").boolValue = true;
+            serialized.FindProperty("_animator").objectReferenceValue = patientAnimator;
+            serialized.FindProperty("_animatorState").stringValue = "Angry";
+            serialized.FindProperty("_duration").floatValue = 1.2f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // After the choice: calmer and listening, still angry, or on his way out of the room.
+            var towardDoor = Quaternion.LookRotation(Flat(room.position - approach));
+            AddReactor(room, presenter, patient, patientAnimator,
+                new PoseSpec(NpcPose.Unchanged, null, "Angry"),
+                new PoseSpec(NpcPose.Engaged, null, "Idle"),
+                new PoseSpec(NpcPose.TurnsAway, towardDoor, "Angry", room.TransformPoint(1.2f, 0f, 0.55f)),
+                new PoseSpec(NpcPose.Withdrawn, Quaternion.LookRotation(room.right), "Sad"));
+
+            BuildNextPatient(room, presenter, otherAnchor, patientSpot);
+
+            var patientRoom = room.gameObject.AddComponent<PatientRoom>();
+            serialized = new SerializedObject(patientRoom);
+            serialized.FindProperty("_roomName").stringValue = $"Room {label}";
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.FindProperty("_sign").objectReferenceValue = sign;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            serialized = new SerializedObject(curtain);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return patientRoom;
+        }
+
+        /// <summary>
+        /// The patient of the other bed, the scenario's bystander: he lies in his bed reading a newspaper. When the player
+        /// comes in he lowers it onto his belly to listen; after the choice he reacts right away (he overhears
+        /// everything): he stays in bed, or gets up upset.
+        /// </summary>
+        private static void BuildNextPatient(Transform room, ScenarioPresenter presenter, Transform mattress, Vector3 patientSpot)
+        {
+            var neighbour = new GameObject("Next Patient").transform;
+            neighbour.SetParent(room, false);
+            neighbour.SetPositionAndRotation(new Vector3(mattress.position.x, room.position.y, mattress.position.z), room.rotation);
+            var body = PlaceCharacter(neighbour, NextPatientModel, neighbour.position, neighbour.rotation, "Laying");
+            LayOnBed(body, room, mattress);
+            var lying = new SerializedObject(body.GetComponentInChildren<NpcAnimationState>());
+            lying.FindProperty("_randomStart").boolValue = false;
+            lying.ApplyModifiedPropertiesWithoutUndo();
+            var animator = body.GetComponentInChildren<Animator>();
+
+            // The newspaper: held up above his chest to read, or lowered onto his belly. Toward the headboard is the
+            // room's forward.
+            var reading = CreateNewspaper(neighbour, "Newspaper (reading)", mattress.position + room.forward * 0.3f + Vector3.up * 0.5f,
+                Quaternion.LookRotation(Vector3.up, room.forward) * Quaternion.Euler(-35f, 0f, 0f));
+            var lowered = CreateNewspaper(neighbour, "Newspaper (lowered)", mattress.position - room.forward * 0.15f + Vector3.up * 0.28f,
+                Quaternion.LookRotation(Vector3.up, room.forward));
+            lowered.SetActive(false);
+
+            var attention = body.gameObject.AddComponent<NpcAttention>();
+            var serialized = new SerializedObject(attention);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_body").objectReferenceValue = body;
+            serialized.FindProperty("_range").floatValue = 3.2f;
+            SetArray(serialized.FindProperty("_show"), new Object[] { lowered });
+            SetArray(serialized.FindProperty("_hide"), new Object[] { reading });
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // His reaction: stays in bed, or gets up upset at the foot of his bed, facing Patient X (or the door). Not
+            // closer to the door: the open door hides that corner from the doorway.
+            var besideBed = room.TransformPoint(-0.75f, 0f, 1.65f);
+            AddReactor(neighbour, presenter, body, animator,
+                new PoseSpec(NpcPose.Unchanged, null, "Laying"),
+                new PoseSpec(NpcPose.Engaged, null, "Laying"),
+                new PoseSpec(NpcPose.TurnsAway, Quaternion.LookRotation(-room.forward), "Sad", besideBed),
+                new PoseSpec(NpcPose.Withdrawn, Quaternion.LookRotation(Flat(patientSpot - besideBed)), "Sad", besideBed));
+            var reactor = body.GetComponent<NpcReactor>();
+            serialized = new SerializedObject(reactor);
+            serialized.FindProperty("_reactAsBystander").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var anchor = new GameObject("Bystander Bubble Anchor").transform;
+            anchor.SetParent(neighbour, false);
+            anchor.position = mattress.position + Vector3.up * 1.3f;
+            anchor.localScale = Vector3.one * 1.3f;
+            var speech = neighbour.gameObject.AddComponent<BystanderSpeech>();
+            serialized = new SerializedObject(speech);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_bubblePrefab").objectReferenceValue =
+                ScenarioTestSceneBuilder.LoadRequired<GameObject>(ScenarioTestSceneBuilder.BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.").GetComponent<DialogueBubble>();
+            serialized.FindProperty("_anchor").objectReferenceValue = anchor;
+            serialized.FindProperty("_attention").objectReferenceValue = attention;
+            serialized.FindProperty("_reactor").objectReferenceValue = reactor;
+            serialized.FindProperty("_reactWhenNear").boolValue = false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// A folded newspaper: a thin pale box without a collider, under the reader (world position and rotation).
+        /// </summary>
+        private static GameObject CreateNewspaper(Transform reader, string name, Vector3 position, Quaternion rotation)
+        {
+            var paper = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(paper.GetComponent<Collider>());
+            paper.name = name;
+            paper.transform.SetParent(reader, false);
+            paper.transform.SetPositionAndRotation(position, rotation);
+            paper.transform.localScale = new Vector3(0.48f, 0.34f, 0.01f);
+            paper.GetComponent<MeshRenderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial(NewspaperMaterialPath, new Color(0.86f, 0.85f, 0.8f));
+            return paper;
+        }
+
+        /// <summary>
+        /// The privacy curtain between the two beds: a rail under the ceiling from the back wall toward the door, and the
+        /// curtain hanging from it. Its pivot is at the back wall and it stretches along +z (into the room): bunched up
+        /// there while open, drawn along the full rail (<see cref="PrivacyCurtain"/>). The curtain has no collider, so
+        /// the ray and the player are never blocked by it.
+        /// </summary>
+        private static void BuildPrivacyCurtain(Transform room, out PrivacyCurtain curtain)
+        {
+            var backZ = RendererBounds(RequireChild(room, "Wall_Back").gameObject);
+            var back = room.InverseTransformPoint(backZ.center).z - backZ.extents.z - 0.05f;
+            var length = back - CurtainFrontZ;
+            var material = XRTestSceneBuilder.GetOrCreateMaterial(CurtainMaterialPath, new Color(0.62f, 0.78f, 0.8f));
+
+            var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(rail.GetComponent<Collider>());
+            rail.name = "Curtain Rail";
+            rail.transform.SetParent(room, false);
+            rail.transform.localPosition = new Vector3(0f, CurtainTop + 0.04f, back - length / 2f);
+            rail.transform.localScale = new Vector3(0.04f, 0.03f, length);
+            rail.GetComponent<MeshRenderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial(PaperMaterialPath, new Color(0.95f, 0.95f, 0.92f));
+
+            // Pivot at the back wall, facing the door: scaling its z stretches the curtain toward the door.
+            var pivot = new GameObject("Privacy Curtain").transform;
+            pivot.SetParent(room, false);
+            pivot.localPosition = new Vector3(0f, 0f, back);
+            pivot.localRotation = Quaternion.LookRotation(Vector3.back);
+            var cloth = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(cloth.GetComponent<Collider>());
+            cloth.name = "Cloth";
+            cloth.transform.SetParent(pivot, false);
+            cloth.transform.localPosition = new Vector3(0f, (CurtainTop + CurtainBottom) / 2f, length / 2f);
+            cloth.transform.localScale = new Vector3(0.03f, CurtainTop - CurtainBottom, length);
+            cloth.GetComponent<MeshRenderer>().sharedMaterial = material;
+            curtain = pivot.gameObject.AddComponent<PrivacyCurtain>();
+        }
+
+        // ---- Lift -------------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Makes the buttons of Liam's lift panels work: each one takes the player to the arrival point in front of
+        /// the lift on its floor ("L" is the lobby).
+        /// </summary>
+        private static void BuildLift(Transform hospital, Transform shift)
+        {
+            var arrivals = new GameObject("Lift Arrivals").transform;
+            arrivals.SetParent(shift, false);
+            var destinations = new Transform[FloorCount + 1];
+            for (var level = 0; level <= FloorCount; level++)
+            {
+                destinations[level] = new GameObject($"Arrival {LevelLabel(level)}").transform;
+                destinations[level].SetParent(arrivals, false);
+                destinations[level].SetPositionAndRotation(new Vector3(LiftArrivalX, level * FloorHeight + LiftArrivalHeight, LiftCenterZ), Quaternion.LookRotation(Vector3.right));
+            }
+
+            for (var level = 0; level <= FloorCount; level++)
+            {
+                var lift = RequireChild(hospital, $"{(level == 0 ? "Lobby" : $"Floor{level}")}/Lift");
+                for (var target = 0; target <= FloorCount; target++)
+                {
+                    var button = lift.Find($"LiftButton_{LevelLabel(target)}");
+                    if (button == null)
+                        continue;
+                    button.gameObject.AddComponent<XRSimpleInteractable>();
+                    var serialized = new SerializedObject(button.gameObject.AddComponent<LiftButton>());
+                    serialized.FindProperty("_destination").objectReferenceValue = destinations[target];
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+        }
+
+        private static string LevelLabel(int level)
+        {
+            return level == 0 ? "L" : level.ToString();
+        }
+
+        private static int FloorOf(string location)
+        {
+            if (location == CorridorTask)
+                return EncounterFloor;
+            return location == StationTask ? StationFloor : int.Parse(location.Substring(0, 1));
+        }
+
         // ---- World UI -----------------------------------------------------------------------------------------
 
         /// <summary>
-        /// Door sign on the corridor side, right of the doorway: room, patient, scenario and a mood color patch.
+        /// Door sign on the corridor side, right of the door (where Liam's patient card was): room, patient, scenario
+        /// and a mood color patch.
         /// </summary>
-        private static RoomSign BuildRoomSign(Transform parent, RoomFrame room, MoodController mood)
+        private static RoomSign BuildRoomSign(Transform parent, Vector3 position, Quaternion rotation, MoodController mood)
         {
-            // Faces the corridor: the canvas front looks back out of the room.
-            var canvas = CreateCanvas(parent, "Door Sign", new Vector2(420f, 220f),
-                room.Point(0.95f, 1.5f, -0.07f), Quaternion.LookRotation(room.Forward), Color.white);
+            var canvas = CreateCanvas(parent, "Door Sign", new Vector2(420f, 220f), position, rotation, Color.white);
 
             var patch = new GameObject("Mood Color", typeof(RectTransform)).AddComponent<Image>();
             patch.transform.SetParent(canvas, false);
@@ -495,7 +1407,7 @@ namespace ProCommVR.Editor
             return sign;
         }
 
-        private static void BuildShiftBoard(Transform parent, string name, ShiftManager shiftManager, Vector3 position, Quaternion rotation)
+        private static RectTransform BuildShiftBoard(Transform parent, string name, ShiftManager shiftManager, Vector3 position, Quaternion rotation)
         {
             var canvas = CreateCanvas(parent, name, new Vector2(900f, 700f), position, rotation, new Color(1f, 1f, 1f, 0.97f));
             var label = CreateLabel(canvas, "Label", 18f, 44f, TextAlignmentOptions.TopLeft);
@@ -507,6 +1419,7 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_shiftManager").objectReferenceValue = shiftManager;
             serialized.FindProperty("_label").objectReferenceValue = label;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            return canvas;
         }
 
         /// <summary>
@@ -569,8 +1482,9 @@ namespace ProCommVR.Editor
         // ---- Assets ---------------------------------------------------------------------------------------------
 
         /// <summary>
-        /// The placeholder shift: Scenario 1 five times, every patient Happy, ids patient-01 to patient-05.
-        /// An existing plan is kept; only empty patient ids are filled in.
+        /// The shift: Scenario 1 as task 1 (Happy), Scenario 2 as task 2 (the daughter, Tense), Scenario 3 as task 3 (the
+        /// doctor, Neutral), Scenario 4 as task 4 (the wife, Distressed) and Scenario 5 as task 5 (the aggressive patient,
+        /// Tense), ids patient-01 to patient-05. An existing plan is kept; only empty patient ids are filled in.
         /// </summary>
         private static ShiftPlan GetOrCreatePlan()
         {
@@ -579,30 +1493,40 @@ namespace ProCommVR.Editor
                 return FillMissingPatientIds(plan);
 
             var scenario = ScenarioTestSceneBuilder.LoadRequired<Scenario>(ScenarioPath, "The Scenario 1 asset is missing.");
-            XRTestSceneBuilder.EnsureFolder(System.IO.Path.GetDirectoryName(PlanPath));
+            var scenario2 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario2Path, "The Scenario 2 asset is missing.");
+            var scenario3 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario3Path, "The Scenario 3 asset is missing.");
+            var scenario4 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario4Path, "The Scenario 4 asset is missing.");
+            var scenario5 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario5Path, "The Scenario 5 asset is missing.");
+            XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(PlanPath));
             plan = ScriptableObject.CreateInstance<ShiftPlan>();
             AssetDatabase.CreateAsset(plan, PlanPath);
 
             var serialized = new SerializedObject(plan);
             var tasks = serialized.FindProperty("_tasks");
-            tasks.arraySize = TaskCount;
-            for (var i = 0; i < TaskCount; i++)
+            tasks.arraySize = TaskLocations.Length;
+            for (var i = 0; i < TaskLocations.Length; i++)
             {
+                var location = TaskLocations[i];
                 var task = tasks.GetArrayElementAtIndex(i);
                 task.FindPropertyRelative("_patientId").stringValue = PatientId(i);
-                task.FindPropertyRelative("_scenario").objectReferenceValue = scenario;
-                task.FindPropertyRelative("_patientName").stringValue = "";
-                task.FindPropertyRelative("_patientMood").enumValueIndex = (int)Mood.Happy;
+                task.FindPropertyRelative("_scenario").objectReferenceValue =
+                    location == CorridorTask ? scenario2 : location == StationTask ? scenario3 : location == BedsideRoomLabel ? scenario4
+                    : location == SharedRoomLabel ? scenario5
+                    : scenario;
+                // Scenario 3 and 4: a family member is the NPC, but the task is about the patient.
+                task.FindPropertyRelative("_patientName").stringValue =
+                    location == StationTask ? "Patient X's family" : location == BedsideRoomLabel ? "Patient X" : "";
+                task.FindPropertyRelative("_patientMood").enumValueIndex = (int)(location == CorridorTask ? Mood.Tense
+                    : location == StationTask ? Mood.Neutral
+                    : location == BedsideRoomLabel ? Mood.Distressed
+                    : location == SharedRoomLabel ? Mood.Tense
+                    : Mood.Happy);
             }
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(plan);
             return plan;
         }
 
-        /// <summary>
-        /// The Kenney model inside an empty parent, so scaling and turning the parent works in world-aligned axes
-        /// whatever rotation the model's own root has.
-        /// </summary>
         private static string PatientId(int index)
         {
             return $"patient-{index + 1:00}";
@@ -623,6 +1547,10 @@ namespace ProCommVR.Editor
             return plan;
         }
 
+        /// <summary>
+        /// The Kenney model inside an empty parent, so scaling and turning the parent works in world-aligned axes
+        /// whatever rotation the model's own root has.
+        /// </summary>
         private static GameObject InstantiateKenney(string model, Transform parent, string name)
         {
             var prefab = ScenarioTestSceneBuilder.LoadRequired<GameObject>($"{KenneyFolder}/{model}.fbx", "Kenney Furniture Kit missing, see CREDITS.md.");
@@ -644,6 +1572,33 @@ namespace ProCommVR.Editor
             Scenario01SceneBuilder.ScaleToHeight(go, height);
             Scenario01SceneBuilder.Align(go, new Vector3(0.5f, fromTop ? 1f : 0f, 0.5f), point);
             return go;
+        }
+
+        // ---- Helpers ----------------------------------------------------------------------------------------------
+
+        private static Transform RequireChild(Transform parent, string path)
+        {
+            var child = parent.Find(path);
+            if (child == null)
+                throw new System.InvalidOperationException($"[ProCommVR] '{parent.name}/{path}' not found in Liam's hospital. Was the layout of HospitalBuilder changed?");
+            return child;
+        }
+
+        private static void AddBoxCollider(GameObject go, Bounds worldBounds)
+        {
+            var collider = go.AddComponent<BoxCollider>();
+            collider.center = go.transform.InverseTransformPoint(worldBounds.center);
+            var localSize = go.transform.InverseTransformVector(worldBounds.size);
+            collider.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+        }
+
+        private static Bounds RendererBounds(GameObject go)
+        {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            var bounds = renderers[0].bounds;
+            foreach (var renderer in renderers)
+                bounds.Encapsulate(renderer.bounds);
+            return bounds;
         }
 
         private static Vector3 Flat(Vector3 vector)
@@ -668,15 +1623,6 @@ namespace ProCommVR.Editor
                         triangles += skinned.sharedMesh.GetIndexCount(i) / 3;
             }
             return triangles;
-        }
-
-        private static void MarkStatic(Transform root)
-        {
-            foreach (var child in root.GetComponentsInChildren<Transform>(true))
-            {
-                if (child.GetComponent<MeshRenderer>() != null)
-                    GameObjectUtility.SetStaticEditorFlags(child.gameObject, StaticEditorFlags.BatchingStatic);
-            }
         }
     }
 }

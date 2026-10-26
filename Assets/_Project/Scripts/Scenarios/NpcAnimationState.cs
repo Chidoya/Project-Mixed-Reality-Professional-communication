@@ -12,12 +12,18 @@ namespace ProCommVR.Scenarios
     {
         [SerializeField] private string _stateName = "Idle";
 
+        [Tooltip("Start at a random moment of the animation, so characters with the same animation don't move in sync. " +
+                 "Off: start at the beginning, e.g. for a pose placed on the first frame (a patient lying in bed).")]
+        [SerializeField] private bool _randomStart = true;
+
+        public string StateName => _stateName;
+
         private void Start()
         {
             var animator = GetComponent<Animator>();
             var state = Animator.StringToHash(_stateName);
             if (animator.HasState(0, state))
-                animator.Play(state, 0, Random.value);
+                animator.Play(state, 0, _randomStart ? Random.value : 0f);
             else
                 Debug.LogWarning($"[ProCommVR] Animator of '{name}' has no state '{_stateName}'.", this);
         }

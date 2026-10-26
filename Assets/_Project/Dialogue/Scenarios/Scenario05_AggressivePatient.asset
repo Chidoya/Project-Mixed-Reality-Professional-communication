@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfd3b5a78723a44387dd9647a3eafe1, type: 3}
+  m_Name: Scenario05_AggressivePatient
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Scenarios.Scenario
+  _id: aggressive-patient-privacy
+  _title: "Verbally Aggressive Patient and Privacy in a Shared Room"
+  _mood: 1
+  _npcName: Patient X
+  _npcLine: "Three days of tests and nobody tells me anything. And now you want even more blood? Forget it!"
+  _busyLine: 
+  _bystanderName: "Patient in the next bed"
+  _bystanderLine: 
+  _options:
+  - _text: "I can hear how frustrated you are after three days of waiting, and I want to help you. The doctor will explain all the results to you herself; I'll ask her to come and see you today. This extra blood test helps her give you clear answers sooner. Will you let me take it, so it's ready when she comes?"
+    _score: 3
+    _feedback: "You stay calm, acknowledge his frustration and leave the diagnosis to the doctor, while explaining why the extra test helps him. A concrete step (the doctor comes today) gives him a reason to stay and agree. His privacy is protected: nothing about the suspected diagnosis is said within earshot of the other patient."
+    _npcReaction: "...Today? Fine. One more test. But then I want answers."
+    _npcPose: 1
+    _npcVoice: {fileID: 0}
+    _changesMood: 1
+    _moodAfter: 0
+    _failsTask: 0
+    _bystanderReaction: 
+    _bystanderPose: 1
+  - _text: "These tests were ordered by the doctor, it's standard procedure. I can't tell you more than that; you'll have to wait for her."
+    _score: 1
+    _feedback: "Correct to leave the results to the doctor, but it sounds like a brush-off: his frustration is not acknowledged and he does not hear why the test matters to him or when the doctor will come. He stays, but the tension remains."
+    _npcReaction: "Standard procedure. That's all I ever hear in here."
+    _npcPose: 0
+    _npcVoice: {fileID: 0}
+    _changesMood: 0
+    _moodAfter: 0
+    _failsTask: 0
+    _bystanderReaction: 
+    _bystanderPose: 0
+  - _text: "If you leave now, you're going against medical advice and you'll have to sign a form. Without these tests, nobody can help you."
+    _score: 0
+    _feedback: "A warning instead of listening: he feels pressured and digs in. He refuses the extra blood test and insists on waiting for the doctor, so the test that was needed is not done. Acknowledge his frustration first and explain how the test helps him."
+    _npcReaction: "Then I'm not doing any more tests. I'll wait for the doctor, and then I'm gone."
+    _npcPose: 2
+    _npcVoice: {fileID: 0}
+    _changesMood: 1
+    _moodAfter: 4
+    _failsTask: 1
+    _bystanderReaction: 
+    _bystanderPose: 0
+  - _text: "Please calm down, sir. The extra blood test is to confirm the HIV result, so it really is important."
+    _score: -2
+    _feedback: "Critical error: you mention the suspected diagnosis out loud. Discussing it is the doctor's task, and the patient in the next bed hears it: a breach of privacy and confidentiality. The patient feels exposed, refuses the test and wants to leave, and the other patient is upset."
+    _npcReaction: "You just said that out loud?! With him right there? I'm out of here!"
+    _npcPose: 2
+    _npcVoice: {fileID: 0}
+    _changesMood: 1
+    _moodAfter: 4
+    _failsTask: 1
+    _bystanderReaction: "HIV...? Is that contagious? Nurse, I don't want to stay in this room."
+    _bystanderPose: 3
+  _locationLine: "You aren't doing anything, I'm discharging myself!"
+  _locations:
+  - _id: curtain
+    _name: Behind the privacy curtain
+    _choiceText: "Step back, keep my voice low and quietly draw the privacy curtain."
+    _score: 1
+    _feedback: "Good: stepping back keeps a safe distance, a low and calm voice helps to de-escalate, and the curtain protects his privacy from the patient in the next bed."
+  - _id: open-room
+    _name: In the open room
+    _choiceText: "Stay where I am and answer him right away."
+    _score: 0
+    _feedback: "The patient in the next bed can see and hear everything. With a sensitive subject, first protect the patient's privacy: step back, lower your voice and draw the curtain."
+  _timeLimit: 0
+  _timeLimitLabel: 
+  _timeUpLine: 
+  _timeUpFeedback: 

@@ -196,6 +196,24 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   Getest: batchmode compile-check en Play mode smoke tests met de XR-simulator
   (`RunShiftLoop`, `RunShiftTimeout`, `RunScenario01Mood`, alle drie geslaagd).
   Nog niet getest op de Quest 3 of via Quest Link, overvloeien van het geluid niet beluisterd.
+- 2026-10-25: PR #15 (Scenario 2, de boze dochter in de gang van verdieping 3) is rechtstreeks in `main` gemerged,
+  niet in `jalil`. `origin/jalil` staat nog op PR #13. Kamer 2B is sinds Scenario 2 weer een kamer van Liam.
+- 2026-10-26: Scenario 3 (de arts en de familie) gebouwd op `feature/jalil/scenario03-doctor-family`, op aanvraag van
+  Jalil gestart vanaf de Scenario 2-commit `b594ba1` (optie B), omdat `jalil` Scenario 2 nog niet bevat. Taak 3 speelt aan
+  de verpleegpost van verdieping 2 met kamer 2C als bureau van de arts; kamer 2A is weer van Liam. Nieuw en herbruikbaar:
+  mood per antwoord, een toeschouwer (`BystanderSpeech`), `NpcAttention`, `BusyNpc` en `FacePlayer`. Getest: batchmode
+  compile-check en Play mode smoke tests met de XR-simulator (alle bestaande plus `RunScenario03Good`/`Poor`). Nog niet
+  getest op de Quest 3 of via Quest Link. Tekst, scores en reacties door Claude geschreven, nog na te kijken.
+- 2026-10-26: Scenario 4 (familie van een patiënt met een slechte prognose) gebouwd op
+  `feature/jalil/scenario04-poor-prognosis` (bovenop Scenario 3), in kamer 1B: nieuwe mood `Distressed` (paars, gedimd),
+  slapende patiënt in bed, de vrouw staat op als de speler nadert, monitor met vitale functies. Ontdekt: in Liam's
+  opgeslagen scene staan zijn patiënten (1A, 2A, 3A) op het nulpunt; de shift-builder verbergt die van 2A en 3A met een
+  waarschuwing. Getest: compile-check en alle smoke tests (ook `RunScenario04Good`/`Poor`). Niet op de Quest 3 getest.
+- 2026-10-26: Scenario 5 (verbaal agressieve patiënt, privacy) gebouwd op `feature/jalil/scenario05-aggressive-patient`
+  (bovenop Scenario 4), in de gedeelde kamer 1C met twee bedden, een privacygordijn (plek-keuze, telt 1 punt) en een
+  meeluisterende buurman. Nieuw: een antwoord kan de taak laten mislukken (`Fails Task`, uitkomst `FailedAnswer`, rood
+  alarm). Alle vijf taken uit de bron zitten nu in de shift. Getest: compile-check en alle 13 smoke tests. Niet op de
+  Quest 3 getest; tekst, scores en reacties door Claude geschreven, nog na te kijken door content en inhoudsexpert.
 
 
 ## Beslissingen
@@ -218,6 +236,13 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-20 | Patiënt in de shift zit op een stoel naast het bed, niet op de bedrand (wijkt af van 2026-10-19) | De zitanimatie verwacht ongeveer 0,45 m zithoogte; de matras ligt op 0,66 m met bedhekken tot 0,83 m |
 | 2026-10-20 | Interne `PatientId` per `ShiftTask`, op het scherm blijft het "Patient X" | Mood, voortgang en latere content per patiënt gescheiden houden zonder namen te tonen |
 | 2026-10-20 | Geluid per mood via een aparte `MoodAudio`, die de mood enkel leest | `MoodController` blijft pure data; een nieuw geluid is enkel een clip in het mood-profiel, zonder code |
+| 2026-10-26 | Scenario 3 tot 5 op gestapelde branches vanaf `b594ba1`, elk met een eigen PR naar `jalil` | `jalil` bevat Scenario 2 niet; zo kan een probleem in een later scenario een eerder niet breken (keuze van Jalil) |
+| 2026-10-26 | Taakindeling: 1A (S1), gang 3 (S2), verpleegpost 2 + bureau 2C (S3), 1B (S4), 1C (S5); 2A terug naar Liam | Scenario 3 heeft een verpleegpost en een werkplek van de arts nodig; elk scenario op een eigen plek |
+| 2026-10-26 | Mood na een keuze als optioneel veld van de optie (`Changes Mood`, `Mood After`), geen nieuw systeem | De bron laat de sfeer veranderen na de keuze (S3 opgelost, S4 paars naar blauw, S5 alarm); bordje, licht en geluid volgen vanzelf |
+| 2026-10-26 | Drukke arts zonder navigatie-AI: een vaste ronde en een bureau (`BusyNpc`) | Volstaat voor de bron ("de arts vinden op een bereikbaar moment"), voorspelbaar en testbaar |
+| 2026-10-26 | Een antwoord kan een taak laten mislukken (`Fails Task`, `FailedAnswer`), naast de bestaande countdown | Task 5 van de bron eindigt bij een fout in rode lichten en "opnieuw op een andere dag", net als een verlopen countdown |
+| 2026-10-26 | In Scenario 5 telt het dichttrekken van het privacygordijn 1 punt (plek-keuze) | De bron maakt het gordijn deel van de goede aanpak (Image 4); bij Scenario 2 telt de plek nog niet mee |
+| 2026-10-26 | Nieuwe mood `Distressed` (paars) en `Room Light Intensity` per mood-profiel | De bron gebruikt paars voor "distressed/challenging" en een gedimde kamer; past in het bestaande mood-systeem |
 
 
 ## Open vragen
@@ -238,3 +263,5 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 - De vier placeholder-WAV's (ongeveer 1 MB) staan zonder LFS in Git; meenemen in de LFS-beslissing.
 - Shift-loop en zithouding nog testen op de Quest 3 (72 fps, geluid op de headset).
 - Oude remote branch `feature/jalil/shift-gameloop` mag door een mens verwijderd worden.
+- Liam: in `liam_test_scene.unity` staan Patient_1A, 2A en 3A op (0, 0, 0); zijn builder bewaart de poses niet
+  (AnimationMode zet ze terug). De shift verbergt ze voorlopig.
