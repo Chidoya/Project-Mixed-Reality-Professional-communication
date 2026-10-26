@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8de0cb2a0ddd5724ca08c46f3de11c2e, type: 3}
+  m_Name: Mood_Distressed
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Atmosphere.MoodProfile
+  _mood: 5
+  _color: {r: 0.55, g: 0.22, b: 0.85, a: 1}
+  _flashRate: 0
+  _roomLightIntensity: 0.8
+  _lightColor: {r: 0.78, g: 0.68, b: 0.95, a: 1}
+  _lightIntensity: 0.55
+  _ambientColor: {r: 0.24, g: 0.2, b: 0.32, a: 1}
+  _sound: {fileID: 8300000, guid: 36c1acc815e08e44da55e322401a4413, type: 3}
+  _soundVolume: 0.25

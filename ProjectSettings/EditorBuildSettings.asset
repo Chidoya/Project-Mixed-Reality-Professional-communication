@@ -6,8 +6,22 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/_Project/Scenes/ShiftHospital.unity
+    guid: 83cc4787b13d8ef4aba4291efaaa2ef4
+  - enabled: 1
+    path: Assets/_Project/Scenes/Scenario01_PatientRoom.unity
+    guid: c4e4dd82dab84294b9601378fad15061
+  - enabled: 1
+    path: Assets/_Project/Scenes/ScenarioTest.unity
+    guid: 41fb4724c7c42674485dd679649907cf
+  - enabled: 1
+    path: Assets/_Project/Scenes/XRTest.unity
+    guid: da40374226da68f41b19887e1d55c4a8
+  - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 712df0c3edb50ba4c8acbe8d80f7e229, type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 77e42f1606402c54e9a53be1745d0064, type: 2}
   m_UseUCBPForAssetBundles: 0
