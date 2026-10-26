@@ -142,6 +142,7 @@ namespace ProCommVR.Editor
         [MenuItem("ProCommVR/Hospital/Build")]
         public static void Build()
         {
+            PropSetup.EnsureSetup();
             var scene = File.Exists(ScenePath)
                 ? EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single)
                 : EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
@@ -159,9 +160,15 @@ namespace ProCommVR.Editor
 
             BuildSlabs(root);
             BuildLiftShaft(root);
-            BuildLobby(Level(root, "Lobby", 0));
+            var lobby = Level(root, "Lobby", 0);
+            BuildLobby(lobby);
             for (var f = 1; f <= FloorCount; f++)
-                BuildFloor(Level(root, $"Floor{f}", f), f, roomPrefab);
+            {
+                var level = Level(root, $"Floor{f}", f);
+                BuildFloor(level, f, roomPrefab);
+                BuildGuideLights(level, f);
+            }
+            BuildStaffStation(lobby);
 
             SetupLighting(scene, root);
             MarkStatic(root);
@@ -722,12 +729,13 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Statisch voor batching en later baked lighting, behalve deuren, liftdeuren en knoppen (die bewegen of reageren).
+        /// Statisch voor batching en later baked lighting, behalve deuren, liftdeuren, knoppen en de klok (die bewegen of reageren).
         /// Kamers (Room_*) worden overgeslagen: die zijn al statisch in de prefab.
         /// </summary>
         private static void MarkStatic(Transform t)
         {
-            if (t.name.StartsWith("Door_") || t.name.StartsWith("LiftDoor") || t.name.StartsWith("LiftButton") || t.name.StartsWith("Room_"))
+            if (t.name.StartsWith("Door_") || t.name.StartsWith("LiftDoor") || t.name.StartsWith("LiftButton") || t.name.StartsWith("Room_") ||
+                t.GetComponent<WallClock>() != null)
                 return;
             if (t.GetComponent<Light>() == null)
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject,
@@ -849,6 +857,7 @@ namespace ProCommVR.Editor
             Shot("hospital_room_3A.png",
                 new Vector3(DoorCentersX[0] - 0.6f, floor3 + EyeHeight, CorridorWidth + 0.4f),
                 new Vector3(DoorCentersX[0] + 0.8f, floor3 + 0.9f, CorridorWidth + RoomDepth - 1.2f));
+            TakeStationScreenshots();
         }
 
         private static void Shot(string file, Vector3 position, Vector3 lookAt)
