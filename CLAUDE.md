@@ -204,6 +204,11 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   mood per antwoord, een toeschouwer (`BystanderSpeech`), `NpcAttention`, `BusyNpc` en `FacePlayer`. Getest: batchmode
   compile-check en Play mode smoke tests met de XR-simulator (alle bestaande plus `RunScenario03Good`/`Poor`). Nog niet
   getest op de Quest 3 of via Quest Link. Tekst, scores en reacties door Claude geschreven, nog na te kijken.
+- 2026-10-26: Scenario 4 (familie van een patiënt met een slechte prognose) gebouwd op
+  `feature/jalil/scenario04-poor-prognosis` (bovenop Scenario 3), in kamer 1B: nieuwe mood `Distressed` (paars, gedimd),
+  slapende patiënt in bed, de vrouw staat op als de speler nadert, monitor met vitale functies. Ontdekt: in Liam's
+  opgeslagen scene staan zijn patiënten (1A, 2A, 3A) op het nulpunt; de shift-builder verbergt die van 2A en 3A met een
+  waarschuwing. Getest: compile-check en alle smoke tests (ook `RunScenario04Good`/`Poor`). Niet op de Quest 3 getest.
 
 
 ## Beslissingen
@@ -230,6 +235,7 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-26 | Taakindeling: 1A (S1), gang 3 (S2), verpleegpost 2 + bureau 2C (S3), 1B (S4), 1C (S5); 2A terug naar Liam | Scenario 3 heeft een verpleegpost en een werkplek van de arts nodig; elk scenario op een eigen plek |
 | 2026-10-26 | Mood na een keuze als optioneel veld van de optie (`Changes Mood`, `Mood After`), geen nieuw systeem | De bron laat de sfeer veranderen na de keuze (S3 opgelost, S4 paars naar blauw, S5 alarm); bordje, licht en geluid volgen vanzelf |
 | 2026-10-26 | Drukke arts zonder navigatie-AI: een vaste ronde en een bureau (`BusyNpc`) | Volstaat voor de bron ("de arts vinden op een bereikbaar moment"), voorspelbaar en testbaar |
+| 2026-10-26 | Nieuwe mood `Distressed` (paars) en `Room Light Intensity` per mood-profiel | De bron gebruikt paars voor "distressed/challenging" en een gedimde kamer; past in het bestaande mood-systeem |
 
 
 ## Open vragen
@@ -250,3 +256,5 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 - De vier placeholder-WAV's (ongeveer 1 MB) staan zonder LFS in Git; meenemen in de LFS-beslissing.
 - Shift-loop en zithouding nog testen op de Quest 3 (72 fps, geluid op de headset).
 - Oude remote branch `feature/jalil/shift-gameloop` mag door een mens verwijderd worden.
+- Liam: in `liam_test_scene.unity` staan Patient_1A, 2A en 3A op (0, 0, 0); zijn builder bewaart de poses niet
+  (AnimationMode zet ze terug). De shift verbergt ze voorlopig.
