@@ -449,7 +449,7 @@ namespace ProCommVR.Editor
 
         /// <summary>
         /// One placeholder profile per mood: a mood color, light and ambient color and a placeholder sound.
-        /// Alarm (a task failed) is red and makes the room lights flash.
+        /// Alarm (a task failed) is red and makes the room lights flash; Distressed is soft purple and dims the room lights.
         /// </summary>
         internal static MoodProfile[] GetOrCreateMoodProfiles()
         {
@@ -460,10 +460,12 @@ namespace ProCommVR.Editor
                 GetOrCreateMoodProfile(Mood.Somber, new Color(0.3f, 0.45f, 0.85f), new Color(0.7f, 0.78f, 0.95f), 0.6f, new Color(0.25f, 0.28f, 0.36f)),
                 GetOrCreateMoodProfile(Mood.Happy, new Color(0.2f, 0.8f, 0.3f), new Color(1f, 0.98f, 0.88f), 1.1f, new Color(0.52f, 0.54f, 0.48f)),
                 GetOrCreateMoodProfile(Mood.Alarm, new Color(0.9f, 0.08f, 0.06f), new Color(1f, 0.55f, 0.5f), 1f, new Color(0.42f, 0.2f, 0.2f), 1.5f),
+                GetOrCreateMoodProfile(Mood.Distressed, new Color(0.55f, 0.22f, 0.85f), new Color(0.78f, 0.68f, 0.95f), 0.55f, new Color(0.24f, 0.2f, 0.32f), 0f, 0.8f),
             };
         }
 
-        private static MoodProfile GetOrCreateMoodProfile(Mood mood, Color color, Color lightColor, float intensity, Color ambient, float flashRate = 0f)
+        private static MoodProfile GetOrCreateMoodProfile(Mood mood, Color color, Color lightColor, float intensity, Color ambient, float flashRate = 0f,
+            float roomLightIntensity = 1f)
         {
             var path = $"{MoodProfileFolder}/Mood_{mood}.asset";
             var profile = AssetDatabase.LoadAssetAtPath<MoodProfile>(path);
@@ -481,6 +483,7 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_lightIntensity").floatValue = intensity;
             serialized.FindProperty("_ambientColor").colorValue = ambient;
             serialized.FindProperty("_flashRate").floatValue = flashRate;
+            serialized.FindProperty("_roomLightIntensity").floatValue = roomLightIntensity;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             EditorUtility.SetDirty(profile);

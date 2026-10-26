@@ -4,8 +4,9 @@ namespace ProCommVR.Atmosphere
 {
     /// <summary>
     /// Gives one light in a room the color of the current mood of a <see cref="MoodController"/>,
-    /// e.g. green in the room of a happy patient. Only the color changes, not the intensity, unless the mood's
-    /// profile has a Flash Rate (e.g. Alarm): then the light flashes between brighter than its own intensity and almost off.
+    /// e.g. green in the room of a happy patient. The intensity follows the profile's Room Light Intensity (a multiple of
+    /// the light's own intensity, e.g. dimmed for Distressed). With a Flash Rate (e.g. Alarm) the light flashes between
+    /// brighter than that intensity and almost off.
     /// </summary>
     [RequireComponent(typeof(Light))]
     public class MoodRoomLight : MonoBehaviour
@@ -23,6 +24,7 @@ namespace ProCommVR.Atmosphere
 
         private Light _light;
         private float _intensity;
+        private float _moodIntensity;
         private float _flashRate;
         private float _flashTime;
 
@@ -40,7 +42,7 @@ namespace ProCommVR.Atmosphere
                 return;
             _flashTime += Time.deltaTime;
             var on = Mathf.Repeat(_flashTime * _flashRate, 1f) < 0.5f;
-            _light.intensity = _intensity * (on ? _flashHigh : _flashLow);
+            _light.intensity = _moodIntensity * (on ? _flashHigh : _flashLow);
         }
 
         private void OnEnable()
@@ -63,7 +65,8 @@ namespace ProCommVR.Atmosphere
             _light.color = Color.Lerp(Color.white, moodController.CurrentColor, _strength);
             _flashRate = moodController.CurrentProfile.FlashRate;
             _flashTime = 0f;
-            _light.intensity = _intensity;
+            _moodIntensity = _intensity * moodController.CurrentProfile.RoomLightIntensity;
+            _light.intensity = _moodIntensity;
         }
     }
 }

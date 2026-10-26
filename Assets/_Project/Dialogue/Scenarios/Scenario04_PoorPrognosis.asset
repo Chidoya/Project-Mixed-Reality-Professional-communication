@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfd3b5a78723a44387dd9647a3eafe1, type: 3}
+  m_Name: Scenario04_PoorPrognosis
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Scenarios.Scenario
+  _id: poor-prognosis
+  _title: "Family of a Patient with a Poor Prognosis"
+  _mood: 5
+  _npcName: "Patient X's wife"
+  _npcLine: "He is going to get better, isn't he? ...We really want to take him home."
+  _busyLine: 
+  _bystanderName: 
+  _bystanderLine: 
+  _options:
+  - _text: "I can see how much you love him, and how hard this waiting is for you. I can't tell you how his illness will go; that is something the doctor should explain to you properly. Shall I ask the doctor to come and talk with you today? I'll stay with you for a moment."
+    _score: 3
+    _feedback: "You acknowledge her emotions, stay honest without creating false hope, and respect that explaining the diagnosis and prognosis is the doctor's task. Offering a meeting with the doctor today and staying with her for a moment gives her a concrete next step and support. This is the fine line the scenario asks for: compassion within professional boundaries."
+    _npcReaction: "...Yes. Please ask the doctor to come. Thank you for staying with me."
+    _npcPose: 1
+    _npcVoice: {fileID: 0}
+    _changesMood: 1
+    _moodAfter: 2
+    _bystanderReaction: 
+    _bystanderPose: 0
+  - _text: "I'm sorry, I'm not allowed to say anything about his prognosis. You'll have to ask the doctor."
+    _score: 1
+    _feedback: "Correct about the limits of your role, but cold and passive: her emotion is not acknowledged and she has to arrange the conversation with the doctor herself. Combine the boundary with empathy and offer to arrange the meeting."
+    _npcReaction: "Not allowed... So I just sit here and wonder."
+    _npcPose: 3
+    _npcVoice: {fileID: 0}
+    _changesMood: 0
+    _moodAfter: 0
+    _bystanderReaction: 
+    _bystanderPose: 0
+  - _text: "Let's stay positive. He's in good hands here and we're doing everything we can."
+    _score: 0
+    _feedback: "Well meant, but vague reassurance: it avoids her real question and can sound like empty comfort, or hint at a hope that may not be there. She is left alone with her fear. Acknowledge the emotion and offer a conversation with the doctor."
+    _npcReaction: "Everything you can... but what does that mean?"
+    _npcPose: 2
+    _npcVoice: {fileID: 0}
+    _changesMood: 0
+    _moodAfter: 0
+    _bystanderReaction: 
+    _bystanderPose: 0
+  - _text: "Of course he'll get better. I'm sure you'll be able to take him home soon."
+    _score: -2
+    _feedback: "Critical error: this creates false hope and goes beyond the nurse's authority, because explaining the prognosis is the doctor's task. If his condition gets worse, her trust is broken and her grief becomes harder. Show compassion without promising an outcome."
+    _npcReaction: "Really? Oh, thank God... I'll tell the children."
+    _npcPose: 0
+    _npcVoice: {fileID: 0}
+    _changesMood: 0
+    _moodAfter: 0
+    _bystanderReaction: 
+    _bystanderPose: 0
+  _locationLine: 
+  _locations: []
+  _timeLimit: 0
+  _timeLimitLabel: 
+  _timeUpLine: 
+  _timeUpFeedback: 

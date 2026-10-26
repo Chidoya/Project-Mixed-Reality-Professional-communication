@@ -76,6 +76,8 @@ namespace ProCommVR.Editor.Testing
                 case "s2-timeup": return Scenario02("corridor", Answer.None);
                 case "s3-good": return Scenario03(Answer.Best);
                 case "s3-poor": return Scenario03(Answer.Poorest);
+                case "s4-good": return Scenario04(Answer.Best);
+                case "s4-poor": return Scenario04(Answer.Poorest);
                 default: return Fail($"Unknown test '{test}'.");
             }
         }

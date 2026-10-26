@@ -15,6 +15,11 @@ namespace ProCommVR.Scenarios
         /// <summary>
         /// A task failed, e.g. the time ran out: red flashing light and a warning sound.
         /// </summary>
-        Alarm
+        Alarm,
+
+        /// <summary>
+        /// Distressed or challenging, heavy with emotion: soft purple, dimmed light (the color code of the storyboard).
+        /// </summary>
+        Distressed
     }
 }

@@ -21,6 +21,9 @@ namespace ProCommVR.Atmosphere
         [Tooltip("Flashes per second of the room light (MoodRoomLight), e.g. for Alarm. 0 = steady light.")]
         [SerializeField, Min(0f)] private float _flashRate;
 
+        [Tooltip("Brightness of the room light (MoodRoomLight) as a multiple of its own intensity, e.g. 0.45 for a dim room. 1 = unchanged.")]
+        [SerializeField, Range(0f, 2f)] private float _roomLightIntensity = 1f;
+
         [Header("Atmosphere (MoodAtmosphere)")]
         [SerializeField] private Color _lightColor = Color.white;
         [SerializeField, Min(0f)] private float _lightIntensity = 1f;
@@ -38,6 +41,7 @@ namespace ProCommVR.Atmosphere
         public Mood Mood => _mood;
         public Color Color => _color;
         public float FlashRate => _flashRate;
+        public float RoomLightIntensity => _roomLightIntensity;
         public Color LightColor => _lightColor;
         public float LightIntensity => _lightIntensity;
         public Color AmbientColor => _ambientColor;
