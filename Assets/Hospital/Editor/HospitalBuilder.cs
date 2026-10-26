@@ -845,6 +845,10 @@ namespace ProCommVR.Editor
             Shot("hospital_room_2A.png",
                 new Vector3(DoorCentersX[0] - 0.6f, floor2 + EyeHeight, CorridorWidth + 0.4f),
                 new Vector3(DoorCentersX[0] + 0.8f, floor2 + 0.9f, CorridorWidth + RoomDepth - 1.2f));
+            var floor3 = 3f * FloorHeight;
+            Shot("hospital_room_3A.png",
+                new Vector3(DoorCentersX[0] - 0.6f, floor3 + EyeHeight, CorridorWidth + 0.4f),
+                new Vector3(DoorCentersX[0] + 0.8f, floor3 + 0.9f, CorridorWidth + RoomDepth - 1.2f));
         }
 
         private static void Shot(string file, Vector3 position, Vector3 lookAt)
