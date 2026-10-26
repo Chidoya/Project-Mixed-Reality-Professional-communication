@@ -8,7 +8,7 @@ namespace ProCommVR.Shift
     /// <summary>
     /// The sign next to a patient room door: room, patient and scenario, and a color patch showing the
     /// patient's current mood (read from a <see cref="MoodController"/>). Once the task ends it shows the outcome:
-    /// "Cared for", or "Time ran out" in red.
+    /// "Cared for", or in red "Time ran out" or "Not resolved".
     /// </summary>
     public class RoomSign : MonoBehaviour
     {
@@ -21,6 +21,7 @@ namespace ProCommVR.Shift
 
         [SerializeField] private string _caredForText = "Cared for";
         [SerializeField] private string _failedText = "Time ran out";
+        [SerializeField] private string _failedAnswerText = "Not resolved";
 
         private string _text = "";
         private TaskOutcome _outcome;
@@ -62,6 +63,9 @@ namespace ProCommVR.Shift
                     break;
                 case TaskOutcome.FailedTimeUp:
                     _label.text = $"{_text}\n<size=60%><b><color=#C62828>{_failedText}</color></b></size>";
+                    break;
+                case TaskOutcome.FailedAnswer:
+                    _label.text = $"{_text}\n<size=60%><b><color=#C62828>{_failedAnswerText}</color></b></size>";
                     break;
                 default:
                     _label.text = _text;

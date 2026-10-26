@@ -29,8 +29,8 @@ namespace ProCommVR.Editor.Testing
     /// floor of each room and is moved from room to room by teleporting the XR Origin. Batchmode, without -quit:
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftLoop     (all 5 tasks, then results)
     ///   -executeMethod ProCommVR.Editor.Testing.PlayModeSmokeTest.RunShiftTimeout  (timer runs out after 1 task)
-    /// Scenario 2 (the corridor of floor 3), 3 (the nurse's station of floor 2) and 4 (room 1B) have their own tests in
-    /// PlayModeSmokeTest.Scenario02.cs to PlayModeSmokeTest.Scenario04.cs.
+    /// Scenario 2 (the corridor of floor 3), 3 (the nurse's station of floor 2), 4 (room 1B) and 5 (room 1C) have their
+    /// own tests in PlayModeSmokeTest.Scenario02.cs to PlayModeSmokeTest.Scenario05.cs.
     /// Optional: -smokeTestScreenshots &lt;folder&gt; saves a few camera images along the way (needs graphics).
     /// </summary>
     public static partial class PlayModeSmokeTest
@@ -85,12 +85,13 @@ namespace ProCommVR.Editor.Testing
                 Check(manager.State == ShiftState.Briefing, "shift waits in the briefing room");
                 Check(manager.AssignedRooms.Count == 5, $"5 patients assigned (got {manager.AssignedRooms.Count})");
                 // In task order: room 1A, the corridor of floor 3 (Scenario 2), the nurse's station of floor 2 (Scenario 3),
-                // 1B (Scenario 4), 1C.
+                // 1B (Scenario 4), 1C (Scenario 5).
                 var rooms = manager.AssignedRooms.ToArray();
                 var seated = rooms.Where(r => r.Task.Scenario.Id == Scenario01Id).ToArray();
                 Check(rooms[1].Countdown != null && rooms[1].Task.Scenario.Id == Scenario02Id, $"task 2 is Scenario 2 in {rooms[1].RoomName}");
                 Check(rooms[2].Task.Scenario.Id == Scenario03Id && rooms[2].GetComponentInChildren<BusyNpc>() != null, $"task 3 is Scenario 3 in {rooms[2].RoomName}");
                 Check(rooms[3].Task.Scenario.Id == Scenario04Id && rooms[3].RoomName == "Room 1B", $"task 4 is Scenario 4 in {rooms[3].RoomName}");
+                Check(rooms[4].Task.Scenario.Id == Scenario05Id && rooms[4].RoomName == "Room 1C", $"task 5 is Scenario 5 in {rooms[4].RoomName}");
                 var ids = manager.AssignedRooms.Select(r => r.PatientId).ToArray();
                 Check(ids.All(id => !string.IsNullOrWhiteSpace(id)) && ids.Distinct().Count() == ids.Length,
                     $"every patient has a unique id ({string.Join(", ", ids)})");
@@ -157,6 +158,8 @@ namespace ProCommVR.Editor.Testing
                         steps = CareForStation(manager, origin, room, Answer.Best);
                     else if (room.Task.Scenario.Id == Scenario04Id)
                         steps = CareForBedside(manager, origin, room, Answer.Best);
+                    else if (room.Task.Scenario.Id == Scenario05Id)
+                        steps = CareForSharedRoom(manager, origin, room, true, Answer.Best);
                     else
                         steps = CareFor(manager, origin, room);
                     foreach (var step in steps)

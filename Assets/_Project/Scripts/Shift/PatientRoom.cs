@@ -12,7 +12,8 @@ namespace ProCommVR.Shift
     /// done (<see cref="TaskOutcome.Completed"/>) when the player has made a choice and clicks the continue bubble
     /// ("Finish"). A scenario with a Time Limit also needs a <see cref="TaskCountdown"/>: if it runs out before the
     /// player answers, the task fails (<see cref="TaskOutcome.FailedTimeUp"/>) and the mood turns to Failed Mood.
-    /// An option with Changes Mood sets the mood of the room right after the choice.
+    /// An option with Changes Mood sets the mood of the room right after the choice; an option with Fails Task ends the
+    /// task as <see cref="TaskOutcome.FailedAnswer"/> when the player clicks "Finish".
     /// </summary>
     public class PatientRoom : MonoBehaviour
     {
@@ -165,7 +166,7 @@ namespace ProCommVR.Shift
         {
             if (!_active)
                 return;
-            Finish(TaskOutcome.Completed);
+            Finish(ChosenOption != null && ChosenOption.FailsTask ? TaskOutcome.FailedAnswer : TaskOutcome.Completed);
         }
 
         private void OnCountdownExpired(TaskCountdown countdown)
@@ -182,7 +183,7 @@ namespace ProCommVR.Shift
         private void Finish(TaskOutcome outcome)
         {
             Outcome = outcome;
-            if (outcome == TaskOutcome.Completed)
+            if (outcome != TaskOutcome.FailedTimeUp)
                 Close();
             if (_sign != null)
                 _sign.SetOutcome(outcome);

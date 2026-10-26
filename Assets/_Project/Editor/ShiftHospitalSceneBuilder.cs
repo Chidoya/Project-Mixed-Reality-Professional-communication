@@ -20,11 +20,12 @@ namespace ProCommVR.Editor
     /// Builds ShiftHospital: the shift game loop in Liam's hospital. Opens Liam's scene (built by
     /// ProCommVR > Hospital > Build) as a template, adds the shift and saves the result as ShiftHospital; Liam's
     /// scene itself is not saved. The lobby is the briefing room (start computer on the reception desk), the
-    /// patients are in rooms 1A-1C (floor 1; Scenario 4, the family of a patient with a poor prognosis, in 1B),
+    /// patients are in rooms 1A-1C (floor 1; Scenario 4, the family of a patient with a poor prognosis, in 1B and
+    /// Scenario 5, the verbally aggressive patient in a shared room, in 1C),
     /// Scenario 2 (the angry daughter) plays in the corridor of floor 3 with
     /// room 3B as the consultation room, Scenario 3 (the doctor and the family member) at the nurse's station of
     /// floor 2 with room 2C as the doctor's office, and the lift buttons take the player between floors.
-    /// Also creates the shift plan if it is missing (Scenario 2, 3 and 4 as task 2, 3 and 4, Scenario 1 as placeholder for the others).
+    /// Also creates the shift plan if it is missing (Scenario 1 to 5 as task 1 to 5).
     /// Batchmode: -executeMethod ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene
     /// Requires the prefabs from ScenarioTestSceneBuilder (bubble, results screen), the XR rig variant and Liam's scene.
     /// </summary>
@@ -37,10 +38,13 @@ namespace ProCommVR.Editor
         private const string Scenario2Path = "Assets/_Project/Dialogue/Scenarios/Scenario02_AngryFamilyMember.asset";
         private const string Scenario3Path = "Assets/_Project/Dialogue/Scenarios/Scenario03_DoctorAndFamily.asset";
         private const string Scenario4Path = "Assets/_Project/Dialogue/Scenarios/Scenario04_PoorPrognosis.asset";
+        private const string Scenario5Path = "Assets/_Project/Dialogue/Scenarios/Scenario05_AggressivePatient.asset";
         private const string GurneyModelPath = "Assets/ThirdParty/Sketchfab/HospitalBed_anshartis/source/BED ASSEST_2.fbx";
         private const string TickSoundPath = "Assets/_Project/Audio/Placeholder/Countdown_Tick_Placeholder.wav";
         private const string CharacterMaterialFolder = "Assets/_Project/Materials/Characters";
         private const string PaperMaterialPath = "Assets/_Project/Materials/Paper.mat";
+        private const string NewspaperMaterialPath = "Assets/_Project/Materials/Newspaper.mat";
+        private const string CurtainMaterialPath = "Assets/_Project/Materials/PrivacyCurtain.mat";
         private const string ResultsPrefabPath = "Assets/_Project/Prefabs/UI/ResultsScreen.prefab";
         private const string KenneyFolder = "Assets/ThirdParty/Kenney/FurnitureKit";
         private const string CharacterFolder = "Assets/Character";
@@ -109,6 +113,16 @@ namespace ProCommVR.Editor
         private static readonly Color WifeTopColor = new Color(0.45f, 0.38f, 0.52f);
         private static readonly Color WifeBottomColor = new Color(0.2f, 0.2f, 0.24f);
 
+        // Scenario 5 (room 1C): a shared room. Liam's bed moves to the window side (Patient X), a copy stands on the
+        // other side (the next patient, lying in it), with a privacy curtain between them. Liam's chair and nightstand go.
+        private const string SharedRoomLabel = "1C";
+        private const string AggressivePatientModel = "Patient_Male";
+        private const string NextPatientModel = "Patient_Male_Old";
+        private const float SharedBedCenterX = 1.0f;   // room-local x of each bed (window side +, other side -)
+        private const float CurtainFrontZ = 1.0f;      // room-local z where the drawn curtain ends, toward the door
+        private const float CurtainBottom = 0.15f;
+        private const float CurtainTop = 2.3f;
+
         private static readonly Color TextColor = new Color(0.12f, 0.12f, 0.14f);
 
         [MenuItem("ProCommVR/Setup/8. Build Shift Hospital")]
@@ -156,6 +170,8 @@ namespace ProCommVR.Editor
                     rooms.Add(BuildStationEncounter(hospital, shift));
                 else if (location == BedsideRoomLabel)
                     rooms.Add(BuildBedsideRoom(hospital, location));
+                else if (location == SharedRoomLabel)
+                    rooms.Add(BuildSharedRoom(hospital, location));
                 else
                     rooms.Add(BuildPatientRoom(hospital, roomIndex++, location));
             }
@@ -928,12 +944,13 @@ namespace ProCommVR.Editor
 
         /// <summary>
         /// Puts a character on the bed of a room, lying on the first frame of its "Laying" animation: the body along the
-        /// bed (head at the headboard), centered on the mattress and with its lowest point just on it. Measured on a
+        /// bed (head at the headboard), centered on the mattress (Anchor_Laying, or another anchor for a second bed) and
+        /// with its lowest point just on it. Measured on a
         /// temporary copy in the posed animation, as Liam's HospitalBuilder does for his own patients.
         /// </summary>
-        private static void LayOnBed(Transform character, Transform room)
+        private static void LayOnBed(Transform character, Transform room, Transform anchor = null)
         {
-            var anchor = RequireChild(room, "Anchor_Laying");
+            anchor = anchor != null ? anchor : RequireChild(room, "Anchor_Laying");
             var probe = Object.Instantiate(character.gameObject);
             probe.hideFlags = HideFlags.DontSave;
             try
@@ -1116,6 +1133,200 @@ namespace ProCommVR.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        // ---- Scenario 5: the verbally aggressive patient in a shared room (room 1C) ---------------------------------
+
+        /// <summary>
+        /// Scenario 5: Liam's room 1C as a shared room with two beds and a privacy curtain between them (open, bunched at
+        /// the back wall). Patient X stands by his bed near the window and comes at the nurse shouting as soon as the
+        /// player comes in; the patient of the other bed lies reading the newspaper and lowers it to listen. The player chooses to draw the curtain (or not) before the options.
+        /// </summary>
+        private static PatientRoom BuildSharedRoom(Transform hospital, string label)
+        {
+            var room = RequireChild(hospital, $"Floor{FloorOf(label)}/Room_{label}");
+            var signPosition = ReplaceCardAndOpenDoor(hospital, room, label);
+
+            // Two beds: Liam's bed moves to the window side, a copy stands on the other side.
+            var bed = RequireChild(room, "Furniture/Bed");
+            var bedBounds = Scenario01SceneBuilder.TightBounds(bed.gameObject);
+            var bedOffset = room.right * (SharedBedCenterX - room.InverseTransformPoint(bedBounds.center).x);
+            bed.position += bedOffset;
+            var otherBed = Object.Instantiate(bed.gameObject, bed.parent);
+            otherBed.name = "Bed (next patient)";
+            otherBed.transform.position = bed.position - room.right * (2f * SharedBedCenterX);
+            // The mattress of the other bed, where the next patient lies.
+            var otherAnchor = new GameObject("Anchor_Laying (next bed)").transform;
+            otherAnchor.SetParent(room, false);
+            otherAnchor.position = RequireChild(room, "Anchor_Laying").position + (otherBed.transform.position - (bed.position - bedOffset));
+            foreach (var item in new[] { "Nightstand", "Chair" })
+                RequireChild(room, $"Furniture/{item}").gameObject.SetActive(false);
+
+            var mood = AddRoomMood(room);
+            var sign = BuildRoomSign(room, signPosition, Quaternion.LookRotation(room.forward), mood);
+            BuildPrivacyCurtain(room, out var curtain);
+
+            // Patient X stands by his bed, facing the door; when the player comes in he steps toward the nurse.
+            var patientSpot = room.TransformPoint(SharedBedCenterX, 0f, 1.45f);
+            var patient = PlaceCharacter(room, AggressivePatientModel, patientSpot, Quaternion.LookRotation(-room.forward), "Idle");
+            var patientAnimator = patient.GetComponentInChildren<Animator>();
+            AddBlocker(patient.gameObject);
+            var head = patient.position + Vector3.up * 2.05f;
+            var presenter = ScenarioTestSceneBuilder.CreatePresenter("Scenario Presenter", patient, head, room.TransformPoint(0.3f, 1.15f, 0.6f));
+            presenter.transform.SetParent(room, true);
+            var npcAnchor = presenter.transform.Find("NPC Bubble Anchor");
+            npcAnchor.SetParent(patient, true);
+            npcAnchor.gameObject.AddComponent<FacePlayer>();
+
+            var approach = room.TransformPoint(0.75f, 0f, 1.05f);
+            var attention = patient.gameObject.AddComponent<NpcAttention>();
+            var serialized = new SerializedObject(attention);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_body").objectReferenceValue = patient;
+            serialized.FindProperty("_range").floatValue = 2.4f;
+            serialized.FindProperty("_attentionPose").objectReferenceValue = CreatePose(room, "Patient X Approach", approach, Quaternion.LookRotation(-room.forward));
+            serialized.FindProperty("_facePlayer").boolValue = true;
+            serialized.FindProperty("_animator").objectReferenceValue = patientAnimator;
+            serialized.FindProperty("_animatorState").stringValue = "Angry";
+            serialized.FindProperty("_duration").floatValue = 1.2f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // After the choice: calmer and listening, still angry, or on his way out of the room.
+            var towardDoor = Quaternion.LookRotation(Flat(room.position - approach));
+            AddReactor(room, presenter, patient, patientAnimator,
+                new PoseSpec(NpcPose.Unchanged, null, "Angry"),
+                new PoseSpec(NpcPose.Engaged, null, "Idle"),
+                new PoseSpec(NpcPose.TurnsAway, towardDoor, "Angry", room.TransformPoint(1.2f, 0f, 0.55f)),
+                new PoseSpec(NpcPose.Withdrawn, Quaternion.LookRotation(room.right), "Sad"));
+
+            BuildNextPatient(room, presenter, otherAnchor, patientSpot);
+
+            var patientRoom = room.gameObject.AddComponent<PatientRoom>();
+            serialized = new SerializedObject(patientRoom);
+            serialized.FindProperty("_roomName").stringValue = $"Room {label}";
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_moodController").objectReferenceValue = mood;
+            serialized.FindProperty("_sign").objectReferenceValue = sign;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            serialized = new SerializedObject(curtain);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return patientRoom;
+        }
+
+        /// <summary>
+        /// The patient of the other bed, the scenario's bystander: he lies in his bed reading a newspaper. When the player
+        /// comes in he lowers it onto his belly to listen; after the choice he reacts right away (he overhears
+        /// everything): he stays in bed, or gets up upset.
+        /// </summary>
+        private static void BuildNextPatient(Transform room, ScenarioPresenter presenter, Transform mattress, Vector3 patientSpot)
+        {
+            var neighbour = new GameObject("Next Patient").transform;
+            neighbour.SetParent(room, false);
+            neighbour.SetPositionAndRotation(new Vector3(mattress.position.x, room.position.y, mattress.position.z), room.rotation);
+            var body = PlaceCharacter(neighbour, NextPatientModel, neighbour.position, neighbour.rotation, "Laying");
+            LayOnBed(body, room, mattress);
+            var lying = new SerializedObject(body.GetComponentInChildren<NpcAnimationState>());
+            lying.FindProperty("_randomStart").boolValue = false;
+            lying.ApplyModifiedPropertiesWithoutUndo();
+            var animator = body.GetComponentInChildren<Animator>();
+
+            // The newspaper: held up above his chest to read, or lowered onto his belly. Toward the headboard is the
+            // room's forward.
+            var reading = CreateNewspaper(neighbour, "Newspaper (reading)", mattress.position + room.forward * 0.3f + Vector3.up * 0.5f,
+                Quaternion.LookRotation(Vector3.up, room.forward) * Quaternion.Euler(-35f, 0f, 0f));
+            var lowered = CreateNewspaper(neighbour, "Newspaper (lowered)", mattress.position - room.forward * 0.15f + Vector3.up * 0.28f,
+                Quaternion.LookRotation(Vector3.up, room.forward));
+            lowered.SetActive(false);
+
+            var attention = body.gameObject.AddComponent<NpcAttention>();
+            var serialized = new SerializedObject(attention);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_body").objectReferenceValue = body;
+            serialized.FindProperty("_range").floatValue = 3.2f;
+            SetArray(serialized.FindProperty("_show"), new Object[] { lowered });
+            SetArray(serialized.FindProperty("_hide"), new Object[] { reading });
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // His reaction: stays in bed, or gets up upset at the foot of his bed, facing Patient X (or the door). Not
+            // closer to the door: the open door hides that corner from the doorway.
+            var besideBed = room.TransformPoint(-0.75f, 0f, 1.65f);
+            AddReactor(neighbour, presenter, body, animator,
+                new PoseSpec(NpcPose.Unchanged, null, "Laying"),
+                new PoseSpec(NpcPose.Engaged, null, "Laying"),
+                new PoseSpec(NpcPose.TurnsAway, Quaternion.LookRotation(-room.forward), "Sad", besideBed),
+                new PoseSpec(NpcPose.Withdrawn, Quaternion.LookRotation(Flat(patientSpot - besideBed)), "Sad", besideBed));
+            var reactor = body.GetComponent<NpcReactor>();
+            serialized = new SerializedObject(reactor);
+            serialized.FindProperty("_reactAsBystander").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var anchor = new GameObject("Bystander Bubble Anchor").transform;
+            anchor.SetParent(neighbour, false);
+            anchor.position = mattress.position + Vector3.up * 1.3f;
+            anchor.localScale = Vector3.one * 1.3f;
+            var speech = neighbour.gameObject.AddComponent<BystanderSpeech>();
+            serialized = new SerializedObject(speech);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.FindProperty("_bubblePrefab").objectReferenceValue =
+                ScenarioTestSceneBuilder.LoadRequired<GameObject>(ScenarioTestSceneBuilder.BubblePrefabPath, "Run 'Build Dialogue Bubble Prefab' first.").GetComponent<DialogueBubble>();
+            serialized.FindProperty("_anchor").objectReferenceValue = anchor;
+            serialized.FindProperty("_attention").objectReferenceValue = attention;
+            serialized.FindProperty("_reactor").objectReferenceValue = reactor;
+            serialized.FindProperty("_reactWhenNear").boolValue = false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// A folded newspaper: a thin pale box without a collider, under the reader (world position and rotation).
+        /// </summary>
+        private static GameObject CreateNewspaper(Transform reader, string name, Vector3 position, Quaternion rotation)
+        {
+            var paper = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(paper.GetComponent<Collider>());
+            paper.name = name;
+            paper.transform.SetParent(reader, false);
+            paper.transform.SetPositionAndRotation(position, rotation);
+            paper.transform.localScale = new Vector3(0.48f, 0.34f, 0.01f);
+            paper.GetComponent<MeshRenderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial(NewspaperMaterialPath, new Color(0.86f, 0.85f, 0.8f));
+            return paper;
+        }
+
+        /// <summary>
+        /// The privacy curtain between the two beds: a rail under the ceiling from the back wall toward the door, and the
+        /// curtain hanging from it. Its pivot is at the back wall and it stretches along +z (into the room): bunched up
+        /// there while open, drawn along the full rail (<see cref="PrivacyCurtain"/>). The curtain has no collider, so
+        /// the ray and the player are never blocked by it.
+        /// </summary>
+        private static void BuildPrivacyCurtain(Transform room, out PrivacyCurtain curtain)
+        {
+            var backZ = RendererBounds(RequireChild(room, "Wall_Back").gameObject);
+            var back = room.InverseTransformPoint(backZ.center).z - backZ.extents.z - 0.05f;
+            var length = back - CurtainFrontZ;
+            var material = XRTestSceneBuilder.GetOrCreateMaterial(CurtainMaterialPath, new Color(0.62f, 0.78f, 0.8f));
+
+            var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(rail.GetComponent<Collider>());
+            rail.name = "Curtain Rail";
+            rail.transform.SetParent(room, false);
+            rail.transform.localPosition = new Vector3(0f, CurtainTop + 0.04f, back - length / 2f);
+            rail.transform.localScale = new Vector3(0.04f, 0.03f, length);
+            rail.GetComponent<MeshRenderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial(PaperMaterialPath, new Color(0.95f, 0.95f, 0.92f));
+
+            // Pivot at the back wall, facing the door: scaling its z stretches the curtain toward the door.
+            var pivot = new GameObject("Privacy Curtain").transform;
+            pivot.SetParent(room, false);
+            pivot.localPosition = new Vector3(0f, 0f, back);
+            pivot.localRotation = Quaternion.LookRotation(Vector3.back);
+            var cloth = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.DestroyImmediate(cloth.GetComponent<Collider>());
+            cloth.name = "Cloth";
+            cloth.transform.SetParent(pivot, false);
+            cloth.transform.localPosition = new Vector3(0f, (CurtainTop + CurtainBottom) / 2f, length / 2f);
+            cloth.transform.localScale = new Vector3(0.03f, CurtainTop - CurtainBottom, length);
+            cloth.GetComponent<MeshRenderer>().sharedMaterial = material;
+            curtain = pivot.gameObject.AddComponent<PrivacyCurtain>();
+        }
+
         // ---- Lift -------------------------------------------------------------------------------------------------
 
         /// <summary>
@@ -1271,9 +1482,9 @@ namespace ProCommVR.Editor
         // ---- Assets ---------------------------------------------------------------------------------------------
 
         /// <summary>
-        /// The shift: Scenario 2 as task 2 (the daughter, Tense), Scenario 3 as task 3 (the doctor, Neutral), Scenario 4 as
-        /// task 4 (the wife, Distressed) and Scenario 1 as placeholder for the other tasks (every patient Happy), ids
-        /// patient-01 to patient-05. An existing plan is kept; only empty patient ids are filled in.
+        /// The shift: Scenario 1 as task 1 (Happy), Scenario 2 as task 2 (the daughter, Tense), Scenario 3 as task 3 (the
+        /// doctor, Neutral), Scenario 4 as task 4 (the wife, Distressed) and Scenario 5 as task 5 (the aggressive patient,
+        /// Tense), ids patient-01 to patient-05. An existing plan is kept; only empty patient ids are filled in.
         /// </summary>
         private static ShiftPlan GetOrCreatePlan()
         {
@@ -1285,6 +1496,7 @@ namespace ProCommVR.Editor
             var scenario2 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario2Path, "The Scenario 2 asset is missing.");
             var scenario3 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario3Path, "The Scenario 3 asset is missing.");
             var scenario4 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario4Path, "The Scenario 4 asset is missing.");
+            var scenario5 = ScenarioTestSceneBuilder.LoadRequired<Scenario>(Scenario5Path, "The Scenario 5 asset is missing.");
             XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(PlanPath));
             plan = ScriptableObject.CreateInstance<ShiftPlan>();
             AssetDatabase.CreateAsset(plan, PlanPath);
@@ -1298,13 +1510,16 @@ namespace ProCommVR.Editor
                 var task = tasks.GetArrayElementAtIndex(i);
                 task.FindPropertyRelative("_patientId").stringValue = PatientId(i);
                 task.FindPropertyRelative("_scenario").objectReferenceValue =
-                    location == CorridorTask ? scenario2 : location == StationTask ? scenario3 : location == BedsideRoomLabel ? scenario4 : scenario;
+                    location == CorridorTask ? scenario2 : location == StationTask ? scenario3 : location == BedsideRoomLabel ? scenario4
+                    : location == SharedRoomLabel ? scenario5
+                    : scenario;
                 // Scenario 3 and 4: a family member is the NPC, but the task is about the patient.
                 task.FindPropertyRelative("_patientName").stringValue =
                     location == StationTask ? "Patient X's family" : location == BedsideRoomLabel ? "Patient X" : "";
                 task.FindPropertyRelative("_patientMood").enumValueIndex = (int)(location == CorridorTask ? Mood.Tense
                     : location == StationTask ? Mood.Neutral
                     : location == BedsideRoomLabel ? Mood.Distressed
+                    : location == SharedRoomLabel ? Mood.Tense
                     : Mood.Happy);
             }
             serialized.ApplyModifiedPropertiesWithoutUndo();

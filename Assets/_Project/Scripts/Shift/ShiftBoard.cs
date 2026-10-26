@@ -74,6 +74,8 @@ namespace ProCommVR.Shift
                     return "<color=#1E8C3A><b>Cared for</b></color>";
                 case TaskOutcome.FailedTimeUp:
                     return "<color=#C62828><b>Failed: time ran out</b></color>";
+                case TaskOutcome.FailedAnswer:
+                    return "<color=#C62828><b>Failed: not resolved</b></color>";
                 default:
                     return "<color=#8A8A8A>Waiting</color>";
             }

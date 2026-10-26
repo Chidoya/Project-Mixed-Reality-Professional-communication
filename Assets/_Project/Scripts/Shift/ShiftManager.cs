@@ -59,7 +59,7 @@ namespace ProCommVR.Shift
         public int CompletedCount { get; private set; }
 
         /// <summary>
-        /// Tasks that failed because their own countdown ran out.
+        /// Tasks that failed: their own countdown ran out, or the answer failed them.
         /// </summary>
         public int FailedCount { get; private set; }
 
@@ -119,11 +119,12 @@ namespace ProCommVR.Shift
         }
 
         /// <summary>
-        /// True when the task failed because its countdown ran out.
+        /// True when the task failed: its countdown ran out, or the answer failed it.
         /// </summary>
         public bool IsFailed(string patientId)
         {
-            return GetOutcome(patientId) == TaskOutcome.FailedTimeUp;
+            var outcome = GetOutcome(patientId);
+            return outcome == TaskOutcome.FailedTimeUp || outcome == TaskOutcome.FailedAnswer;
         }
 
         /// <summary>
@@ -260,7 +261,7 @@ namespace ProCommVR.Shift
 
         /// <summary>
         /// Per room: the patient, the score and the feedback on the choice (and where the player chose to talk),
-        /// that the task failed because the time ran out, or that the patient was not cared for.
+        /// that the task failed (the time ran out, or the answer did not resolve it), or that the patient was not cared for.
         /// </summary>
         private string BuildReport()
         {
@@ -271,13 +272,13 @@ namespace ProCommVR.Shift
                 if (IsCompleted(room) && room.ChosenOption != null)
                 {
                     text.Append(room.Score).Append(" / ").Append(room.Task.Scenario.BestScore).Append('\n');
-                    if (room.ChosenLocation != null)
-                    {
-                        text.Append("Talked in: ").Append(room.ChosenLocation.Name);
-                        if (!string.IsNullOrWhiteSpace(room.ChosenLocation.Feedback))
-                            text.Append(". <i>").Append(room.ChosenLocation.Feedback).Append("</i>");
-                        text.Append('\n');
-                    }
+                    AppendLocation(text, room);
+                    text.Append("<i>").Append(room.ChosenOption.Feedback).Append("</i>\n\n");
+                }
+                else if (GetOutcome(room.PatientId) == TaskOutcome.FailedAnswer && room.ChosenOption != null)
+                {
+                    text.Append("<color=#C62828>failed: not resolved</color>\n");
+                    AppendLocation(text, room);
                     text.Append("<i>").Append(room.ChosenOption.Feedback).Append("</i>\n\n");
                 }
                 else if (IsFailed(room.PatientId))
@@ -293,6 +294,19 @@ namespace ProCommVR.Shift
                 }
             }
             return text.ToString().TrimEnd();
+        }
+
+        /// <summary>
+        /// Where the player chose to talk (and why that was good or not), if the scenario had that choice.
+        /// </summary>
+        private static void AppendLocation(StringBuilder text, PatientRoom room)
+        {
+            if (room.ChosenLocation == null)
+                return;
+            text.Append("Talked in: ").Append(room.ChosenLocation.Name);
+            if (!string.IsNullOrWhiteSpace(room.ChosenLocation.Feedback))
+                text.Append(". <i>").Append(room.ChosenLocation.Feedback).Append("</i>");
+            text.Append('\n');
         }
 
         /// <summary>

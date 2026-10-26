@@ -78,6 +78,8 @@ namespace ProCommVR.Editor.Testing
                 case "s3-poor": return Scenario03(Answer.Poorest);
                 case "s4-good": return Scenario04(Answer.Best);
                 case "s4-poor": return Scenario04(Answer.Poorest);
+                case "s5-good": return Scenario05(Answer.Best);
+                case "s5-fail": return Scenario05(Answer.Poorest);
                 default: return Fail($"Unknown test '{test}'.");
             }
         }

@@ -37,6 +37,11 @@ namespace ProCommVR.Scenarios
         [Tooltip("The mood after this choice (only with Changes Mood).")]
         [SerializeField] private Mood _moodAfter = Mood.Neutral;
 
+        [Header("Outcome (optional)")]
+        [Tooltip("This answer makes the task fail (e.g. the patient refuses the test and leaves): in a shift the task ends as " +
+                 "\"not resolved\" instead of cared for, and the player has to try it again on another day.")]
+        [SerializeField] private bool _failsTask;
+
         [Header("Bystander reaction (optional, scenarios with a bystander)")]
         [Tooltip("Short line the bystander (a second character, see the scenario) says after this choice. Empty: the bystander says nothing new.")]
         [SerializeField, TextArea(1, 3)] private string _bystanderReaction;
@@ -52,6 +57,7 @@ namespace ProCommVR.Scenarios
         public AudioClip NpcVoice => _npcVoice;
         public bool ChangesMood => _changesMood;
         public Mood MoodAfter => _moodAfter;
+        public bool FailsTask => _failsTask;
         public string BystanderReaction => _bystanderReaction;
         public NpcPose BystanderPose => _bystanderPose;
     }
