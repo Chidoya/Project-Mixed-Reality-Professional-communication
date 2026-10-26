@@ -13,6 +13,7 @@ namespace ProCommVR.Hospital
         public static readonly Color Calm = new Color(0.20f, 0.90f, 0.35f);
         public static readonly Color Difficult = new Color(0.42f, 0.12f, 1f);
         public static readonly Color Neutral = new Color(0.55f, 0.57f, 0.60f);
+        public static readonly Color Failed = new Color(1f, 0.12f, 0.08f);
 
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
@@ -28,6 +29,7 @@ namespace ProCommVR.Hospital
         private Renderer[] _renderers;
         private MaterialPropertyBlock _block;
         private float _pulseTime = -1f;
+        private float _currentBoost;
 
         public Color Color => _color;
 
@@ -48,6 +50,13 @@ namespace ProCommVR.Hospital
         /// <summary>Laat de strook een paar keer oplichten in zijn huidige kleur (bv. om de speler naar een deur te leiden).</summary>
         public void Pulse()
         {
+            Pulse(_pulseBoost);
+        }
+
+        /// <summary>Puls met een eigen sterkte, bv. 0,8 voor een zachte puls op de taak die nu aan de beurt is.</summary>
+        public void Pulse(float boost)
+        {
+            _currentBoost = boost;
             _pulseTime = 0f;
         }
 
@@ -63,7 +72,7 @@ namespace ProCommVR.Hospital
                 return;
             }
             var wave = Mathf.Sin(Mathf.PI * _pulseCount * _pulseTime / _pulseDuration);
-            Apply(1f + _pulseBoost * wave * wave);
+            Apply(1f + _currentBoost * wave * wave);
         }
 
         private void Apply(float boost)

@@ -1,5 +1,40 @@
 # Assets/Hospital (Liam)
 
+## Volgorde na elke rebuild (shift met Liam's stukken)
+
+1. **ProCommVR > Hospital > Build** (Liam's ziekenhuis, `Assets/Scenes/liam_test_scene.unity`)
+2. **ProCommVR > Setup > 8. Build Shift Hospital** (Jalils shift, `Assets/_Project/Scenes/ShiftHospital.unity`)
+3. **ProCommVR > Hospital > Wire Shift Integration** (Liam's bruggen in Jalils scene)
+
+Stap 3 (`Integration/Editor/ShiftIntegrationBuilder.cs`) zet alles onder één root-object `Liam_Integration` in
+`ShiftHospital` en mag meerdere keren draaien (het oude object gaat eerst weg). Jalils code en objecten worden enkel
+gelezen, niet aangepast: de bruggen abonneren zich op zijn events (`OnEnable`) en melden zich weer af (`OnDisable`).
+Scripts in `Integration/`, namespace `ProCommVR.Hospital.Integration`.
+
+| Brug | Event van Jalil | Effect |
+| --- | --- | --- |
+| `StaffStationBridge` | `ShiftManager.ShiftStarted` | Lamp van de Badge_Reader van oranje naar groen; het klembord verschijnt op `Anchor_Clipboard` |
+| | `ShiftManager.ShiftEnded` | Care_Tablet rechtop in het Tablet_Dock; Jalils eindscherm schuift naar `Anchor_EndScreen` zodra de speler in de lobby is |
+| `GuideLightBridge` | `ShiftManager.ShiftStarted` | Vloerstroken van de 5 taken aan (voor de shift: uit) |
+| | `MoodController.MoodChanged` | Strook per taak: Neutral en Happy = groen, Tense, Somber en Distressed = paars, Alarm = rood |
+| | `ShiftManager.TaskCompleted` / `TaskFailed` | Groen of rood pulsen, na 2,5 s uit |
+| | (elke 3 s) | De eerste taak die nog open staat, pulst zacht |
+| `Case1Bridge` (taak 1, 1A) | `ScenarioPresenter.ScenarioStarted` | `Case1_Props` in kamer 1A: de pillenstrip ligt op `Spot_Nightstand` |
+| | `ScenarioPresenter.OptionChosen` | Beste keuze: naar `Spot_Tray` (genomen); anders naar `Spot_Windowsill` (weggeschoven) |
+| `CorridorBridge` (taak 2, gang 3) | `TaskCountdown.Expired` | De Porter verschijnt en loopt achter Jalils brancard ("Surgical Gurney"); Idle (geen Walking-clip) |
+| `EavesdropBridge` (taak 5, 1C) | `ScenarioPresenter.ScenarioStarted` | Zet het oor klaar; het groeit (EarGrow, 25 s) als de speler de buurman nadert |
+| | `ScenarioPresenter.LocationChosen` ("curtain") | `ResetEar()` en de krant weer omhoog (Jalils "Newspaper (reading)" aan, "(lowered)" uit) |
+| `AmbientBridge` | `ShiftStarted` / `ShiftEnded` | Om de 60 tot 90 s rijdt de Supply_Cart door een gang zonder personages op de route (nu enkel verdieping 1) |
+
+Taak naar vloerstrook: Room_1A, 1B, 1C naar hun eigen strook; de gang van verdieping 3 naar `Guide_3B` (spreekkamer);
+de verpleegpost van verdieping 2 naar `Guide_2C` (bureau van de arts).
+
+Bewuste keuzes:
+- Jalils `ScenarioStarted` komt voor alle kamers tegelijk bij `StartShift`. Daarom groeit het oor pas als de speler de
+  kamer nadert, niet meteen.
+- Jalils countdown van taak 2 laat al een eigen brancard rijden. De Porter volgt die, zodat er geen tweede brancard bijkomt.
+- `MonitorScreen` en `RoomTint` worden niet in Jalils kamers gebruikt: zijn `VitalSignsMonitor` en `MoodRoomLight` sturen die al.
+
 Het ziekenhuis in `Assets/Scenes/liam_test_scene.unity`, volledig opgebouwd door **ProCommVR > Hospital > Build**
 (`Editor/HospitalBuilder*.cs`). Dit is omgeving en vaste plekken; de spellogica (shift, scenario's) is van Jalil.
 Bouw je opnieuw, draai daarna ook Jalils **ProCommVR > Setup > 8. Build Shift Hospital**.
@@ -45,6 +80,8 @@ var guide = hospital.Find("Floor1/GuideLights/Guide_1A").GetComponent<FloorGuide
 guide.SetColor(FloorGuideLight.Calm);       // groen = rustig
 guide.SetColor(FloorGuideLight.Difficult);  // paars = moeilijk
 guide.Pulse();                              // een paar keer oplichten in de huidige kleur
+guide.Pulse(0.8f);                          // zachte puls
+guide.SetColor(FloorGuideLight.Failed);     // rood (mislukt)
 guide.SetNeutral();                         // standaard: zwak neutraal wit
 guide.SetColor(Color.black);                // uit
 ```
