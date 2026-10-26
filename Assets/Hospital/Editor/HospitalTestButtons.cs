@@ -68,7 +68,7 @@ namespace ProCommVR.Editor
         public override void OnInspectorGUI()
         {
             var ear = (EarGrow)target;
-            TestButtons.Draw(this, false, ($"Grow ({_seconds:0} s)", () => ear.Grow(_seconds)), ("Reset", ear.Reset));
+            TestButtons.Draw(this, false, ($"Grow ({_seconds:0} s)", () => ear.Grow(_seconds)), ("Reset", ear.ResetEar));
             _seconds = EditorGUILayout.Slider("Test: seconden", _seconds, 0.5f, 20f);
         }
     }

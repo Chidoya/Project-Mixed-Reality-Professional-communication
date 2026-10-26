@@ -49,8 +49,8 @@ namespace ProCommVR.Hospital
             _time = 0f;
         }
 
-        /// <summary>Oor terug op schaal 1, krant terug omhoog. (Ook Unity's Reset-bericht in de editor: dan gebeurt er niets.)</summary>
-        public void Reset()
+        /// <summary>Oor terug op schaal 1, krant terug omhoog. (Niet "Reset": dat roept Unity zelf aan in de editor.)</summary>
+        public void ResetEar()
         {
             _time = -1f;
             _amount = 0f;

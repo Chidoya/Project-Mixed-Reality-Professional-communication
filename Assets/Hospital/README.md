@@ -100,7 +100,7 @@ Getest in Play mode (editor), niet op de Quest 3.
 | --- | --- | --- |
 | `ItemSpots` | Een object verspringt tussen benoemde plekken (lege objecten); het houdt zijn rotatie ten opzichte van de plek. | `MoveTo(int)`, `MoveTo("Spot_Windowsill")`, `Next()`, event `Moved` |
 | `RoomTint` | Het bestaande licht van een kamer langzaam dimmen (30 %), opwarmen (warm oranje, 85 %) of terugzetten, in 3 s. Geen extra lichtbronnen; zonder lijst neemt hij alle lichten onder zijn object. | `Dim()`, `Warm()`, `Restore()` |
-| `EarGrow` | Op een Humanoid-personage: een klein oor ("Ear_Grow", huidskleur) aan het hoofdbot groeit van schaal 1 naar 2,5 en de krant zakt 25 cm en kantelt. Rechteroor standaard (instelbaar). | `Grow(seconds)`, `Reset()` |
+| `EarGrow` | Op een Humanoid-personage: een klein oor ("Ear_Grow", huidskleur) aan het hoofdbot groeit van schaal 1 naar 2,5 en de krant zakt 25 cm en kantelt. Rechteroor standaard (instelbaar). | `Grow(seconds)`, `ResetEar()` |
 | `MonitorScreen` | Lopende hartslaglijn (LineRenderer) op het `Screen`-vlak. Alarm: rode lijn, 130 bpm, scherm knippert rood met een piep (AudioClip in code, 3D). | `SetAlarm(bool)` |
 | `PassingCart` | Een kar rijdt over een pad van punten (bv. door de gang), draait enkel rond de wereld-y. | `Play()`, `Stop()`, `ResetToStart()` |
 
@@ -118,8 +118,8 @@ met `PassingCart`, elk met een `Path_*` vol waypoints).
 Aandachtspunten voor het koppelen:
 - **RoomTint en Jalils `MoodRoomLight`** sturen allebei het kamerlicht. Niet tegelijk op hetzelfde licht laten werken,
   of RoomTint pas starten nadat de mood gezet is (RoomTint onthoudt de beginstand bij Awake).
-- **EarGrow.Reset()** is ook de naam van Unity's editorbericht `Reset`; dat doet dan niets zolang het oor nog niet bestaat.
-  Het oor wordt pas gemaakt bij Awake (Play mode) of bij de eerste `Grow`.
+- **EarGrow.ResetEar()** heet bewust niet `Reset()`: die naam roept Unity zelf aan als je het component in de editor
+  toevoegt of reset. Het oor wordt pas gemaakt bij Awake (Play mode) of bij de eerste `Grow`.
 - **PassingCart, vooruit**: de lokale as van de prop-root. Voor de props is lokaal voorkant (0, -1, 0), boven (0, 0, -1)
   en Blender +X = (1, 0, 0). Supply_Cart rijdt met het handvat achteraan: (-1, 0, 0). Gurney met het hoofdeinde voorop: (1, 0, 0).
 - **Props op wereldposities, enkel rond de wereld-y draaien** (zie hierboven). De krant van de buurman zit in een eigen
