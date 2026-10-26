@@ -196,6 +196,14 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   Getest: batchmode compile-check en Play mode smoke tests met de XR-simulator
   (`RunShiftLoop`, `RunShiftTimeout`, `RunScenario01Mood`, alle drie geslaagd).
   Nog niet getest op de Quest 3 of via Quest Link, overvloeien van het geluid niet beluisterd.
+- 2026-10-25: PR #15 (Scenario 2, de boze dochter in de gang van verdieping 3) is rechtstreeks in `main` gemerged,
+  niet in `jalil`. `origin/jalil` staat nog op PR #13. Kamer 2B is sinds Scenario 2 weer een kamer van Liam.
+- 2026-10-26: Scenario 3 (de arts en de familie) gebouwd op `feature/jalil/scenario03-doctor-family`, op aanvraag van
+  Jalil gestart vanaf de Scenario 2-commit `b594ba1` (optie B), omdat `jalil` Scenario 2 nog niet bevat. Taak 3 speelt aan
+  de verpleegpost van verdieping 2 met kamer 2C als bureau van de arts; kamer 2A is weer van Liam. Nieuw en herbruikbaar:
+  mood per antwoord, een toeschouwer (`BystanderSpeech`), `NpcAttention`, `BusyNpc` en `FacePlayer`. Getest: batchmode
+  compile-check en Play mode smoke tests met de XR-simulator (alle bestaande plus `RunScenario03Good`/`Poor`). Nog niet
+  getest op de Quest 3 of via Quest Link. Tekst, scores en reacties door Claude geschreven, nog na te kijken.
 
 
 ## Beslissingen
@@ -218,6 +226,10 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-10-20 | Patiënt in de shift zit op een stoel naast het bed, niet op de bedrand (wijkt af van 2026-10-19) | De zitanimatie verwacht ongeveer 0,45 m zithoogte; de matras ligt op 0,66 m met bedhekken tot 0,83 m |
 | 2026-10-20 | Interne `PatientId` per `ShiftTask`, op het scherm blijft het "Patient X" | Mood, voortgang en latere content per patiënt gescheiden houden zonder namen te tonen |
 | 2026-10-20 | Geluid per mood via een aparte `MoodAudio`, die de mood enkel leest | `MoodController` blijft pure data; een nieuw geluid is enkel een clip in het mood-profiel, zonder code |
+| 2026-10-26 | Scenario 3 tot 5 op gestapelde branches vanaf `b594ba1`, elk met een eigen PR naar `jalil` | `jalil` bevat Scenario 2 niet; zo kan een probleem in een later scenario een eerder niet breken (keuze van Jalil) |
+| 2026-10-26 | Taakindeling: 1A (S1), gang 3 (S2), verpleegpost 2 + bureau 2C (S3), 1B (S4), 1C (S5); 2A terug naar Liam | Scenario 3 heeft een verpleegpost en een werkplek van de arts nodig; elk scenario op een eigen plek |
+| 2026-10-26 | Mood na een keuze als optioneel veld van de optie (`Changes Mood`, `Mood After`), geen nieuw systeem | De bron laat de sfeer veranderen na de keuze (S3 opgelost, S4 paars naar blauw, S5 alarm); bordje, licht en geluid volgen vanzelf |
+| 2026-10-26 | Drukke arts zonder navigatie-AI: een vaste ronde en een bureau (`BusyNpc`) | Volstaat voor de bron ("de arts vinden op een bereikbaar moment"), voorspelbaar en testbaar |
 
 
 ## Open vragen
