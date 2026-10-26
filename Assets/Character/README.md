@@ -18,7 +18,7 @@ Ze staan nog in geen enkele scene.
 
 | Personage | Uiterlijk | Lengte | Driehoeken | Voor |
 | --- | --- | --- | --- | --- |
-| `Visitor_Daughter` | vrouw ca. 35, jeans, rood vest over een crème hemd, witte sneakers, bruine handtas aan de linkeronderarm | 1,68 m | 546 | de dochter (Scenario 2) |
+| `Visitor_Daughter` | vrouw ca. 35, jeans, rood vest over een crème hemd, witte sneakers, bruine schoudertas links | 1,68 m | 546 | de dochter (Scenario 2) |
 | `Visitor_Son` | man ca. 40, chino, groene trui | 1,82 m | 470 | de zoon (Scenario 3) |
 | `Visitor_Wife` | oudere vrouw, pruimkleurige rok, lila blouse, blauw gilet, zilvergrijs haar | 1,62 m | 606 | de vrouw (Scenario 4) |
 | `Porter` | man, donkerblauw uniform met lange broek, naamkaartje | 1,80 m | 482 | portier (bv. bij de Gurney) |
@@ -27,8 +27,8 @@ Ze staan nog in geen enkele scene.
 kunnen vervangen worden door deze prefabs. Ze hebben dezelfde controller-states, dus `CharacterPose`, `NpcReactor`
 en de Animator-states blijven werken.
 
-Bekend: de handtas van `Visitor_Daughter` zit vast aan de onderarm. In een pose met hangende armen (Idle) staat ze
-schuin tegen het dijbeen; zittend ligt ze op de schoot.
+De schoudertas van `Visitor_Daughter` (tas naast de linkerheup, riem over de linkerschouder) hangt aan de romp
+(Spine-botten), dus ze beweegt mee met het bovenlichaam en niet met de arm of het been.
 
 Enkel bepaalde personages opnieuw klaarzetten (de andere blijven onaangeroerd):
 `Unity -batchmode -executeMethod ProCommVR.Editor.CharacterSetup.RunBatch -characters Visitor_Daughter,Porter`.
