@@ -85,6 +85,45 @@ Goed om te weten bij het plaatsen:
 | `CharacterPose` | Start een Animator-state (Sitting, Laying, ...) |
 | `WallClock` | Wijzers op de echte tijd; `SetTime(DateTime)` voor een vaste tijd |
 | `FloorGuideLight` | Kleur en puls van een lichtstrook in de gang |
+| `ItemSpots`, `RoomTint`, `EarGrow`, `MonitorScreen`, `PassingCart` | Losse stukken voor de 360°-afleidingen, zie hieronder |
+
+## Losse stukken voor de 360°-afleidingen
+
+Liam bouwt de stukken, Jalil koppelt ze aan zijn scenario's. Ze zitten niet in de kamers die Jalil gebruikt
+(1A, 1B, 1C, 2C, gang van verdieping 3, verpleegpost verdieping 2), maar in de testscene
+`Assets/Scenes/liam_props_test.unity` en in prefabs. **ProCommVR > Hospital > Build Props Test**
+(`Editor/HospitalBuilder.PropsTest.cs`) bouwt de testscene en de prefabs opnieuw (vereist een eerdere Hospital > Build).
+Elk script heeft **testknoppen in de Inspector** (`Editor/HospitalTestButtons.cs`); behalve bij ItemSpots enkel in Play mode.
+Getest in Play mode (editor), niet op de Quest 3.
+
+| Stuk | Wat | Aanroepen |
+| --- | --- | --- |
+| `ItemSpots` | Een object verspringt tussen benoemde plekken (lege objecten); het houdt zijn rotatie ten opzichte van de plek. | `MoveTo(int)`, `MoveTo("Spot_Windowsill")`, `Next()`, event `Moved` |
+| `RoomTint` | Het bestaande licht van een kamer langzaam dimmen (30 %), opwarmen (warm oranje, 85 %) of terugzetten, in 3 s. Geen extra lichtbronnen; zonder lijst neemt hij alle lichten onder zijn object. | `Dim()`, `Warm()`, `Restore()` |
+| `EarGrow` | Op een Humanoid-personage: een klein oor ("Ear_Grow", huidskleur) aan het hoofdbot groeit van schaal 1 naar 2,5 en de krant zakt 25 cm en kantelt. Rechteroor standaard (instelbaar). | `Grow(seconds)`, `Reset()` |
+| `MonitorScreen` | Lopende hartslaglijn (LineRenderer) op het `Screen`-vlak. Alarm: rode lijn, 130 bpm, scherm knippert rood met een piep (AudioClip in code, 3D). | `SetAlarm(bool)` |
+| `PassingCart` | Een kar rijdt over een pad van punten (bv. door de gang), draait enkel rond de wereld-y. | `Play()`, `Stop()`, `ResetToStart()` |
+
+Prefabs (`Prefabs/`):
+- `Case1_Props.prefab`: in de ruimte van een `PatientRoom` (zet hem als kind van een `Room_*` op lokale positie 0). Tafel
+  aan de linkermuur met `Lunch_Tray` en `Birthday_Card`, `Photo_Frame` aan de muur erboven, `Water_Glass` op het
+  nachtkastje, en de `Pill_Blister` met `ItemSpots` tussen `Spot_Tray`, `Spot_Nightstand` en `Spot_Windowsill`.
+- `Vitals_Monitor_Live.prefab`: variant van de `Vitals_Monitor` met `MonitorScreen` en een AudioSource; lijnmateriaal
+  `Materials/MonitorLine.mat` (URP Particles/Unlit, vertexkleur).
+
+In de testscene: `Room_Case1` (Case1_Props, RoomTint, monitor), `Room_Case5` (de buurman `Patient_Male_Old` zittend op de
+stoel met een krant in `NewspaperHolder`, `EarGrow`, een `Wall_TV` tegenover hem) en `Corridor` (`Supply_Cart` en `Gurney`
+met `PassingCart`, elk met een `Path_*` vol waypoints).
+
+Aandachtspunten voor het koppelen:
+- **RoomTint en Jalils `MoodRoomLight`** sturen allebei het kamerlicht. Niet tegelijk op hetzelfde licht laten werken,
+  of RoomTint pas starten nadat de mood gezet is (RoomTint onthoudt de beginstand bij Awake).
+- **EarGrow.Reset()** is ook de naam van Unity's editorbericht `Reset`; dat doet dan niets zolang het oor nog niet bestaat.
+  Het oor wordt pas gemaakt bij Awake (Play mode) of bij de eerste `Grow`.
+- **PassingCart, vooruit**: de lokale as van de prop-root. Voor de props is lokaal voorkant (0, -1, 0), boven (0, 0, -1)
+  en Blender +X = (1, 0, 0). Supply_Cart rijdt met het handvat achteraan: (-1, 0, 0). Gurney met het hoofdeinde voorop: (1, 0, 0).
+- **Props op wereldposities, enkel rond de wereld-y draaien** (zie hierboven). De krant van de buurman zit in een eigen
+  houder (`NewspaperHolder`) die kantelt; de prop zelf houdt zijn rotatie.
 
 ## Screenshots (`docs/Screenshots/`)
 
