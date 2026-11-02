@@ -281,7 +281,11 @@ namespace ProCommVR.Editor
             StopSamplingKeepRoots();
         }
 
-        /// <summary>Stopt AnimationMode, maar houdt de positie en rotatie van elk personage zoals ze nu zijn.</summary>
+        /// <summary>
+        /// Stopt AnimationMode, maar houdt de positie en rotatie van elk personage zoals ze nu zijn.
+        /// De roots worden daarna expliciet als override van hun prefab-instantie vastgelegd: een wijziging tijdens
+        /// AnimationMode telt als preview, en zonder deze stap kan de opgeslagen scene de personages op (0, 0, 0) zetten.
+        /// </summary>
         private static void StopSamplingKeepRoots()
         {
             if (!AnimationMode.InAnimationMode())
@@ -290,7 +294,12 @@ namespace ProCommVR.Editor
                 .Select(p => (p.transform, p.transform.position, p.transform.rotation)).ToList();
             AnimationMode.StopAnimationMode();
             foreach (var (t, position, rotation) in roots)
+            {
                 t.SetPositionAndRotation(position, rotation);
+                if (PrefabUtility.IsPartOfPrefabInstance(t))
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(t);
+                EditorUtility.SetDirty(t);
+            }
         }
 
         /// <summary>

@@ -1,0 +1,196 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &420443740914511872
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.85
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 3.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071067
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3709085722205057303, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4049441386870680493, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      propertyPath: m_Name
+      value: Vitals_Monitor_Live
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4049441386870680493, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8296069379711785057}
+    - targetCorrespondingSourceObject: {fileID: 4049441386870680493, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5732772756815799746}
+  m_SourcePrefab: {fileID: 100100000, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+--- !u!1 &4460593494281411501 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4049441386870680493, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+  m_PrefabInstance: {fileID: 420443740914511872}
+  m_PrefabAsset: {fileID: 0}
+--- !u!82 &8296069379711785057
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4460593494281411501}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 8
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &5732772756815799746
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4460593494281411501}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e158e80d332a44c4fb2a05988d1b9d31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.MonitorScreen
+  _screen: {fileID: 6626730552508908577}
+  _lineMaterial: {fileID: 2100000, guid: 4927b09de740a79419f5be235a08220a, type: 2}
+  _points: 80
+  _lineWidth: 0.004
+  _bpm: 72
+  _alarmBpm: 130
+  _sweepSeconds: 3
+  _normalColor: {r: 0.2, g: 1, b: 0.35, a: 1}
+  _alarmColor: {r: 1, g: 0.15, b: 0.1, a: 1}
+  _alarmScreenColor: {r: 0.45, g: 0.02, b: 0.02, a: 1}
+  _blinkInterval: 0.5
+  _beepFrequency: 960
+--- !u!23 &6626730552508908577 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 6783361160146809889, guid: e37938cd9dd44b84abff9fefffa1d852, type: 3}
+  m_PrefabInstance: {fileID: 420443740914511872}
+  m_PrefabAsset: {fileID: 0}

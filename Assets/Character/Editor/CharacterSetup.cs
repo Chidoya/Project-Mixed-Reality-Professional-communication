@@ -36,12 +36,15 @@ namespace ProCommVR.Editor
         };
 
         [MenuItem("ProCommVR/Characters/Setup")]
-        public static void Setup()
+        public static void Setup() => Setup(null);
+
+        /// <summary>Enkel de personages in `only` (null = allemaal); de andere blijven onaangeroerd.</summary>
+        public static void Setup(ICollection<string> only)
         {
             var clips = ImportAnimationClips();
             var prefabs = new List<GameObject>();
 
-            foreach (var fbxPath in FindCharacterModels())
+            foreach (var fbxPath in FindCharacterModels().Where(p => only == null || only.Contains(Path.GetFileNameWithoutExtension(p))))
             {
                 var name = Path.GetFileNameWithoutExtension(fbxPath);
                 ConfigureModelImporter(fbxPath);
@@ -57,12 +60,17 @@ namespace ProCommVR.Editor
                       $"({string.Join(", ", clips.Keys)}).");
         }
 
-        /// <summary>Voor de command line: Unity -batchmode -executeMethod ProCommVR.Editor.CharacterSetup.RunBatch</summary>
+        /// <summary>
+        /// Voor de command line: Unity -batchmode -executeMethod ProCommVR.Editor.CharacterSetup.RunBatch
+        /// [-characters Naam1,Naam2] om enkel die personages klaar te zetten.
+        /// </summary>
         public static void RunBatch()
         {
             try
             {
-                Setup();
+                var args = System.Environment.GetCommandLineArgs();
+                var index = System.Array.IndexOf(args, "-characters");
+                Setup(index >= 0 && index + 1 < args.Length ? args[index + 1].Split(',') : null);
                 EditorApplication.Exit(0);
             }
             catch (System.Exception e)

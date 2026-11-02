@@ -15,5 +15,5 @@ Recognised file names (spaces and case are ignored):
 | Angry.fbx | Angry |
 | Crying.fbx | Crying |
 
-Then run **ProCommVR > Characters > Setup** in Unity. All 14 characters share these clips
+Then run **ProCommVR > Characters > Setup** in Unity. All 18 characters share these clips
 through Humanoid retargeting.
