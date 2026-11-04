@@ -129,3 +129,19 @@ Aandachtspunten voor het koppelen:
 
 `hospital_lobby_staff_station.png` (de post) en `hospital_guide_lights_floor1.png` (1A groen, 1B neutraal, 1C paars),
 naast de bestaande screenshots van de lobby, de gang en de kamers.
+
+## U-afdeling (voor later): `Assets/Scenes/liam_u_afdeling.unity`
+
+Een tweede, realistischere afdeling naast de testscene: één verdieping in U-vorm (42 x 28 m) met 15 patiëntkamers,
+een kern (balie, briefing, toiletten, rustruimte, medicatiekamer) en dichte liften en trap. Gebouwd door
+**ProCommVR > Hospital > Build U-Afdeling** (`Editor/UWard/`, maten in `docs/Plattegrond/maten.md`).
+Kamerprefabs in `Prefabs/UWard/`; `PatientRoom.prefab` en `liam_test_scene` blijven ongewijzigd.
+
+Jalils shift gebruikt nog de testscene. Welke namen hetzelfde zijn en wat anders is: `docs/Plattegrond/namen.md`.
+Nieuw script: `Scripts/LockedDoor.cs` (markeert een dichte deur of lift met de reden). Op de Quest krijgt elk object
+maar 4 extra lichten (Mobile_Renderer, Forward), daarom zijn vloer, plafond en lange muren in stukken van max. 6 m gedeeld.
+
+`Scripts/EditorPosePreview.cs` toont de personages in edit mode in hun houding (Laying, Sitting, Idle) in plaats van de
+T-pose; in Play mode neemt de Animator het over. Controles op de opgeslagen scene (deuren in hun opening en naar binnen
+draaiend, sanitair en nachtkastjes juist gedraaid, personeel 0,8 m van de muren, houding van de patiënten in Play mode):
+**Window > General > Test Runner > EditMode > ProCommVR.Editor.Tests.UWardSceneTests** (`Editor/UWard/Tests/`).
