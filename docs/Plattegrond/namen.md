@@ -31,8 +31,9 @@ Enkel ter info: Jalils shift gebruikt nog altijd `liam_test_scene`. Overstappen 
 | --- | --- |
 | `Floor2/NurseStation` | leeg object in de onderste gang, voor scenario 3 (forward = naar de muur) |
 | `Lobby/XROriginStart` | startplek van de speler, 1,3 m voor de balie aan de bezoekerskant, kijkend naar de balie |
-| `Teleport/TeleportArea_*` | dunne BoxCollider per vloer (hal, 3 gangen, briefing, rustruimte, 15 kamers), zonder XRI-component |
-| `Core/BriefingRoom/Screen`, `Whiteboard` | briefingruimte met tafel en 8 stoelen |
+| `Teleport/TeleportArea_*` | dunne BoxCollider per vloer (hal, 3 gangen, briefing, gesprekskamer, rustruimte, 15 kamers), zonder XRI-component |
+| `Core/BriefingRoom/Screen`, `Whiteboard` | briefingruimte met tafel en 8 stoelen (plan v8: y 12,6..19,6, `Door_Briefing_Hall` op y 14..15) |
+| `Core/FamilyRoom` + `Light`, `Furniture/*`, `Painting`, `Sign_FamilyRoom` | gesprekskamer (plan v8, y 8,0..12,6) voor scenario 2: warm licht dat `Light` heet, zoals in de kamers. Deuren `Core/Door_FamilyRoom_Hall` en `Core/Door_FamilyRoom_Corridor` (gang rechts). Bord met pictogram aan de gangkant |
 | `Core/Door_Stairwell`, `Lobby/Lift/Lift_1`, `Lift_2` | dicht, met collider en `LockedDoor` (reden voor de speler) |
 
 ## Anders of ontbreekt

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace ProCommVR.Editor
 {
     /// <summary>
-    /// Alle maten van de U-afdeling (docs/Plattegrond/maten.md, versie 7) in plancoördinaten:
+    /// Alle maten van de U-afdeling (docs/Plattegrond/maten.md, versie 8) in plancoördinaten:
     /// x van links naar rechts (0..42), y van boven naar onder (0..28), in meter.
     /// Omrekenen naar Unity: X = x - 21, Z = 14 - y (de bovenkant van het plan is +Z).
     /// </summary>
@@ -269,6 +269,8 @@ namespace ProCommVR.Editor
         // --- Kern ---------------------------------------------------------------------
         public static readonly PlanRect Core = new PlanRect(8.4f, 0f, 33.6f, 19.6f);
         public const float ToiletSplitY = 4.6f;
+        // Versie 8: de oude briefingruimte (y 8,0..19,6) is gesplitst in de gesprekskamer (boven) en de briefingruimte (onder)
+        public const float FamilyRoomSplitY = 12.6f;
         public static readonly CoreRoomSpec[] CoreRooms =
         {
             new CoreRoomSpec("Stairwell", "Core", new PlanRect(8.4f, 0f, 17.0f, 7.0f)),
@@ -278,7 +280,8 @@ namespace ProCommVR.Editor
             // Afwijking van maten.md (scheiding op y 4,0): op y 4,6, zodat de herendeur vrij van de voormuur van de liften ligt
             new CoreRoomSpec("Toilet_Men", "Core", new PlanRect(25.0f, 0f, 33.6f, ToiletSplitY)),
             new CoreRoomSpec("Toilet_Women", "Core", new PlanRect(25.0f, ToiletSplitY, 33.6f, 8.0f)),
-            new CoreRoomSpec("BriefingRoom", "Core", new PlanRect(25.0f, 8.0f, 33.6f, 19.6f)),
+            new CoreRoomSpec("FamilyRoom", "Core", new PlanRect(25.0f, 8.0f, 33.6f, FamilyRoomSplitY)),
+            new CoreRoomSpec("BriefingRoom", "Core", new PlanRect(25.0f, FamilyRoomSplitY, 33.6f, 19.6f)),
         };
 
         // Hal: liften (fase 4), balie (fase 3)
@@ -337,6 +340,7 @@ namespace ProCommVR.Editor
             yield return new WallSpec("Wall_RestRoom_South", "Core", Segment.H(13.3f, 8.4f, 17.0f), InnerWall);
             yield return new WallSpec("Wall_ToiletMen_South", "Core", Segment.H(ToiletSplitY, 25.0f, 33.6f), InnerWall);
             yield return new WallSpec("Wall_ToiletWomen_South", "Core", Segment.H(8.0f, 25.0f, 33.6f), InnerWall);
+            yield return new WallSpec("Wall_FamilyRoom_South", "Core", Segment.H(FamilyRoomSplitY, 25.0f, 33.6f), InnerWall);
         }
 
         /// <summary>Accentstreep in de kleur van de zone, aan de gangkant van de kamermuren (onderbroken door de deuren).</summary>
@@ -359,6 +363,8 @@ namespace ProCommVR.Editor
         /// Deuren van de kern (1,0 m, de trap 1,2 m, de toiletten 0,8 m), vrij gekozen waar maten.md enkel "deur naar de hal"
         /// zegt. Alle deuren draaien de ruimte in. De toiletdeuren zitten in een vlakke muur: de herendeur 45 cm onder de
         /// voormuur van de liften (die loopt tot y 3,05), de damesdeur op het midden uit Liams plan (y 7,05).
+        /// Versie 8: de gesprekskamer krijgt de oude halldeur van de briefingruimte (y 9..10) en een deur naar de gang rechts;
+        /// de halldeur van de briefingruimte schuift naar y 14..15.
         /// </summary>
         public static readonly OpeningSpec[] CoreDoors =
         {
@@ -367,7 +373,9 @@ namespace ProCommVR.Editor
             new OpeningSpec("Door_MedicationRoom", OpeningKind.Door, Segment.V(17.0f, 14.0f, 15.0f), 0f, DoorHeight, IntoWest),
             new OpeningSpec("Door_Toilet_Men", OpeningKind.Door, Segment.V(25.0f, 3.5f, 4.3f), 0f, DoorHeight, IntoEast),
             new OpeningSpec("Door_Toilet_Women", OpeningKind.Door, Segment.V(25.0f, 6.65f, 7.45f), 0f, DoorHeight, IntoEast),
-            new OpeningSpec("Door_Briefing_Hall", OpeningKind.Door, Segment.V(25.0f, 9.0f, 10.0f), 0f, DoorHeight, IntoEast),
+            new OpeningSpec("Door_FamilyRoom_Hall", OpeningKind.Door, Segment.V(25.0f, 9.0f, 10.0f), 0f, DoorHeight, IntoEast),
+            new OpeningSpec("Door_FamilyRoom_Corridor", OpeningKind.Door, Segment.V(33.6f, 9.5f, 10.5f), 0f, DoorHeight, IntoWest),
+            new OpeningSpec("Door_Briefing_Hall", OpeningKind.Door, Segment.V(25.0f, 14.0f, 15.0f), 0f, DoorHeight, IntoEast),
             new OpeningSpec("Door_Briefing_Corridor", OpeningKind.Door, Segment.H(19.6f, 30.5f, 31.5f), 0f, DoorHeight, IntoNorth),
         };
 

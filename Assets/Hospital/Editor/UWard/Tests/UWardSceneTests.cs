@@ -189,6 +189,72 @@ namespace ProCommVR.Editor.Tests
             Assert.IsEmpty(failures, "Verkeerd gedraaid: " + string.Join(", ", failures));
         }
 
+        // --- Versie 8: gesprekskamer en toiletten ------------------------------------------------------
+
+        private const string ToiletReferencePath = "Assets/Hospital/Editor/UWard/Tests/UWardToiletReference.txt";
+
+        /// <summary>
+        /// De toiletten (deuren, bordjes, inrichting, muren en de fauteuils ertussen) staan exact zoals op origin/Liam vóór
+        /// versie 8: zelfde regels als UWardToiletReference.txt (momentopname van UWardToiletSnapshot, mm nauwkeurig).
+        /// </summary>
+        [Test]
+        public void ToiletsUnchanged()
+        {
+            var reference = System.IO.File.ReadAllLines(ToiletReferencePath).Where(l => l.Length > 0).ToList();
+            var now = UWardToiletSnapshot.Lines();
+            var missing = reference.Except(now).ToList();
+            var extra = now.Except(reference).ToList();
+            foreach (var line in missing)
+                Row("Toiletten ongewijzigd", "verdwenen of verschoven", line, false);
+            foreach (var line in extra)
+                Row("Toiletten ongewijzigd", "nieuw of verschoven", line, false);
+            Row("Toiletten ongewijzigd", "alles", $"{reference.Count} regels vergeleken", missing.Count == 0 && extra.Count == 0);
+            Assert.IsTrue(missing.Count == 0 && extra.Count == 0,
+                $"Toiletten gewijzigd: {missing.Count} regels verdwenen, {extra.Count} nieuw (zie [UWardCheck] in de log).");
+        }
+
+        /// <summary>
+        /// Gesprekskamer volgens versie 8: de objecten die Jalil opzoekt (Light, deuren, teleportzone), warm licht, en een vrije
+        /// doorgang van de gangdeur de kamer in (plan y 10, van x 33,6 tot 31,2) op knie- en borsthoogte.
+        /// </summary>
+        [Test]
+        public void FamilyRoomAsInPlanV8()
+        {
+            var failures = new List<string>();
+            void Check(string item, bool ok, string detail)
+            {
+                Row("Gesprekskamer v8", item, detail, ok);
+                if (!ok)
+                    failures.Add(item);
+            }
+
+            var room = Root.Find("Core/FamilyRoom");
+            Check("Core/FamilyRoom", room != null, room != null ? "gevonden" : "ontbreekt");
+            if (room == null)
+            {
+                Assert.Fail("Core/FamilyRoom ontbreekt");
+                return;
+            }
+            var light = room.Find("Light")?.GetComponent<Light>();
+            Check("Core/FamilyRoom/Light", light != null && light.shadows == LightShadows.None && light.color.r > light.color.b,
+                light == null ? "ontbreekt" : $"kleur {light.color}, schaduw {light.shadows}");
+            foreach (var path in new[] { "Core/Door_FamilyRoom_Hall", "Core/Door_FamilyRoom_Corridor", "Core/Wall_FamilyRoom_South",
+                         "Teleport/TeleportArea_FamilyRoom", "Core/FamilyRoom/Sign_FamilyRoom", "Core/FamilyRoom/Painting" })
+                Check(path, Root.Find(path) != null, Root.Find(path) != null ? "gevonden" : "ontbreekt");
+            foreach (var item in new[] { "Sofa", "Armchair_1", "Armchair_2", "CoffeeTable", "Tissue_Box", "Dresser", "Plant" })
+                Check($"Furniture/{item}", room.Find($"Furniture/{item}") != null, room.Find($"Furniture/{item}") != null ? "gevonden" : "ontbreekt");
+
+            Physics.SyncTransforms();
+            foreach (var height in new[] { 0.5f, 1.2f })
+            {
+                var from = ToUnity(33.6f - InnerWall, 10.0f, height);
+                var to = ToUnity(31.2f, 10.2f, height);
+                var hit = Physics.Linecast(from, to, out var info);
+                Check($"doorgang gangdeur, {height:0.0} m", !hit, hit ? $"geraakt: {info.collider.name}" : "vrij tot (31,2 / 10,2)");
+            }
+            Assert.IsEmpty(failures, "Gesprekskamer: " + string.Join(", ", failures));
+        }
+
         // --- Personeel ------------------------------------------------------------------------------
 
         [Test]

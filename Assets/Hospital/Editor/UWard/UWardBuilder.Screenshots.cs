@@ -26,7 +26,7 @@ namespace ProCommVR.Editor
                 Vector3.SignedAngle(menDoor.right, menDoor.forward, Vector3.up));
             PlanShot("fix_toilet_door_open", men.Center + new Vector2(-2.6f, 1.4f), men.Center + new Vector2(1.2f, -0.6f), 1.0f);
             menDoor.SetPositionAndRotation(position, rotation);
-            PlanShot("fix_briefing_door_hall", new Vector2(22.6f, 11.2f), new Vector2(25f, 9.5f));
+            PlanShot("fix_briefing_door_hall", new Vector2(23.9f, 12.4f), new Vector2(25f, 14.5f));
             PlanShot("fix_briefing_door_corridor", new Vector2(29.6f, 21.4f), new Vector2(31f, 19.6f));
 
             foreach (var id in new[] { "1B", "2B", "3B" })

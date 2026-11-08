@@ -337,6 +337,7 @@ namespace ProCommVR.Editor
             Area("CorridorRight", Inner(new PlanRect(CorridorRight.X0, CorridorRight.Y0, CorridorRight.X1, CorridorBottom.Y0)));
             Area("CorridorBottom", Inner(CorridorBottom));
             Area("BriefingRoom", Inner(CoreRoom("BriefingRoom")));
+            Area("FamilyRoom", Inner(CoreRoom("FamilyRoom")));
             Area("RestRoom", Inner(CoreRoom("RestRoom")));
             foreach (var room in PatientRooms)
                 Area($"Room_{room.Id}", Inner(room.Rect));

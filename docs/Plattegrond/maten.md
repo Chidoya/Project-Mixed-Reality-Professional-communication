@@ -7,8 +7,12 @@ Bewuste afwijking: de scheiding tussen toilet man en toilet vrouw ligt op y 4,6 
 mannentoilet (y 3,5..4,3) in een vlakke muur, 45 cm vrij van de voormuur van de liften. De deur van het vrouwentoilet
 ligt op y 6,65..7,45.
 
+Versie 8 (2026-11-08, voor scenario 2): enkel de kern rechts verandert. De oude briefingruimte is gesplitst in een
+gesprekskamer (boven) en een kleinere briefingruimte (onder). De toiletten blijven zoals ze zijn; waar de svg en de scene
+verschillen, wint de scene (`UWardLayout.cs`).
+
 ```text
-U-AFDELING, versie 7. Eenheid: meter. 1 Unity-unit = 1 m. Plafond 3,0 m.
+U-AFDELING, versie 8 (versie 7 + de gesprekskamer). Eenheid: meter. 1 Unity-unit = 1 m. Plafond 3,0 m.
 Plancoördinaten: x van links naar rechts (0..42), y van boven naar onder (0..28).
 Omrekenen naar Unity: X = x - 21, Z = 14 - y (de bovenkant van het plan is +Z).
 Buitenmuren 0,25 m dik, binnenmuren 0,16 m. Vloer op Y = 0.
@@ -53,6 +57,11 @@ KERN (midden, tegen de bovenmuur, x 8,4..33,6, y 0..19,6)
     - wachtstoelen langs de wanden onder de liften
 - Toilet man        x 25,0..33,6 y 0..4,0     deur naar de hal
 - Toilet vrouw      x 25,0..33,6 y 4,0..8,0   deur naar de hal
-- Briefingruimte    x 25,0..33,6 y 8,0..19,6  tafel 4,6 x 1,8 m met 8 stoelen, scherm aan de rechtermuur.
-                    Deuren naar de hal (y 9..10) en naar de gang onder (x 30,5..31,5)
+- Gesprekskamer     x 25,0..33,6 y 8,0..12,6   familiekamer, rustig en warm: zetel tegen de halmuur,
+                    2 fauteuils, lage ronde tafel, dressoir, plant, tissues, schilderij. Deuren naar de hal
+                    (muur x = 25, y 9,0..10,0, draait de kamer in) en naar de gang rechts
+                    (muur x = 33,6, y 9,5..10,5, draait de kamer in)
+- Briefingruimte    x 25,0..33,6 y 12,6..19,6  tafel 4,6 x 1,8 m met 8 stoelen, scherm aan de rechtermuur.
+                    Deuren naar de hal (muur x = 25, y 14,0..15,0) en naar de gang onder (x 30,5..31,5)
+- Nieuwe muur tussen de twee: y = 12,6, x 25,0..33,6 (binnenmuur 0,16 m)
 ```

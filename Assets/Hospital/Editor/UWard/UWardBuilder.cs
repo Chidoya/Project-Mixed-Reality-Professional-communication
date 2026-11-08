@@ -66,6 +66,7 @@ namespace ProCommVR.Editor
             TakeTopScreenshot(root);
             TakeRoomScreenshots(root);
             TakeCoreScreenshots();
+            TakeFamilyRoomScreenshots();
             TakeLiftScreenshots();
             TakeCharacterScreenshots(root);
             TakeFixScreenshots(root);
