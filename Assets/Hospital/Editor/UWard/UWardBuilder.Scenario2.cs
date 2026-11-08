@@ -219,6 +219,116 @@ namespace ProCommVR.Editor
             return AssetDatabase.LoadAssetAtPath<Texture2D>(GownPatternPath);
         }
 
+        // --- Plekken in de gang en de gesprekskamer (beelden 2 tot 5) ------------------------------
+
+        private const string Scenario2Path = "Scenarios/Scenario2_AngryDaughter";
+        private const string DaughterModel = "Visitor_Daughter";
+        private const string DaughterState = "Angry";
+        private const float CountdownRodThickness = 0.015f;
+        private static readonly Color AnchorColor = new Color(1f, 0.55f, 0.1f);
+        private static readonly Color WaypointColor = new Color(0.2f, 0.75f, 1f);
+
+        /// <summary>
+        /// Hospital/Scenarios/Scenario2_AngryDaughter met Anchors (lege objecten met ScenarioAnchor, waarden uit
+        /// UWardLayout.Scenario2Anchors) en Actors: Countdown_Mount (klokpaneel zonder script) en Blocker_Corridor (onzichtbare
+        /// BoxCollider over de breedte van de gang op de plek van de dochter; Jalil zet hem uit als ze wegloopt). De dochter zelf
+        /// komt in PlaceDaughter, tijdens het plaatsen van de personages.
+        /// </summary>
+        private static void BuildScenario2(Transform root)
+        {
+            var scenario = Child(Child(root, "Scenarios"), "Scenario2_AngryDaughter");
+            var anchors = Child(scenario, "Anchors");
+            var actors = Child(scenario, "Actors");
+
+            foreach (var spec in Scenario2Anchors)
+            {
+                var parent = anchors;
+                var name = spec.Name;
+                var slash = name.LastIndexOf('/');
+                if (slash >= 0)
+                {
+                    parent = Child(anchors, name.Substring(0, slash));
+                    name = name.Substring(slash + 1);
+                }
+                var go = new GameObject(name);
+                go.transform.SetParent(parent, false);
+                go.transform.SetPositionAndRotation(PlanPoint(spec.Plan, spec.Height),
+                    Quaternion.LookRotation(PlanDirection(Scenario2Facing(spec))));
+                go.AddComponent<ScenarioAnchor>().Configure(name.StartsWith("WP_") ? WaypointColor : AnchorColor, 0.1f);
+            }
+
+            // Klokpaneel: donker en leeg, met de voorkant naar de forward van Anchor_Countdown, aan twee staafjes tot het plafond
+            var countdown = Scenario2Anchor("Anchor_Countdown");
+            var mount = Child(actors, "Countdown_Mount");
+            mount.SetPositionAndRotation(PlanPoint(countdown.Plan, countdown.Height),
+                Quaternion.LookRotation(PlanDirection(Scenario2Facing(countdown))));
+            var size = CountdownPanelSize;
+            Box("Panel", mount, Vector3.zero, new Vector3(size.x, size.y, CountdownPanelDepth),
+                Mat("ScreenBlack", new Color(0.08f, 0.09f, 0.1f), 0f, 0.8f));
+            var rodBottom = size.y / 2f;
+            var rodLength = CeilingHeight - countdown.Height - rodBottom;
+            foreach (var (side, x) in new[] { ("L", -size.x * 0.35f), ("R", size.x * 0.35f) })
+                Box($"Rod_{side}", mount, new Vector3(x, rodBottom + rodLength / 2f, 0f),
+                    new Vector3(CountdownRodThickness, rodLength, CountdownRodThickness), MetalMat);
+            foreach (var c in mount.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c);
+
+            // Onzichtbare versperring over de hele breedte van de rechtergang, op de lijn van de dochter
+            var daughter = Scenario2Anchor("Anchor_Daughter_Corridor");
+            var x0 = CorridorRight.X0 + InnerWall / 2f;
+            var x1 = CorridorRight.X1 - InnerWall / 2f;
+            var blocker = new GameObject("Blocker_Corridor");
+            blocker.transform.SetParent(actors, false);
+            blocker.transform.position = PlanPoint(new Vector2((x0 + x1) / 2f, daughter.Y), BlockerHeight / 2f);
+            blocker.AddComponent<BoxCollider>().size = new Vector3(x1 - x0, BlockerHeight, BlockerDepth);
+        }
+
+        /// <summary>
+        /// Actors/Daughter: Visitor_Daughter op Anchor_Daughter_Corridor, pose Angry, met de voeten op de vloer (gemeten op een
+        /// kopie), een CapsuleCollider en EditorPosePreview. Niet static.
+        /// </summary>
+        private static void PlaceDaughter(Transform root)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{CharacterFolder}/{DaughterModel}/{DaughterModel}.prefab");
+            var actors = root.Find($"{Scenario2Path}/Actors");
+            var anchor = root.Find($"{Scenario2Path}/Anchors/Anchor_Daughter_Corridor");
+            if (prefab == null || actors == null || anchor == null)
+            {
+                Debug.LogWarning($"{LogPrefix}Dochter: {DaughterModel}, Actors of Anchor_Daughter_Corridor ontbreekt, overgeslagen.");
+                return;
+            }
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab, actors);
+            go.name = "Daughter";
+            go.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
+            go.AddComponent<CharacterPose>().Configure(DaughterState, 0f);
+            var probe = Probe(prefab, go.name);
+            probe.transform.SetPositionAndRotation(go.transform.position, go.transform.rotation);
+            if (SamplePose(probe, DaughterState, 0f))
+                go.transform.position += Vector3.up * (anchor.position.y - MinVertexY(probe));
+
+            var capsule = go.AddComponent<CapsuleCollider>();
+            capsule.radius = DaughterColliderRadius;
+            capsule.height = DaughterColliderHeight;
+            capsule.center = Vector3.up * (DaughterColliderHeight / 2f);
+        }
+
+        /// <summary>De gang vanuit Anchor_Player_Corridor, de gang vanuit het zuiden, en de gesprekskamer vanuit Anchor_Player_Room.</summary>
+        private static void TakeScenario2Screenshots(Transform root)
+        {
+            var anchors = root.Find($"{Scenario2Path}/Anchors");
+            if (anchors == null)
+                return;
+            Vector3 Eye(string name) => anchors.Find(name).position + Vector3.up * EyeHeight;
+            var player = anchors.Find("Anchor_Player_Corridor");
+            Shot("u_afdeling_s2_corridor_player.png", Eye("Anchor_Player_Corridor"),
+                Eye("Anchor_Player_Corridor") + player.forward * 4f + Vector3.down * 0.35f);
+            Shot("u_afdeling_s2_corridor_from_south.png", PlanPoint(new Vector2(34.8f, 12.5f), EyeHeight),
+                PlanPoint(Scenario2Anchor("Anchor_Daughter_Corridor").Plan, 1.2f));
+            var room = anchors.Find("Anchor_Player_Room");
+            Shot("u_afdeling_s2_familyroom_player.png", Eye("Anchor_Player_Room"),
+                Eye("Anchor_Player_Room") + room.forward * 3f + Vector3.down * 0.4f);
+        }
+
         // --- Screenshots -------------------------------------------------------------------------
 
         /// <summary>Camera's in kamer 3C: vanuit de deur naar bed 1, en dichtbij de vader. Ook gebruikt door de Play mode-test.</summary>

@@ -44,3 +44,34 @@ Enkel ter info: Jalils shift gebruikt nog altijd `liam_test_scene`. Overstappen 
 | `Room_*/Wall_Back` | bestaat niet: de muren zijn gedeeld en staan onder `Structure`, `FloorN` en `Core` |
 | `FloorN/Wall_South` (de gangmuur tegenover de deuren) | bestaat niet: tegenover de deuren staan de muren van de kern (`Core/Wall_West`, `Wall_East`, `Wall_South_*`) |
 | vaste coördinaten (`FloorHeight` 3,5 m, `LiftCenterZ`, `LobbyBoardX`, `StationDeskSpot`, ...) | gelden niet: alles ligt op Y = 0, de maten staan in `UWardLayout.cs` en `maten.md` |
+
+## Scenario 2 in de U-afdeling
+
+Voor later, als Jalils shift overstapt naar `liam_u_afdeling`. Jalil hoeft nu niets te doen. Alles staat onder
+`Hospital/Scenarios/Scenario2_AngryDaughter` (`Anchors/` = lege objecten met `ScenarioAnchor`, `Actors/` = wat zichtbaar is),
+gebouwd door `UWardBuilder.Scenario2.cs`, met de waarden in `UWardLayout.Scenario2Anchors`. Plan: X = x - 21, Z = 14 - y.
+"Kijkt naar" is de forward van het anker; voor een canvas van `CreateCanvas` (forward = leesrichting) gebruik je
+`Quaternion.LookRotation(-anker.forward)`.
+
+| Jalils `ShiftHospitalSceneBuilder` | In de U-afdeling | Plan (x, y, hoogte) |
+| --- | --- | --- |
+| `EncounterFloor` = 3, `Floor3` | `Floor3` (rechterarm) | |
+| `DaughterSpot` (5, 0, 1,6), kijkt -X | `Anchors/Anchor_Daughter_Corridor`, kijkt noord (naar de deur van 3C en de speler) | 35,3 / 5,0 / 0 |
+| `DaughterModel` = `Patient_Female` + `DressAsVisitor` | `Actors/Daughter`: `Visitor_Daughter`, pose Angry, CapsuleCollider (r 0,3, h 1,7) | |
+| `AddBlocker` (capsule r 0,3) | `Actors/Blocker_Corridor`: onzichtbare BoxCollider over de hele gangbreedte. Uitzetten als ze naar de gesprekskamer loopt | y 5,0 |
+| (speler) | `Anchors/Anchor_Player_Corridor`, kijkt zuid. Voorlopig: de plek van de speler wordt later beslist | 34,8 / 3,3 / 0 |
+| `CountdownPosition` (3,6, 2,6, 1,5) | `Anchors/Anchor_Countdown` + `Actors/Countdown_Mount` (leeg donker paneel 0,7 x 0,26 m, voorkant naar het noorden) | 34,8 / 7,2 / 2,45 |
+| `EncounterSignPosition` op `Wall_South` | `Anchors/Anchor_Sign`, tegen `Core/Wall_East`, kijkt oost (de gang in) | 33,7 / 6,0 / 1,6 |
+| `ConsultationRoomLabel` = `3B` (lege patiëntkamer) | `Core/FamilyRoom` (gesprekskamer, plan v8). Niets te verbergen; `Card_3B` blijft. Bord: `Core/FamilyRoom/Sign_FamilyRoom` | x 25..33,6, y 8..12,6 |
+| `Room_3B/Light` (`MoodRoomLight`) | `Core/FamilyRoom/Light` | |
+| `Door_3B` (`OpenDoor`) | `Core/Door_FamilyRoom_Corridor` (draait de kamer in, zoals `OpenDoor` verwacht) | x 33,6, y 9,5..10,5 |
+| Pad "To Consultation Room" (4 waypoints) | `Anchors/Path_ToFamilyRoom/WP_1`, `WP_2`, `WP_3` en daarna `Anchors/Anchor_Daughter_Room` | zie `UWardLayout` |
+| plek van het gesprek in 3B | `Anchors/Anchor_Daughter_Room`, `Anchor_Player_Room` (kijken elkaar aan) | 29,5 / 10,6 en 31,2 / 10,2 |
+| paneel met 4 antwoorden (`ScenarioPresenter`) | `Anchors/Anchor_Panel_Corridor` (kijkt noord), `Anchors/Anchor_Panel_Room` (kijkt naar de speler) | 34,3 / 4,2 / 1,45 en 30,4 / 9,4 / 1,45 |
+| Mood Sound op de dochter | `Anchors/Anchor_Speaker_Corridor`, `Anchor_Speaker_Room` | 35,0 / 5,0 / 2,8 en 29,3 / 10,3 / 2,8 |
+| `EncounterCorridorLights` = `Light_3`, `Light_9` | `Floor3/Light_3`, `Floor3/Light_9` (bestaan, op y 3 en 9) | |
+| `GurneyStart`, `GurneyEnd` | volgt in fase 4 | |
+
+Kamer 3C (beeld 1): `Characters/Patient_3C` met `Body_Pyjama` (aan) en `Body_Gown` (uit), zittend op
+`Floor3/Room_3C/Furniture/Bed/Anchor_BedEdge`; het schort ligt op `Room_3C/Props/Gown`. Let op: Jalils `HideMisplacedPatients`
+verbergt een patiënt die meer dan 4,2 m de kamer in staat; de oorsprong van `Patient_3C` ligt op 4,1 m.

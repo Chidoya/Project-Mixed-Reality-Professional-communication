@@ -443,5 +443,64 @@ namespace ProCommVR.Editor
         }
 
         public static readonly Vector2[] HallLights = { new Vector2(21f, 6.5f), new Vector2(21f, 13f) };
+
+        // --- Scenario 2 (de boze dochter) ----------------------------------------------------------
+
+        /// <summary>
+        /// Leeg anker voor scenario 2: plaats in het plan (x, y, hoogte) en richting. De forward wijst naar Facing (plan) of
+        /// naar het anker LookAt (op dezelfde hoogte). Name mag een pad zijn (Path_ToFamilyRoom/WP_1).
+        /// </summary>
+        public readonly struct ScenarioAnchorSpec
+        {
+            public readonly string Name, LookAt;
+            public readonly float X, Y, Height;
+            public readonly Vector2 Facing;
+            public ScenarioAnchorSpec(string name, float x, float y, float height, Vector2 facing = default, string lookAt = null)
+            {
+                Name = name; X = x; Y = y; Height = height; Facing = facing; LookAt = lookAt;
+            }
+            public Vector2 Plan => new Vector2(X, Y);
+        }
+
+        private static readonly Vector2 FaceNorth = new Vector2(0f, -1f);
+        private static readonly Vector2 FaceSouth = new Vector2(0f, 1f);
+        private static readonly Vector2 FaceEast = new Vector2(1f, 0f);
+
+        /// <summary>
+        /// Plekken van scenario 2 (Hospital/Scenarios/Scenario2_AngryDaughter/Anchors). "Kijkt naar" = forward. Voor een canvas van
+        /// Jalil (CreateCanvas, forward = leesrichting) is de rotatie dus LookRotation(-forward).
+        /// Afwijking van het stappenplan: de dochter staat op x 35,3 (niet 35,4), zodat haar collider (r 0,3) 0,3 m van de
+        /// kamermuur blijft. Of ze daar blijft staan, beslist Liam na het zien in de scene.
+        /// </summary>
+        public static readonly ScenarioAnchorSpec[] Scenario2Anchors =
+        {
+            new ScenarioAnchorSpec("Anchor_Player_Corridor", 34.8f, 3.3f, 0f, FaceSouth),
+            new ScenarioAnchorSpec("Anchor_Daughter_Corridor", 35.3f, 5.0f, 0f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Panel_Corridor", 34.3f, 4.2f, 1.45f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Countdown", 34.8f, 7.2f, 2.45f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Sign", 33.7f, 6.0f, 1.6f, FaceEast),
+            new ScenarioAnchorSpec("Path_ToFamilyRoom/WP_1", 34.8f, 8.5f, 0f, lookAt: "Path_ToFamilyRoom/WP_2"),
+            new ScenarioAnchorSpec("Path_ToFamilyRoom/WP_2", 34.6f, 10.0f, 0f, lookAt: "Path_ToFamilyRoom/WP_3"),
+            new ScenarioAnchorSpec("Path_ToFamilyRoom/WP_3", 32.6f, 10.0f, 0f, lookAt: "Anchor_Daughter_Room"),
+            new ScenarioAnchorSpec("Anchor_Daughter_Room", 29.5f, 10.6f, 0f, lookAt: "Anchor_Player_Room"),
+            new ScenarioAnchorSpec("Anchor_Player_Room", 31.2f, 10.2f, 0f, lookAt: "Anchor_Daughter_Room"),
+            new ScenarioAnchorSpec("Anchor_Panel_Room", 30.4f, 9.4f, 1.45f, lookAt: "Anchor_Player_Room"),
+            new ScenarioAnchorSpec("Anchor_Speaker_Corridor", 35.0f, 5.0f, 2.8f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Speaker_Room", 29.3f, 10.3f, 2.8f, lookAt: "Anchor_Player_Room"),
+        };
+
+        public static ScenarioAnchorSpec Scenario2Anchor(string name) => Scenario2Anchors.First(a => a.Name == name);
+
+        /// <summary>Forward van een anker in het plan (genormaliseerd).</summary>
+        public static Vector2 Scenario2Facing(ScenarioAnchorSpec spec) =>
+            spec.LookAt == null ? spec.Facing.normalized : (Scenario2Anchor(spec.LookAt).Plan - spec.Plan).normalized;
+
+        // Klokpaneel (leeg scherm aan twee staafjes aan het plafond) en de onzichtbare versperring van de gang
+        public static readonly Vector2 CountdownPanelSize = new Vector2(0.7f, 0.26f);
+        public const float CountdownPanelDepth = 0.03f;
+        public const float BlockerDepth = 0.3f;
+        public const float BlockerHeight = 2.0f;
+        public const float DaughterColliderRadius = 0.3f;
+        public const float DaughterColliderHeight = 1.7f;
     }
 }

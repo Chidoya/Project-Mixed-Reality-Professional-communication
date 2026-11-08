@@ -255,6 +255,117 @@ namespace ProCommVR.Editor.Tests
             Assert.IsEmpty(failures, "Gesprekskamer: " + string.Join(", ", failures));
         }
 
+        // --- Scenario 2: de dochter, de panelen en de route -------------------------------------------
+
+        private const string Scenario2 = "Scenarios/Scenario2_AngryDaughter";
+        private const float PlayerRadius = 0.2f;
+        private const float PanelHalfWidth = 0.4f;   // ongeveer de helft van Jalils paneel met 4 antwoorden
+        private const float FaceHeight = 1.6f;
+
+        private static Transform S2(string path) => Root.Find($"{Scenario2}/{path}");
+
+        private static bool IsActor(Collider c) =>
+            c.transform.IsChildOf(S2("Actors/Daughter")) || c.transform == S2("Actors/Blocker_Corridor");
+
+        /// <summary>
+        /// Vanaf Anchor_Player_Corridor kan de speler (capsule r 0,2) op geen enkele baan over de breedte van de gang naar het
+        /// zuiden zonder eerst de dochter of Blocker_Corridor te raken. De collider van de dochter blijft minstens 0,3 m van de muur.
+        /// </summary>
+        [Test]
+        public void DaughterBlocksTheCorridor()
+        {
+            Physics.SyncTransforms();
+            var failures = new List<string>();
+            var player = S2("Anchors/Anchor_Player_Corridor");
+            var daughter = S2("Actors/Daughter");
+            var x0 = CorridorRight.X0 + InnerWall / 2f + PlayerRadius + 0.01f;
+            var x1 = CorridorRight.X1 - InnerWall / 2f - PlayerRadius - 0.01f;
+            var startY = PlanOf(player.position).y;
+            var distance = PlanOf(daughter.position).y - startY + 1.5f;
+            for (var x = x0; x <= x1 + 0.001f; x += 0.1f)
+            {
+                var foot = ToUnity(x, startY, PlayerRadius + 0.1f);
+                var head = foot + Vector3.up * 1.2f;
+                // Kaarten en bordjes op de gangmuur (hoogstens 6 cm diep) tellen niet: daar kan de speler toch niet langs
+                var hits = Physics.CapsuleCastAll(foot, head, PlayerRadius, Vector3.back, distance)
+                    .Where(h => !(h.collider.bounds.size.x <= 0.06f && h.collider.bounds.size.z > h.collider.bounds.size.x))
+                    .OrderBy(h => h.distance).ToList();
+                var hit = hits.Count > 0;
+                var info = hit ? hits[0] : default;
+                var ok = hit && IsActor(info.collider);
+                Row("Dochter verspert de gang", $"baan x {x:0.00}", hit ? $"raakt {info.collider.name} op y {PlanOf(info.point).y:0.00}" : "raakt niets", ok);
+                if (!ok)
+                    failures.Add($"x {x:0.00}");
+            }
+
+            var capsule = daughter.GetComponent<CapsuleCollider>();
+            var bottom = daughter.TransformPoint(capsule.center + Vector3.down * (capsule.height / 2f - capsule.radius));
+            var top = daughter.TransformPoint(capsule.center + Vector3.up * (capsule.height / 2f - capsule.radius));
+            var walls = Physics.OverlapCapsule(bottom, top, capsule.radius + 0.3f).Where(c => c.name.StartsWith("Wall_")).Select(c => c.name).ToList();
+            Row("Dochter >= 0,3 m van de muur", "Actors/Daughter", walls.Count == 0 ? "vrij" : string.Join(", ", walls), walls.Count == 0);
+            if (walls.Count > 0)
+                failures.Add("dochter te dicht bij de muur");
+            Assert.IsEmpty(failures, "Gang niet versperd: " + string.Join(", ", failures));
+        }
+
+        /// <summary>
+        /// Anchor_Panel_Corridor en Anchor_Panel_Room: het paneel (0,8 x 0,5 m) zit niet in een muur, staat voor de speler en
+        /// hangt minstens 0,4 m naast de kijklijn van de speler naar het gezicht van de dochter (het bedekt haar hoofd niet).
+        /// </summary>
+        [Test]
+        public void PanelsKeepTheDaughterVisible()
+        {
+            Physics.SyncTransforms();
+            var failures = new List<string>();
+            foreach (var (panelName, playerName, daughterName) in new[]
+                     {
+                         ("Anchor_Panel_Corridor", "Anchor_Player_Corridor", "Anchor_Daughter_Corridor"),
+                         ("Anchor_Panel_Room", "Anchor_Player_Room", "Anchor_Daughter_Room"),
+                     })
+            {
+                var panel = S2($"Anchors/{panelName}");
+                var eye = S2($"Anchors/{playerName}").position + Vector3.up * 1.65f;
+                var face = S2($"Anchors/{daughterName}").position + Vector3.up * FaceHeight;
+                var walls = Physics.OverlapBox(panel.position, new Vector3(PanelHalfWidth, 0.25f, 0.01f), panel.rotation)
+                    .Where(c => c.name.StartsWith("Wall_")).Select(c => c.name).ToList();
+                var line = (face - eye).normalized;
+                var toPanel = panel.position - eye;
+                var inFront = Vector3.Dot(toPanel, line) > 0.3f;
+                var offLine = Vector3.Cross(line, toPanel).magnitude;
+                var ok = walls.Count == 0 && inFront && offLine >= PanelHalfWidth;
+                Row("Paneel vrij", panelName, $"{(walls.Count == 0 ? "niet in een muur" : "in " + string.Join(", ", walls))}, " +
+                                              $"{offLine:0.00} m naast de kijklijn naar haar gezicht, voor de speler {(inFront ? "ja" : "nee")}", ok);
+                if (!ok)
+                    failures.Add(panelName);
+            }
+            Assert.IsEmpty(failures, "Paneel in de weg: " + string.Join(", ", failures));
+        }
+
+        /// <summary>Path_ToFamilyRoom (dochter, WP_1..3, Anchor_Daughter_Room) gaat op knie-, heup- en hoofdhoogte door geen muur.</summary>
+        [Test]
+        public void PathToFamilyRoomGoesThroughTheDoor()
+        {
+            Physics.SyncTransforms();
+            var failures = new List<string>();
+            var points = new[] { "Anchors/Anchor_Daughter_Corridor", "Anchors/Path_ToFamilyRoom/WP_1", "Anchors/Path_ToFamilyRoom/WP_2",
+                "Anchors/Path_ToFamilyRoom/WP_3", "Anchors/Anchor_Daughter_Room" }.Select(S2).ToList();
+            for (var i = 1; i < points.Count; i++)
+                foreach (var height in new[] { 0.3f, 1.0f, 1.6f })
+                {
+                    var a = points[i - 1].position + Vector3.up * height;
+                    var b = points[i].position + Vector3.up * height;
+                    var hits = Physics.RaycastAll(a, (b - a).normalized, (b - a).magnitude)
+                        .Where(h => !IsActor(h.collider)).Select(h => h.collider.name).Distinct().ToList();
+                    var walls = hits.Where(n => n.StartsWith("Wall_")).ToList();
+                    var ok = walls.Count == 0;
+                    Row("Route naar de gesprekskamer", $"{points[i - 1].name} -> {points[i].name}, {height:0.0} m",
+                        hits.Count == 0 ? "vrij" : "raakt " + string.Join(", ", hits), ok);
+                    if (!ok)
+                        failures.Add($"{points[i - 1].name} -> {points[i].name}");
+                }
+            Assert.IsEmpty(failures, "Route door een muur: " + string.Join(", ", failures.Distinct()));
+        }
+
         // --- Personeel ------------------------------------------------------------------------------
 
         [Test]

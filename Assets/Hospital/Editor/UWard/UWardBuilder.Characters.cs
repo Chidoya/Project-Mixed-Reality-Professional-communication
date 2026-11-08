@@ -72,6 +72,7 @@ namespace ProCommVR.Editor
                 foreach (var patientCase in LoadCases().Values.OrderBy(c => c.DoorLabel))
                     PlacePatient(root, characters, patientCase);
                 PlacePreOpPatient(root, characters);
+                PlaceDaughter(root);
                 for (var i = 0; i < Staff.Length; i++)
                     PlaceStaff(characters, Staff[i], i);
             }
@@ -87,6 +88,9 @@ namespace ProCommVR.Editor
                 pose.gameObject.AddComponent<EditorPosePreview>();
             // Scenario 2: de vader begint in pyjama; Body_Gown (schort) staat klaar maar is uit
             characters.Find($"Patient_{PreOpRoomId}/Body_Gown")?.gameObject.SetActive(false);
+            var daughter = root.Find($"{Scenario2Path}/Actors/Daughter");
+            if (daughter != null)
+                daughter.gameObject.AddComponent<EditorPosePreview>();
         }
 
         private static void PlacePatient(Transform root, Transform characters, PatientCase patientCase)

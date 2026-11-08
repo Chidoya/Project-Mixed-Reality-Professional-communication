@@ -47,6 +47,7 @@ namespace ProCommVR.Editor
             BuildCorridorLights(groups);
             BuildRooms(groups);
             BuildPreOpRoom(root);
+            BuildScenario2(root);
             BuildCore(groups);
             BuildLifts(groups["Lobby"]);
             BuildStairwell(groups["Core"]);
@@ -72,6 +73,7 @@ namespace ProCommVR.Editor
             TakeCharacterScreenshots(root);
             TakeFixScreenshots(root);
             TakePreOpScreenshots(root);
+            TakeScenario2Screenshots(root);
             Debug.Log($"{LogPrefix}Klaar: {ScenePath}, screenshot in {ScreenshotFolder}/.");
         }
 
