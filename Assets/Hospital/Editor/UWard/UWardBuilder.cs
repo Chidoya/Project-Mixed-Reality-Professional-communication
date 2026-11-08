@@ -34,6 +34,9 @@ namespace ProCommVR.Editor
             var old = scene.GetRootGameObjects().FirstOrDefault(g => g.name == RootName);
             if (old != null)
                 Object.DestroyImmediate(old);
+            // Opruimen: een eerdere versie hing de alarmlamp van de gesprekskamer los bovenaan de scene
+            foreach (var stray in scene.GetRootGameObjects().Where(g => g.GetComponent<ProCommVR.Hospital.AlarmLamp>() != null))
+                Object.DestroyImmediate(stray);
 
             var root = new GameObject(RootName).transform;
             var groups = Groups.ToDictionary(g => g, g =>
@@ -46,12 +49,13 @@ namespace ProCommVR.Editor
             BuildShell(groups);
             BuildCorridorLights(groups);
             BuildRooms(groups);
-            BuildPreOpRoom(root);
-            BuildScenario2(root);
-            BuildAlarmLights(root);
             BuildCore(groups);
             BuildLifts(groups["Lobby"]);
             BuildStairwell(groups["Core"]);
+            // Scenario 2 na de kamers en de kern (de gesprekskamer moet bestaan)
+            BuildPreOpRoom(root);
+            BuildScenario2(root);
+            BuildAlarmLights(root);
             BuildGuideLights(groups);
             BuildTeleportAreas(root, groups["Lobby"]);
 

@@ -443,7 +443,7 @@ namespace ProCommVR.Editor
         {
             var off = Mat("AlarmLens_Off", new Color(0.35f, 0.05f, 0.05f), 0f, 0.6f);
             var on = Mat("AlarmLens_On", AlarmRed, 0f, 0.6f, new Color(2.5f, 0.25f, 0.2f));
-            var group = Child(root.Find("Floor3"), "AlarmLights");
+            var group = Child(root.Find("Floor3") ?? throw new System.InvalidOperationException("Floor3 ontbreekt"), "AlarmLights");
             var room = CoreRooms.First(r => r.Name == "FamilyRoom").Rect;
             var corridorDoor = CoreDoors.First(d => d.Name == "Door_FamilyRoom_Corridor");
             var door3C = PatientRooms.First(r => r.Id == PreOpRoomId);
@@ -454,7 +454,8 @@ namespace ProCommVR.Editor
             AlarmLampAt(group, "AlarmLight_FamilyRoom", PlanPoint(new Vector2(corridorDoor.Segment.At + InnerWall / 2f, corridorDoor.Center.y),
                 AlarmWallHeight), PlanDirection(PlanEast), off, on);
             // In de gesprekskamer naast de plafondlamp (die in het midden hangt), aan de kant van de gangdeur
-            AlarmLampAt(root.Find("Core/FamilyRoom"), "AlarmLight", PlanPoint(new Vector2(room.CenterX + 1.5f, room.CenterY), CeilingHeight),
+            var familyRoom = root.Find("Core/FamilyRoom") ?? throw new System.InvalidOperationException("Core/FamilyRoom ontbreekt");
+            AlarmLampAt(familyRoom, "AlarmLight", PlanPoint(new Vector2(room.CenterX + 1.5f, room.CenterY), CeilingHeight),
                 Vector3.down, off, on);
         }
 

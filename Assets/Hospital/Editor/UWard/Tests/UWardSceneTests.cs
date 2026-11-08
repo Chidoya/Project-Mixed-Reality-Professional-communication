@@ -568,8 +568,10 @@ namespace ProCommVR.Editor.Tests
             yield return new WaitForSeconds(0.5f);
             var failures = new List<string>();
             var lamps = Object.FindObjectsByType<ProCommVR.Hospital.AlarmLamp>(FindObjectsSortMode.None).OrderBy(l => l.name).ToList();
-            var countOk = lamps.Count > 0 && lamps.Count <= MaxLightsPerObject;
-            Row("Alarmlampen", "aantal", $"{lamps.Count} (max {MaxLightsPerObject})", countOk);
+            var outside = lamps.Where(l => !l.transform.IsChildOf(Root)).Select(l => l.name).ToList();
+            var countOk = lamps.Count > 0 && lamps.Count <= MaxLightsPerObject && outside.Count == 0;
+            Row("Alarmlampen", "aantal", $"{lamps.Count} (max {MaxLightsPerObject})" +
+                (outside.Count > 0 ? ", NIET onder Hospital: " + string.Join(", ", outside) : ", allemaal onder Hospital"), countOk);
             if (!countOk)
                 failures.Add("aantal");
 
@@ -639,6 +641,65 @@ namespace ProCommVR.Editor.Tests
             HospitalAssetPrep.Capture(cam, $"docs/Screenshots/u_afdeling_alarm_{state}.png");
             Object.Destroy(go);
             yield return null;
+        }
+
+        // --- Prestaties (Play mode, ter info) ---------------------------------------------------------
+
+        /// <summary>
+        /// Draw calls, batches, SetPass calls en driehoeken (render-tellers van de profiler) vanuit Anchor_Player_Corridor en vanuit
+        /// de hal (Lobby/XROriginStart), met het alarm uit en aan. In Play mode, dus met static batching. Een meting in de editor
+        /// (Windows), geen meting op de Quest 3: enkel om te vergelijken. Faalt niet.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator DrawCallsInPlayMode()
+        {
+            yield return new EnterPlayMode();
+            yield return new WaitForSeconds(0.5f);
+            var lamps = Object.FindObjectsByType<ProCommVR.Hospital.AlarmLamp>(FindObjectsSortMode.None).ToList();
+            var go = new GameObject("PerfCamera");
+            var cam = go.AddComponent<Camera>();
+            cam.fieldOfView = 90f;
+            cam.nearClipPlane = 0.05f;
+            cam.targetTexture = new RenderTexture(1832, 1920, 24);   // ongeveer één oog van de Quest 3
+
+            var views = new List<(string Name, Vector3 Eye, Vector3 Forward)>();
+            var player = S2("Anchors/Anchor_Player_Corridor");
+            views.Add(("gang (Anchor_Player_Corridor)", player.position + Vector3.up * 1.65f, player.forward));
+            var start = Root.Find("Lobby/XROriginStart");
+            views.Add(("hal (XROriginStart)", start.position + Vector3.up * 1.65f, start.forward));
+
+            using (var drawCalls = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Draw Calls Count"))
+            using (var batches = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Batches Count"))
+            using (var setPass = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "SetPass Calls Count"))
+            using (var triangles = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Triangles Count"))
+            {
+                foreach (var alarm in new[] { false, true })
+                {
+                    lamps.ForEach(l => l.SetOn(alarm));
+                    foreach (var (name, eye, forward) in views)
+                    {
+                        go.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(forward));
+                        long dc = 0, b = 0, sp = 0, tri = 0;
+                        for (var frame = 0; frame < 4; frame++)
+                        {
+                            yield return new WaitForEndOfFrame();
+                            cam.Render();
+                            yield return null;
+                            dc = System.Math.Max(dc, drawCalls.LastValue);
+                            b = System.Math.Max(b, batches.LastValue);
+                            sp = System.Math.Max(sp, setPass.LastValue);
+                            tri = System.Math.Max(tri, triangles.LastValue);
+                        }
+                        Row("Prestaties", $"{name}, alarm {(alarm ? "aan" : "uit")}",
+                            $"draw calls {dc}, batches {b}, SetPass {sp}, driehoeken {tri:N0}" +
+                            (dc == 0 ? " (tellers niet beschikbaar in deze editor-run)" : ""), true);
+                    }
+                }
+            }
+            lamps.ForEach(l => l.SetOn(false));
+            cam.targetTexture.Release();
+            Object.Destroy(go);
+            yield return new ExitPlayMode();
         }
 
         // --- Personeel ------------------------------------------------------------------------------
