@@ -366,6 +366,192 @@ namespace ProCommVR.Editor.Tests
             Assert.IsEmpty(failures, "Route door een muur: " + string.Join(", ", failures.Distinct()));
         }
 
+        // --- Scenario 2: past de brancard? --------------------------------------------------------------
+
+        private const float SweepStep = 0.1f;
+        private const float SweepTurnStep = 5f;
+        private const float SweepFloorGap = 0.03f;   // boven de vloer en de teleportzones
+
+        /// <summary>
+        /// Omhullende doos van de brancard met de portier, in de ruimte van Gurney. De brancard via zijn mesh renderers (even
+        /// actief gezet), de portier via zijn CapsuleCollider: de bounds van een skinned mesh zijn in edit mode die van de T-pose.
+        /// </summary>
+        private static Bounds GurneyLocalBox(Transform gurney)
+        {
+            var wasActive = gurney.gameObject.activeSelf;
+            gurney.gameObject.SetActive(true);
+            var box = new Bounds();
+            var first = true;
+            void Add(Vector3 world)
+            {
+                var local = gurney.InverseTransformPoint(world);
+                if (first)
+                    box = new Bounds(local, Vector3.zero);
+                else
+                    box.Encapsulate(local);
+                first = false;
+            }
+            foreach (var r in gurney.GetComponentsInChildren<MeshRenderer>())
+            {
+                var b = r.bounds;
+                for (var i = 0; i < 8; i++)
+                    Add(new Vector3((i & 1) == 0 ? b.min.x : b.max.x, (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z));
+            }
+            foreach (var capsule in gurney.GetComponentsInChildren<CapsuleCollider>())
+            {
+                var t = capsule.transform;
+                var c = capsule.center;
+                foreach (var dx in new[] { -capsule.radius, capsule.radius })
+                    foreach (var dz in new[] { -capsule.radius, capsule.radius })
+                        foreach (var dy in new[] { -capsule.height / 2f, capsule.height / 2f })
+                            Add(t.TransformPoint(c + new Vector3(dx, dy, dz)));
+            }
+            gurney.gameObject.SetActive(wasActive);
+            return box;
+        }
+
+        /// <summary>Colliders die de doos raakt op deze plek (zonder de brancard zelf), met een extra marge rondom.</summary>
+        private static List<Collider> SweepHits(Transform gurney, Bounds box, Vector3 position, Quaternion rotation, float margin)
+        {
+            var bottom = Mathf.Max(box.min.y, SweepFloorGap);
+            var center = new Vector3(box.center.x, (bottom + box.max.y) / 2f, box.center.z);
+            var half = new Vector3(box.extents.x + margin, (box.max.y - bottom) / 2f, box.extents.z + margin);
+            return Physics.OverlapBox(position + rotation * center, half, rotation)
+                .Where(c => !c.transform.IsChildOf(gurney) && !c.isTrigger).ToList();
+        }
+
+        /// <summary>Kleinste afstand tot een muur (0 tot 0,5 m, op 1 cm), of -1 als hij al iets raakt.</summary>
+        private static float WallClearance(Transform gurney, Bounds box, Vector3 position, Quaternion rotation)
+        {
+            if (SweepHits(gurney, box, position, rotation, 0f).Count > 0)
+                return -1f;
+            for (var m = 0.01f; m <= 0.5f; m += 0.01f)
+                if (SweepHits(gurney, box, position, rotation, m).Any(c => c.name.StartsWith("Wall_")))
+                    return m - 0.01f;
+            return 0.5f;
+        }
+
+        /// <summary>
+        /// Schuift de doos van brancard en portier in stappen van 10 cm langs Path_Gurney, gedraaid in de rijrichting zoals
+        /// Jalils PathMover, en draait bij elk waypoint ter plaatse in stappen van 5 graden. Meldt wat hij raakt (muur, deur,
+        /// personage, prop) en per stuk de kleinste afstand tot een muur. Hij mag de dochter en Blocker_Corridor niet raken.
+        /// Het klokpaneel hangt hoger dan de brancard + 0,5 m.
+        /// </summary>
+        [Test]
+        public void GurneyFitsAlongItsRoute()
+        {
+            Physics.SyncTransforms();
+            var gurney = S2("Actors/Gurney");
+            Assert.IsNotNull(gurney, "Actors/Gurney ontbreekt");
+            Assert.IsFalse(gurney.gameObject.activeSelf, "Actors/Gurney moet inactief zijn (Jalils PathMover zet hem aan)");
+            var box = GurneyLocalBox(gurney);
+            Row("Brancard", "doos met portier", $"lengte {box.size.z:0.00} m, breedte {box.size.x:0.00} m, hoogte {box.max.y:0.00} m", true);
+
+            var route = GurneyRoute.Select(n => S2($"Anchors/{n}")).ToList();
+            var failures = new List<string>();
+            var heading = route[0].rotation;
+            for (var i = 1; i < route.Count; i++)
+            {
+                var a = route[i - 1].position;
+                var b = route[i].position;
+                var direction = Quaternion.LookRotation(Vector3.ProjectOnPlane(b - a, Vector3.up));
+                var minimum = float.MaxValue;
+                var hits = new HashSet<string>();
+                void Check(Vector3 p, Quaternion r)
+                {
+                    foreach (var c in SweepHits(gurney, box, p, r, 0f))
+                        hits.Add(c.name);
+                    minimum = Mathf.Min(minimum, WallClearance(gurney, box, p, r));
+                }
+
+                // Ter plaatse draaien naar het nieuwe stuk
+                var turn = Quaternion.Angle(heading, direction);
+                for (var t = 0f; t < turn; t += SweepTurnStep)
+                    Check(a, Quaternion.RotateTowards(heading, direction, t));
+                var length = (b - a).magnitude;
+                for (var d = 0f; d <= length + 0.001f; d += SweepStep)
+                    Check(Vector3.MoveTowards(a, b, d), direction);
+                heading = direction;
+
+                var ok = hits.Count == 0;
+                var stretch = $"{route[i - 1].name} -> {route[i].name}";
+                Row("Brancard past", stretch, $"draai {turn:0} graden, kleinste afstand tot een muur {minimum:0.00} m" +
+                                             (ok ? "" : ", raakt " + string.Join(", ", hits)), ok);
+                if (!ok)
+                    failures.Add(stretch);
+            }
+
+            // Einde: draait naar de rotatie van Gurney_End en staat achter de dochter
+            var end = route[route.Count - 1];
+            var atEnd = SweepHits(gurney, box, end.position, end.rotation, 0.1f).Select(c => c.name).ToList();
+            var daughter = S2("Actors/Daughter");
+            var gap = PlanOf(end.position + end.rotation * new Vector3(0f, 0f, box.max.z)).y - PlanOf(daughter.position).y;
+            var endOk = atEnd.Count == 0;
+            Row("Brancard stopt achter de dochter", "Gurney_End", $"voorkant {gap - DaughterColliderRadius:0.00} m achter haar collider, " +
+                                                               (endOk ? "raakt niets (10 cm marge)" : "raakt " + string.Join(", ", atEnd)), endOk);
+            if (!endOk)
+                failures.Add("Gurney_End");
+
+            var panel = S2("Actors/Countdown_Mount/Panel").GetComponent<Renderer>().bounds;
+            var high = panel.min.y > box.max.y + 0.5f;
+            Row("Klokpaneel hoog genoeg", "Countdown_Mount", $"onderkant {panel.min.y:0.00} m, brancard met portier {box.max.y:0.00} m + 0,5 m", high);
+            if (!high)
+                failures.Add("Countdown_Mount");
+            Assert.IsEmpty(failures, "Brancard past niet: " + string.Join(", ", failures));
+        }
+
+        /// <summary>
+        /// Deur van 3C (1,3 m): de brancard past recht door de opening (breedte met 5 cm marge aan elke kant). Ter info ook een
+        /// bocht vanuit de gang de kamer in (boog, zoals in de hoek): niet nodig voor scenario 2, wel voor als Jalil de vader laat ophalen.
+        /// </summary>
+        [Test]
+        public void GurneyFitsThroughDoor3C()
+        {
+            Physics.SyncTransforms();
+            var gurney = S2("Actors/Gurney");
+            var box = GurneyLocalBox(gurney);
+            var spec = PatientRooms.First(r => r.Id == "3C");
+            var width = spec.DoorTo - spec.DoorFrom;
+            var gurneyOnly = box.size.x;
+            var ok = gurneyOnly + 0.1f <= width;
+            Row("Brancard door de deur van 3C", "breedte", $"opening {width:0.00} m, brancard met portier {gurneyOnly:0.00} m breed", ok);
+
+            // Ter info: in de rechtergang naar het noorden (x 34,6), een boog van 1 m naar het oosten, door het midden van de deur
+            // de kamer in. Zonder de dochter en Blocker_Corridor (die staan er dan niet meer).
+            var door = spec.DoorCenter;
+            const float radius = 1.0f, laneX = 34.6f;
+            var center = new Vector2(laneX + radius, door.y + radius);
+            var points = new List<Vector2> { new Vector2(laneX, door.y + radius + 1.5f) };
+            for (var phi = 0f; phi <= 90.1f; phi += 30f)
+            {
+                var r = phi * Mathf.Deg2Rad;
+                points.Add(center + radius * new Vector2(-Mathf.Cos(r), -Mathf.Sin(r)));
+            }
+            points.Add(new Vector2(door.x + 2.2f, door.y));
+            var hits = new HashSet<string>();
+            var heading = Quaternion.LookRotation(PlanDir(points[1] - points[0]));
+            void Hit(Vector3 p, Quaternion q)
+            {
+                foreach (var c in SweepHits(gurney, box, p, q, 0f).Where(c => !IsActor(c)))
+                    hits.Add(c.name);
+            }
+            for (var i = 1; i < points.Count; i++)
+            {
+                var a = ToUnity(points[i - 1].x, points[i - 1].y);
+                var b = ToUnity(points[i].x, points[i].y);
+                var direction = Quaternion.LookRotation(Vector3.ProjectOnPlane(b - a, Vector3.up));
+                for (var t = 0f; t < Quaternion.Angle(heading, direction); t += SweepTurnStep)
+                    Hit(a, Quaternion.RotateTowards(heading, direction, t));
+                for (var d = 0f; d <= (b - a).magnitude + 0.001f; d += SweepStep)
+                    Hit(Vector3.MoveTowards(a, b, d), direction);
+                heading = direction;
+            }
+            Row("Ter info: bocht de kamer 3C in", "boog straal 1 m", hits.Count == 0 ? "past" : "raakt " + string.Join(", ", hits), true);
+            Assert.IsTrue(ok, "De brancard past niet door de deur van 3C");
+        }
+
+        private static Vector3 PlanDir(Vector2 d) => new Vector3(d.x, 0f, -d.y);
+
         // --- Personeel ------------------------------------------------------------------------------
 
         [Test]

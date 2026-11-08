@@ -74,6 +74,7 @@ namespace ProCommVR.Editor
             TakeFixScreenshots(root);
             TakePreOpScreenshots(root);
             TakeScenario2Screenshots(root);
+            TakeGurneyScreenshots(root);
             Debug.Log($"{LogPrefix}Klaar: {ScenePath}, screenshot in {ScreenshotFolder}/.");
         }
 

@@ -70,7 +70,9 @@ gebouwd door `UWardBuilder.Scenario2.cs`, met de waarden in `UWardLayout.Scenari
 | paneel met 4 antwoorden (`ScenarioPresenter`) | `Anchors/Anchor_Panel_Corridor` (kijkt noord), `Anchors/Anchor_Panel_Room` (kijkt naar de speler) | 34,3 / 4,2 / 1,45 en 30,4 / 9,4 / 1,45 |
 | Mood Sound op de dochter | `Anchors/Anchor_Speaker_Corridor`, `Anchor_Speaker_Room` | 35,0 / 5,0 / 2,8 en 29,3 / 10,3 / 2,8 |
 | `EncounterCorridorLights` = `Light_3`, `Light_9` | `Floor3/Light_3`, `Floor3/Light_9` (bestaan, op y 3 en 9) | |
-| `GurneyStart`, `GurneyEnd` | volgt in fase 4 | |
+| `GurneyStart` (17, 0, 2,15) + Sketchfab-bed | `Actors/Gurney` (INACTIEF): `Gurney.prefab` met laken, root midden op de vloer, forward = rijrichting (hoofdeinde voorop), met de portier (`Porter`, Idle) als kind aan de duwbeugel. Staat op `Anchors/Path_Gurney/Gurney_Start` | 29,0 / 20,6 / 0 |
+| `GurneyEnd` (11,3, 0, 2,15) | `Anchors/Path_Gurney/Gurney_End`, kijkt noord; de voorkant stopt 0,29 m achter de collider van de dochter | 34,3 / 6,6 / 0 |
+| `AddPath(..., "Gurney", 1f, true, end)` | waypoints in volgorde: `Gurney_Start`, `Gurney_Corner_1`, `_2`, `_3`, `Gurney_Turn`, `Gurney_End` (boog van 1 m om de hoek; `UWardLayout.GurneyRoute`). `hideUntilPlayed` mag blijven: Gurney staat al inactief | |
 
 Kamer 3C (beeld 1): `Characters/Patient_3C` met `Body_Pyjama` (aan) en `Body_Gown` (uit), zittend op
 `Floor3/Room_3C/Furniture/Bed/Anchor_BedEdge`; het schort ligt op `Room_3C/Props/Gown`. Let op: Jalils `HideMisplacedPatients`

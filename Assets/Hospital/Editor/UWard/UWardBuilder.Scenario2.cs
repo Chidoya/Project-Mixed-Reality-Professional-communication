@@ -329,6 +329,103 @@ namespace ProCommVR.Editor
                 Eye("Anchor_Player_Room") + room.forward * 3f + Vector3.down * 0.4f);
         }
 
+        // --- De brancard en de portier (beeld 6) -------------------------------------------------------
+
+        private const string PorterModel = "Porter";
+        private const string PorterState = "Idle";
+        // Maten uit blender/scripts/06_props.py (build_gurney): matras tot 0,83 m, duwbeugels op 0,99 m van het midden en 0,90 m hoog
+        private const float GurneyMattressTop = 0.83f;
+        private const float GurneyPushBarOffset = 0.99f;
+        private const float GurneyPushBarHeight = 0.90f;
+        private const float PorterHandsBehindBar = 0.04f;
+        private const float PorterChestClearance = 0.1f;   // borst minstens zo ver achter de duwbeugel
+
+        /// <summary>
+        /// Actors/Gurney: root in het midden van de brancard op de vloer, forward = rijrichting (het hoofdeinde met het kussen
+        /// voorop, zoals PassingCart), op Gurney_Start. Model = Gurney.prefab met de lange kant langs forward, een laken over het
+        /// matras. De portier (Porter, pose Idle) staat achter de brancard met zijn handen bij de duwbeugel, als kind van Gurney.
+        /// Niets is static; Gurney staat INACTIEF (Jalils PathMover zet hem aan en laat hem rijden). Draait na MarkStatic.
+        /// </summary>
+        private static void PlaceGurney(Transform root)
+        {
+            var actors = root.Find($"{Scenario2Path}/Actors");
+            var start = root.Find($"{Scenario2Path}/Anchors/Path_Gurney/Gurney_Start");
+            var gurneyPrefab = PropSetup.LoadPrefab("Gurney");
+            var porterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{CharacterFolder}/{PorterModel}/{PorterModel}.prefab");
+            if (actors == null || start == null || gurneyPrefab == null || porterPrefab == null)
+            {
+                Debug.LogWarning($"{LogPrefix}Brancard: Actors, Gurney_Start, Gurney.prefab of {PorterModel} ontbreekt, overgeslagen.");
+                return;
+            }
+
+            var gurney = new GameObject("Gurney").transform;
+            gurney.SetParent(actors, false);
+            gurney.SetPositionAndRotation(start.position, start.rotation);
+
+            // Blender +X (hoofdeinde) is lokaal (1, 0, 0) van de prop-root: een kwartslag om y legt die as op de forward van Gurney
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(gurneyPrefab, gurney);
+            model.name = "Model";
+            model.transform.localRotation = Quaternion.Euler(0f, -90f, 0f) * gurneyPrefab.transform.localRotation;
+            AlignToFloor(model, gurney.position);
+            var size = gurney.InverseTransformVector(HospitalAssetPrep.WorldBounds(model).size);
+            if (Mathf.Abs(size.z) < Mathf.Abs(size.x))
+                Debug.LogWarning($"{LogPrefix}Brancard ligt dwars: {size}.");
+
+            // Laken over het matras, van het voeteneinde tot net voor het kussen
+            var sheet = Box("Sheet", gurney, new Vector3(0f, GurneyMattressTop + 0.006f, -0.2f), new Vector3(0.62f, 0.012f, 1.5f),
+                Mat("Sheet", new Color(0.96f, 0.97f, 0.98f)));
+            Object.DestroyImmediate(sheet.GetComponent<Collider>());
+
+            // Portier: handen bij de duwbeugel aan het voeteneinde, gemeten op een kopie in de Idle-pose
+            var porter = (GameObject)PrefabUtility.InstantiatePrefab(porterPrefab, gurney);
+            porter.name = PorterModel;
+            porter.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+            porter.AddComponent<CharacterPose>().Configure(PorterState, 0f);
+            var probe = Probe(porterPrefab, porter.name);
+            probe.transform.SetPositionAndRotation(gurney.position, gurney.rotation);
+            if (SamplePose(probe, PorterState, 0f))
+            {
+                var animator = probe.GetComponent<Animator>();
+                Vector3 Local(HumanBodyBones b) => gurney.InverseTransformPoint(animator.GetBoneTransform(b).position);
+                var hands = (Local(HumanBodyBones.LeftHand) + Local(HumanBodyBones.RightHand)) / 2f;
+                var chest = Local(HumanBodyBones.Chest);
+                var barZ = -GurneyPushBarOffset;
+                var z = barZ - PorterHandsBehindBar - hands.z;
+                z = Mathf.Min(z, barZ - PorterChestClearance - chest.z);
+                porter.transform.localPosition = new Vector3(0f, -MinVertexY(probe) + gurney.position.y, z);
+                Debug.Log($"{LogPrefix}Portier achter de brancard: handen {barZ - (hands.z + z):0.00} m achter de duwbeugel, " +
+                          $"op {hands.y - MinVertexY(probe) + gurney.position.y:0.00} m (beugel {GurneyPushBarHeight:0.00} m).");
+            }
+            var capsule = porter.AddComponent<CapsuleCollider>();
+            capsule.radius = StaffColliderRadius;
+            capsule.height = StaffColliderHeight;
+            capsule.center = Vector3.up * (StaffColliderHeight / 2f);
+        }
+
+        /// <summary>De brancard (even actief) op Gurney_Start, in de bocht en op Gurney_End; daarna terug op de start, inactief.</summary>
+        private static void TakeGurneyScreenshots(Transform root)
+        {
+            var gurney = root.Find($"{Scenario2Path}/Actors/Gurney");
+            var anchors = root.Find($"{Scenario2Path}/Anchors");
+            if (gurney == null || anchors == null)
+                return;
+            var (position, rotation) = (gurney.position, gurney.rotation);
+            gurney.gameObject.SetActive(true);
+            foreach (var pose in gurney.GetComponentsInChildren<EditorPosePreview>())
+                pose.Sample();
+            void At(string waypoint, string file, Vector2 eye, float lookHeight = 0.9f)
+            {
+                var w = anchors.Find(waypoint);
+                gurney.SetPositionAndRotation(w.position, w.rotation);
+                Shot(file, PlanPoint(eye, EyeHeight), w.position + Vector3.up * lookHeight);
+            }
+            At("Path_Gurney/Gurney_Start", "u_afdeling_s2_gurney_start.png", new Vector2(26.2f, 21.6f));
+            At("Path_Gurney/Gurney_Corner_2", "u_afdeling_s2_gurney_corner.png", new Vector2(31.0f, 21.6f));
+            At("Path_Gurney/Gurney_End", "u_afdeling_s2_gurney_end.png", new Vector2(34.8f, 2.4f));
+            gurney.SetPositionAndRotation(position, rotation);
+            gurney.gameObject.SetActive(false);
+        }
+
         // --- Screenshots -------------------------------------------------------------------------
 
         /// <summary>Camera's in kamer 3C: vanuit de deur naar bed 1, en dichtbij de vader. Ook gebruikt door de Play mode-test.</summary>

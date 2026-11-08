@@ -73,6 +73,7 @@ namespace ProCommVR.Editor
                     PlacePatient(root, characters, patientCase);
                 PlacePreOpPatient(root, characters);
                 PlaceDaughter(root);
+                PlaceGurney(root);
                 for (var i = 0; i < Staff.Length; i++)
                     PlaceStaff(characters, Staff[i], i);
             }
@@ -91,6 +92,14 @@ namespace ProCommVR.Editor
             var daughter = root.Find($"{Scenario2Path}/Actors/Daughter");
             if (daughter != null)
                 daughter.gameObject.AddComponent<EditorPosePreview>();
+            // De brancard met de portier wacht inactief op Gurney_Start, tot Jalils PathMover hem laat rijden
+            var gurney = root.Find($"{Scenario2Path}/Actors/Gurney");
+            if (gurney != null)
+            {
+                foreach (var pose in gurney.GetComponentsInChildren<CharacterPose>())
+                    pose.gameObject.AddComponent<EditorPosePreview>();
+                gurney.gameObject.SetActive(false);
+            }
         }
 
         private static void PlacePatient(Transform root, Transform characters, PatientCase patientCase)

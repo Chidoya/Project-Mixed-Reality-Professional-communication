@@ -487,6 +487,23 @@ namespace ProCommVR.Editor
             new ScenarioAnchorSpec("Anchor_Panel_Room", 30.4f, 9.4f, 1.45f, lookAt: "Anchor_Player_Room"),
             new ScenarioAnchorSpec("Anchor_Speaker_Corridor", 35.0f, 5.0f, 2.8f, FaceNorth),
             new ScenarioAnchorSpec("Anchor_Speaker_Room", 29.3f, 10.3f, 2.8f, lookAt: "Anchor_Player_Room"),
+            // Brancard (beeld 6): onderste gang naar het oosten, een boog van straal GurneyTurnRadius om de hoek (Jalils PathMover
+            // draait bij elk waypoint ter plaatse naar het volgende stuk), dan de rechtergang naar het noorden tot achter de dochter.
+            // Afwijking van het stappenplan: y 20,6 in plaats van 20,8 en een boog in plaats van één draaipunt op (34,3 / 20,8);
+            // ter plaatse draaien raakt met brancard en portier (2,4 m) de zuidmuur van de gang.
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Start", 29.0f, GurneyLaneY, 0f, FaceEast),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Corner_1", GurneyLaneX - GurneyTurnRadius, GurneyLaneY, 0f, lookAt: "Path_Gurney/Gurney_Corner_2"),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Corner_2", GurneyArc(30f).x, GurneyArc(30f).y, 0f, lookAt: "Path_Gurney/Gurney_Corner_3"),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Corner_3", GurneyArc(60f).x, GurneyArc(60f).y, 0f, lookAt: "Path_Gurney/Gurney_Turn"),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Turn", GurneyLaneX, GurneyLaneY - GurneyTurnRadius, 0f, FaceNorth),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_End", GurneyLaneX, 6.6f, 0f, FaceNorth),
+        };
+
+        /// <summary>Volgorde van de waypoints van de brancard (namen onder Anchors).</summary>
+        public static readonly string[] GurneyRoute =
+        {
+            "Path_Gurney/Gurney_Start", "Path_Gurney/Gurney_Corner_1", "Path_Gurney/Gurney_Corner_2",
+            "Path_Gurney/Gurney_Corner_3", "Path_Gurney/Gurney_Turn", "Path_Gurney/Gurney_End",
         };
 
         public static ScenarioAnchorSpec Scenario2Anchor(string name) => Scenario2Anchors.First(a => a.Name == name);
@@ -494,6 +511,19 @@ namespace ProCommVR.Editor
         /// <summary>Forward van een anker in het plan (genormaliseerd).</summary>
         public static Vector2 Scenario2Facing(ScenarioAnchorSpec spec) =>
             spec.LookAt == null ? spec.Facing.normalized : (Scenario2Anchor(spec.LookAt).Plan - spec.Plan).normalized;
+
+        // Brancard: rijlijn in de onderste gang (y) en in de rechtergang (x, aan de kant van de kernmuur), straal van de bocht
+        public const float GurneyLaneY = 20.6f;
+        public const float GurneyLaneX = 34.3f;
+        public const float GurneyTurnRadius = 1.0f;
+
+        /// <summary>Punt op de boog van de bocht: phi 0 = begin (rijdt oost), 90 = einde (rijdt noord).</summary>
+        public static Vector2 GurneyArc(float phi)
+        {
+            var center = new Vector2(GurneyLaneX - GurneyTurnRadius, GurneyLaneY - GurneyTurnRadius);
+            var r = phi * Mathf.Deg2Rad;
+            return center + GurneyTurnRadius * new Vector2(Mathf.Sin(r), Mathf.Cos(r));
+        }
 
         // Klokpaneel (leeg scherm aan twee staafjes aan het plafond) en de onzichtbare versperring van de gang
         public static readonly Vector2 CountdownPanelSize = new Vector2(0.7f, 0.26f);
