@@ -294,6 +294,21 @@ namespace ProCommVR.Editor.Tests
             foreach (var id in new[] { "2A", "3A" })
                 if (!CheckSitting(root, id))
                     failures.Add(id);
+            if (!CheckBedEdge(root, "Body_Pyjama"))
+                failures.Add("3C pyjama");
+            yield return PreOpScreenshots(root, "pyjama");
+
+            // Scenario 2: het schort aan, zoals Jalil het later omwisselt
+            var patient3C = root.Find("Characters/Patient_3C");
+            patient3C.Find("Body_Pyjama").gameObject.SetActive(false);
+            patient3C.Find("Body_Gown").gameObject.SetActive(true);
+            yield return new WaitForSeconds(0.5f);
+            if (!CheckBedEdge(root, "Body_Gown"))
+                failures.Add("3C gown");
+            yield return PreOpScreenshots(root, "gown");
+            patient3C.Find("Body_Gown").gameObject.SetActive(false);
+            patient3C.Find("Body_Pyjama").gameObject.SetActive(true);
+
             foreach (var (name, eye, target) in UWardBuilder.CharacterShots(root))
             {
                 var go = new GameObject("TestCamera");
@@ -329,6 +344,48 @@ namespace ProCommVR.Editor.Tests
             var ok = headToHeadboard && onMattress && InBed(head) && InBed(hips);
             Row("Play mode: ligt", $"Patient_{id}", $"heupen {hips.y - mattress:+0.00;-0.00} m t.o.v. matras, laagste bot {lowest:0.00} m, " +
                                                      $"hoofd naar hoofdeinde {(headToHeadboard ? "ja" : "nee")}", ok);
+            return ok;
+        }
+
+        private static IEnumerator PreOpScreenshots(Transform root, string outfit)
+        {
+            var shots = UWardBuilder.PreOpShots(root);
+            for (var i = 0; i < shots.Length; i++)
+            {
+                var go = new GameObject("TestCamera");
+                var cam = go.AddComponent<Camera>();
+                cam.fieldOfView = 75f;
+                cam.nearClipPlane = 0.05f;
+                go.transform.SetPositionAndRotation(shots[i].Eye, Quaternion.LookRotation(shots[i].Target - shots[i].Eye));
+                HospitalAssetPrep.Capture(cam, $"docs/Screenshots/u_afdeling_3C_play_{outfit}_{(i == 0 ? "door" : "close")}.png");
+                Object.Destroy(go);
+                yield return null;
+            }
+        }
+
+        /// <summary>
+        /// Scenario 2, kamer 3C: de vader zit op de rand van bed 1. Heupen op het matras (hoogstens 5 cm erin, hoogstens 20 cm
+        /// erboven) en boven het bed, voeten op de vloer en buiten het bed, gezicht weg van het bed de kamer in.
+        /// </summary>
+        private static bool CheckBedEdge(Transform root, string body)
+        {
+            var room = root.Find("Floor3/Room_3C");
+            var anchor = room.Find("Furniture/Bed/Anchor_BedEdge");
+            var animator = root.Find($"Characters/Patient_3C/{body}").GetComponent<Animator>();
+            var bed = RendererBounds(room.Find("Furniture/Bed"));
+            Vector3 Bone(HumanBodyBones b) => animator.GetBoneTransform(b).position;
+            var hips = Bone(HumanBodyBones.Hips);
+            var leftFoot = Bone(HumanBodyBones.LeftFoot);
+            var rightFoot = Bone(HumanBodyBones.RightFoot);
+            var feetY = Mathf.Min(leftFoot.y, rightFoot.y);
+            bool InBed(Vector3 p) => p.x > bed.min.x && p.x < bed.max.x && p.z > bed.min.z && p.z < bed.max.z;
+            var facing = Vector3.Dot(Vector3.ProjectOnPlane(animator.transform.forward, Vector3.up).normalized, anchor.forward);
+            var aboveMattress = hips.y - anchor.position.y;
+            var ok = aboveMattress > -0.05f && aboveMattress < 0.2f && InBed(hips) && feetY < 0.15f &&
+                     !InBed((leftFoot + rightFoot) / 2f) && facing > 0.95f;
+            Row("Play mode: zit op de bedrand", $"Patient_3C/{body}", $"heupen {aboveMattress:+0.00;-0.00} m t.o.v. matras, " +
+                $"voeten op {feetY:0.00} m, heupen boven het bed {(InBed(hips) ? "ja" : "nee")}, voeten naast het bed " +
+                $"{(!InBed((leftFoot + rightFoot) / 2f) ? "ja" : "nee")}, kijkrichting cos {facing:0.00}", ok);
             return ok;
         }
 

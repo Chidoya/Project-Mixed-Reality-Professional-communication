@@ -71,6 +71,7 @@ namespace ProCommVR.Editor
             {
                 foreach (var patientCase in LoadCases().Values.OrderBy(c => c.DoorLabel))
                     PlacePatient(root, characters, patientCase);
+                PlacePreOpPatient(root, characters);
                 for (var i = 0; i < Staff.Length; i++)
                     PlaceStaff(characters, Staff[i], i);
             }
@@ -84,6 +85,8 @@ namespace ProCommVR.Editor
             // Pas na AnimationMode: toont de houding in de Scene-view (en in de screenshots) in plaats van de T-pose
             foreach (var pose in characters.GetComponentsInChildren<CharacterPose>())
                 pose.gameObject.AddComponent<EditorPosePreview>();
+            // Scenario 2: de vader begint in pyjama; Body_Gown (schort) staat klaar maar is uit
+            characters.Find($"Patient_{PreOpRoomId}/Body_Gown")?.gameObject.SetActive(false);
         }
 
         private static void PlacePatient(Transform root, Transform characters, PatientCase patientCase)
