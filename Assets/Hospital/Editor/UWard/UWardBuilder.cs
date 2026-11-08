@@ -48,6 +48,7 @@ namespace ProCommVR.Editor
             BuildRooms(groups);
             BuildPreOpRoom(root);
             BuildScenario2(root);
+            BuildAlarmLights(root);
             BuildCore(groups);
             BuildLifts(groups["Lobby"]);
             BuildStairwell(groups["Core"]);

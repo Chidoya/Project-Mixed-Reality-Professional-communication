@@ -426,6 +426,69 @@ namespace ProCommVR.Editor
             gurney.gameObject.SetActive(false);
         }
 
+        // --- Rode alarmlampen (beeld 7) ------------------------------------------------------------
+
+        private const float AlarmWallHeight = 2.35f;
+        private const float AlarmLightRange = 4f;
+        private const float AlarmLightIntensity = 2f;
+        private static readonly Color AlarmRed = new Color(1f, 0.12f, 0.1f);
+
+        /// <summary>
+        /// Vier rode alarmlampen (het maximum voor de Quest 3), allemaal UIT in rust: Floor3/AlarmLights/AlarmLight_3C (boven de
+        /// deur van 3C, gangkant), AlarmLight_Corridor (plafond boven de dochter), AlarmLight_FamilyRoom (boven de gangdeur van de
+        /// gesprekskamer, gangkant) en Core/FamilyRoom/AlarmLight (plafond). Elk: een kapje (voetplaat en lens) met een AlarmLamp
+        /// en een rood puntlicht (4 m, geen schaduw, Realtime) dat disabled staat. De ganglichten Light_3/9/15 blijven zoals ze zijn.
+        /// </summary>
+        private static void BuildAlarmLights(Transform root)
+        {
+            var off = Mat("AlarmLens_Off", new Color(0.35f, 0.05f, 0.05f), 0f, 0.6f);
+            var on = Mat("AlarmLens_On", AlarmRed, 0f, 0.6f, new Color(2.5f, 0.25f, 0.2f));
+            var group = Child(root.Find("Floor3"), "AlarmLights");
+            var room = CoreRooms.First(r => r.Name == "FamilyRoom").Rect;
+            var corridorDoor = CoreDoors.First(d => d.Name == "Door_FamilyRoom_Corridor");
+            var door3C = PatientRooms.First(r => r.Id == PreOpRoomId);
+
+            AlarmLampAt(group, "AlarmLight_3C", PlanPoint(new Vector2(door3C.Rect.X0 - InnerWall / 2f, door3C.DoorCenter.y), AlarmWallHeight),
+                PlanDirection(PlanWest), off, on);
+            AlarmLampAt(group, "AlarmLight_Corridor", PlanPoint(new Vector2(34.8f, 5.5f), CeilingHeight), Vector3.down, off, on);
+            AlarmLampAt(group, "AlarmLight_FamilyRoom", PlanPoint(new Vector2(corridorDoor.Segment.At + InnerWall / 2f, corridorDoor.Center.y),
+                AlarmWallHeight), PlanDirection(PlanEast), off, on);
+            // In de gesprekskamer naast de plafondlamp (die in het midden hangt), aan de kant van de gangdeur
+            AlarmLampAt(root.Find("Core/FamilyRoom"), "AlarmLight", PlanPoint(new Vector2(room.CenterX + 1.5f, room.CenterY), CeilingHeight),
+                Vector3.down, off, on);
+        }
+
+        /// <summary>Kapje op mount (op de muur of het plafond), met de lens in de richting outward. Zonder colliders, niet static.</summary>
+        private static void AlarmLampAt(Transform parent, string name, Vector3 mount, Vector3 outward, Material off, Material on)
+        {
+            var lamp = new GameObject(name).transform;
+            lamp.SetParent(parent, false);
+            var up = Mathf.Abs(Vector3.Dot(outward, Vector3.up)) > 0.9f ? Vector3.forward : Vector3.up;
+            lamp.SetPositionAndRotation(mount, Quaternion.LookRotation(outward, up));
+
+            Box("Base", lamp, new Vector3(0f, 0f, 0.015f), new Vector3(0.16f, 0.16f, 0.03f), MetalMat);
+            var lens = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            lens.name = "Lens";
+            lens.transform.SetParent(lamp, false);
+            lens.transform.localPosition = new Vector3(0f, 0f, 0.03f);
+            lens.transform.localScale = new Vector3(0.12f, 0.12f, 0.12f);
+            foreach (var c in lamp.GetComponentsInChildren<Collider>())
+                Object.DestroyImmediate(c);
+
+            var go = new GameObject("PointLight");
+            go.transform.SetParent(lamp, false);
+            go.transform.localPosition = new Vector3(0f, 0f, 0.15f);
+            var light = go.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = AlarmRed;
+            light.range = AlarmLightRange;
+            light.intensity = AlarmLightIntensity;
+            light.shadows = LightShadows.None;
+            light.lightmapBakeType = LightmapBakeType.Realtime;
+
+            lamp.gameObject.AddComponent<AlarmLamp>().Configure(lens.GetComponent<Renderer>(), light, off, on);
+        }
+
         // --- Screenshots -------------------------------------------------------------------------
 
         /// <summary>Camera's in kamer 3C: vanuit de deur naar bed 1, en dichtbij de vader. Ook gebruikt door de Play mode-test.</summary>

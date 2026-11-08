@@ -552,6 +552,95 @@ namespace ProCommVR.Editor.Tests
 
         private static Vector3 PlanDir(Vector2 d) => new Vector3(d.x, 0f, -d.y);
 
+        // --- Scenario 2: alarmlampen (Play mode) ------------------------------------------------------
+
+        private const int MaxLightsPerObject = 4;   // Mobile_Renderer (Forward): extra lichten per object
+
+        /// <summary>
+        /// In Play mode: 4 alarmlampen, in rust uit (lens Off, licht disabled). Aan met SetOn(true): lens On en licht enabled.
+        /// Screenshots u_afdeling_alarm_off.png en _on.png. Telt ook per renderer hoeveel puntlichten hem raken (met en zonder
+        /// alarm), want de Quest (Forward) toont er maar 4 per object.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AlarmLampsInPlayMode()
+        {
+            yield return new EnterPlayMode();
+            yield return new WaitForSeconds(0.5f);
+            var failures = new List<string>();
+            var lamps = Object.FindObjectsByType<ProCommVR.Hospital.AlarmLamp>(FindObjectsSortMode.None).OrderBy(l => l.name).ToList();
+            var countOk = lamps.Count > 0 && lamps.Count <= MaxLightsPerObject;
+            Row("Alarmlampen", "aantal", $"{lamps.Count} (max {MaxLightsPerObject})", countOk);
+            if (!countOk)
+                failures.Add("aantal");
+
+            bool State(bool on)
+            {
+                var ok = true;
+                foreach (var lamp in lamps)
+                {
+                    var light = lamp.GetComponentInChildren<Light>(true);
+                    var lens = lamp.transform.Find("Lens").GetComponent<Renderer>().sharedMaterial;
+                    var good = lamp.IsOn == on && light.enabled == on && lens.name == (on ? "AlarmLens_On" : "AlarmLens_Off") &&
+                               light.shadows == LightShadows.None && Mathf.Approximately(light.range, 4f);
+                    Row($"Alarmlamp {(on ? "aan" : "uit")}", lamp.name, $"licht {(light.enabled ? "aan" : "uit")}, lens {lens.name}", good);
+                    ok &= good;
+                }
+                return ok;
+            }
+
+            if (!State(false))
+                failures.Add("in rust niet uit");
+            var countsOff = LightsPerRenderer();
+            yield return AlarmShot("off");
+
+            lamps.ForEach(l => l.SetOn(true));
+            yield return null;
+            if (!State(true))
+                failures.Add("SetOn(true) werkt niet");
+            var countsOn = LightsPerRenderer();
+            yield return AlarmShot("on");
+            foreach (var (label, counts) in new[] { ("alarm uit", countsOff), ("alarm aan", countsOn) })
+            {
+                var over = counts.Where(c => c.Value > MaxLightsPerObject).OrderByDescending(c => c.Value).ToList();
+                Row("Lichten per object", label, $"max {counts.Values.DefaultIfEmpty(0).Max()} puntlichten op één renderer, " +
+                    $"{over.Count} renderers met meer dan {MaxLightsPerObject}" +
+                    (over.Count > 0 ? " (bv. " + string.Join(", ", over.Take(4).Select(o => $"{o.Key} {o.Value}")) + ")" : ""), true);
+            }
+            lamps.ForEach(l => l.SetOn(false));
+
+            yield return new ExitPlayMode();
+            Assert.IsEmpty(failures, "Alarmlampen: " + string.Join(", ", failures));
+        }
+
+        /// <summary>Per zichtbare renderer: aantal actieve puntlichten waarvan het bereik zijn bounds raakt.</summary>
+        private static Dictionary<string, int> LightsPerRenderer()
+        {
+            var lights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None)
+                .Where(l => l.enabled && l.type == LightType.Point).ToList();
+            var result = new Dictionary<string, int>();
+            foreach (var r in Root.GetComponentsInChildren<MeshRenderer>())
+            {
+                var n = lights.Count(l => r.bounds.SqrDistance(l.transform.position) <= l.range * l.range);
+                var key = r.transform.parent != null ? $"{r.transform.parent.name}/{r.name}" : r.name;
+                result[key] = Mathf.Max(n, result.TryGetValue(key, out var old) ? old : 0);
+            }
+            return result;
+        }
+
+        /// <summary>De rechtergang vanuit het zuiden: gangdeur van de gesprekskamer, de dochter en de deur van 3C.</summary>
+        private static IEnumerator AlarmShot(string state)
+        {
+            var go = new GameObject("TestCamera");
+            var cam = go.AddComponent<Camera>();
+            cam.fieldOfView = 75f;
+            cam.nearClipPlane = 0.05f;
+            var eye = ToUnity(35.3f, 12.6f, 1.65f);
+            go.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(ToUnity(34.6f, 3.0f, 1.6f) - eye));
+            HospitalAssetPrep.Capture(cam, $"docs/Screenshots/u_afdeling_alarm_{state}.png");
+            Object.Destroy(go);
+            yield return null;
+        }
+
         // --- Personeel ------------------------------------------------------------------------------
 
         [Test]

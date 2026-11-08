@@ -77,3 +77,8 @@ gebouwd door `UWardBuilder.Scenario2.cs`, met de waarden in `UWardLayout.Scenari
 Kamer 3C (beeld 1): `Characters/Patient_3C` met `Body_Pyjama` (aan) en `Body_Gown` (uit), zittend op
 `Floor3/Room_3C/Furniture/Bed/Anchor_BedEdge`; het schort ligt op `Room_3C/Props/Gown`. Let op: Jalils `HideMisplacedPatients`
 verbergt een patiënt die meer dan 4,2 m de kamer in staat; de oorsprong van `Patient_3C` ligt op 4,1 m.
+
+Alarm (beeld 7): `Floor3/AlarmLights/AlarmLight_3C`, `AlarmLight_Corridor`, `AlarmLight_FamilyRoom` en
+`Core/FamilyRoom/AlarmLight`, elk met `AlarmLamp` (`SetOn(bool)`, `Blink(float)`) en een rood puntlicht dat in rust uit staat.
+Jalil kan ze aanzetten bij `Mood.Alarm`; zijn rode ganglichten (`Light_3`, `Light_9`) blijven daarnaast bestaan.
+Testen zonder Jalils code: **ProCommVR > Hospital > Test Alarm > Aan / Uit / Knipperen** (in Play mode).
