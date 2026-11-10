@@ -17,6 +17,10 @@
     }
   },
   "facts_instruction": "never invent medical facts, test results or a discharge date",
+  "known_names": [
+    "Patient X",
+    "Mr. X"
+  ],
   "language": "en",
   "student_role": "a nurse on the ward who comes to his bed",
   "persona": {

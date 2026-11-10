@@ -16,6 +16,10 @@
     }
   },
   "facts_instruction": "do not mention anything else about your family or your father's health",
+  "known_names": [
+    "Sarah",
+    "Mr. X"
+  ],
   "language": "en",
   "student_role": "a nurse on the surgical ward who walks up to her in the waiting area",
   "persona": {

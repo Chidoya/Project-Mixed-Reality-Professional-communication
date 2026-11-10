@@ -27,6 +27,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from engine import SENTENCE_END
 from llm_client import LlmClient, LlmOutputError, LlmUnavailableError
 
 _pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="summary")
@@ -198,7 +199,7 @@ def _model_summary(llm: LlmClient, sc, items: list[dict], moments: list[dict], e
         out = _Summary.model_validate(raw)
         parts = [x.strip().rstrip(".!") + "." for x in (out.zin_sterk_punt, out.zin_werkpunt)]
         text = " ".join(parts)
-        sentences = [s for s in re.split(r"(?<=[.!?])\s+", text) if s]
+        sentences = [s for s in SENTENCE_END.split(text) if s]
         if not _is_dutch(text):
             problem = "\n(Vorige poging was niet in het Nederlands.)"
         elif not re.search(r"\b(je|jij|jouw)\b", text, re.I) or re.search(r"\bde student\b", text, re.I):
@@ -235,9 +236,9 @@ def run_debrief(llm: LlmClient, session) -> dict[str, Any]:
             summary = _fallback_summary(sc, total)
         else:
             first = strength["feedback"]["2"] if isinstance(strength["feedback"], dict) else strength["feedback"]
-            summary = re.split(r"(?<=[.!?])\s+", first)[0]
+            summary = SENTENCE_END.split(first)[0]
             if weakness is not None:
-                fact = re.split(r"(?<=[.!?])\s+", weakness["feedback"])[0]
+                fact = SENTENCE_END.split(weakness["feedback"])[0]
                 summary += " Werkpunt: " + fact[0].lower() + fact[1:]
             else:
                 summary += " Ga zo door."

@@ -17,6 +17,13 @@
     }
   },
   "facts_instruction": "never invent medical facts about Patient X",
+  "known_names": [
+    "Dr. Maes",
+    "Doctor Maes",
+    "Maes",
+    "Patient X",
+    "Mr. X"
+  ],
   "language": "en",
   "student_role": "a nurse colleague who stops you in the corridor to speak up for the son of Patient X",
   "persona": {

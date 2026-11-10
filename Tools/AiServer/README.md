@@ -160,7 +160,9 @@ Checks on every actor reply (in Python, one retry): the character gets its last 
 them or the nurse's question; a reply (or one of its sentences) that is more than 80 % similar to an earlier line
 of the character or to the nurse's last sentence is refused. Times, numbers and day names (`two`, `4`, `tomorrow`,
 `o'clock`...) may only appear if they are in the unlocked facts or the nurse said them; if the retry still invents
-one, a fallback line is used.
+one, a fallback line is used. Names: every name in a reply must be in the scenario's `known_names` or said by the
+nurse; the nurse's own name (from "I'm Tom") may only be used to address the nurse ("Thank you, Tom"), never for
+someone else. Otherwise one retry, then a fallback line. Sentences are not split after Mr., Mrs., Ms. or Dr.
 
 The scenarios 1, 3, 4 and 5 are drafts based on Jalil's scenario texts; a nursing teacher should review them.
 `chat.py <scenario_id> --debrief` plays a scenario in the terminal and prints the debrief.

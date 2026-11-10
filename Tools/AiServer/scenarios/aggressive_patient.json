@@ -17,6 +17,10 @@
     }
   },
   "facts_instruction": "you do NOT know any diagnosis and you never name or guess one; never invent medical facts",
+  "known_names": [
+    "Patient X",
+    "Mr. X"
+  ],
   "language": "en",
   "student_role": "a nurse who comes to take an extra blood sample",
   "persona": {

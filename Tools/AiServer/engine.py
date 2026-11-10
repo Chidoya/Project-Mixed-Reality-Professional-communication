@@ -173,6 +173,9 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s']", " ", text.lower())).strip()
 
 
+# End of a sentence: . ! or ? followed by space, but not after a title ("Mr. X", "Dr. Maes")
+SENTENCE_END = re.compile(r"(?<=[.!?])(?<!\bMr\.)(?<!\bMs\.)(?<!\bDr\.)(?<!\bMrs\.)\s+")
+
 REPEAT_THRESHOLD = 0.8  # similarity above this = a repeated line
 
 # Words that carry a time, a number or a day: the actor may only use them if they are in its facts or the
@@ -189,13 +192,49 @@ def _time_tokens(text: str) -> set[str]:
     return {w for w in words if w in _NUMBER_WORDS or w in _DAY_WORDS or w[0].isdigit()}
 
 
+# Capitalized words that are not names (titles, interjections, days, abbreviations...)
+_NOT_NAMES = {"I", "I'm", "I'll", "I've", "I'd", "Mr", "Mrs", "Ms", "Dr", "Doctor", "Nurse", "Sir", "Ma'am", "Madam",
+              "God", "Oh", "OK", "Okay", "Yes", "No", "Please", "Thank", "Thanks", "Sorry", "Hello", "Hi", "Well",
+              "So", "But", "And", "Or", "X", "HIV", "OR", "ICU", "ER", "Monday", "Tuesday", "Wednesday",
+              "Thursday", "Friday", "Saturday", "Sunday", "English", "Christmas"}
+
+
+def _name_candidates(text: str) -> list[tuple[str, bool]]:
+    """Capitalized words that look like a name, with True if used as an address ("Thank you, Tom.").
+    A sentence-initial capital only counts when it is followed by a comma (vocative: "Tom, please...")."""
+    out = []
+    for sentence in SENTENCE_END.split(text.strip()):
+        for m in re.finditer(r"\b[A-Z][a-z]+(?:'[a-z]+)?\b", sentence):
+            word = m.group(0)
+            if word in _NOT_NAMES or word.split("'")[0] in _NOT_NAMES:
+                continue
+            before = sentence[:m.start()].rstrip()
+            after = sentence[m.end():].lstrip()
+            at_start = before == ""
+            vocative = (at_start and after.startswith(",")) or (before.endswith(",") and (after == "" or after[0] in ",.!?"))
+            if at_start and not vocative:
+                continue  # an ordinary first word of a sentence
+            out.append((word.split("'")[0], vocative))
+    return out
+
+
+def _nurse_names(student_lines: list[str]) -> set[str]:
+    """The nurse's own name, from how the student introduced themselves ("I'm Tom", "my name is Emma")."""
+    names = set()
+    for line in student_lines:
+        for m in re.finditer(r"\b(?:I'm|I am|my name is|this is|it's)\s+([A-Z][a-z]+)", line, re.I):
+            if m.group(1)[0].isupper() and m.group(1) not in _NOT_NAMES:
+                names.add(m.group(1))
+    return names
+
+
 def _similarity(a: str, b: str) -> float:
     from difflib import SequenceMatcher
     return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
 
 
 def _limit_sentences(text: str, max_sentences: int = 2) -> str:
-    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    parts = SENTENCE_END.split(text.strip())
     return " ".join(parts[:max_sentences]).strip()
 
 
@@ -490,6 +529,8 @@ class Engine:
             f"something they did not say: only mention a time, a plan, a reason or a promise if "
             f"the nurse said it, in their words. Times, numbers, days and appointments may only come literally "
             f"from your list of things you know, or from what the nurse said.\n"
+            f"Names you know: {', '.join(sc.data.get('known_names', [])) or '(none)'}. Use no other names, except "
+            f"names the nurse said. Use the nurse's own name only to address the nurse, never for someone else.\n"
             f"Your last lines were:\n{last_own}\n"
             f"Do not repeat any earlier line of yours and do not repeat the nurse's question back; say something new.\n\n"
             "Answer as JSON:\n"
@@ -513,14 +554,15 @@ class Engine:
             retry_messages = messages + [
                 {"role": "assistant", "content": out.reply},
                 {"role": "user", "content": f"(Not acceptable: {problem}. Say something new, in character, "
-                                            "that does not repeat earlier lines and uses no new times or numbers.)"},
+                                            "that does not repeat earlier lines and uses no new times, numbers "
+                                            "or names.)"},
             ]
             second = self._call_validated(system, retry_messages, ActorOutput, "actor", notes, tokens)
             if second is not None:
                 problem2 = self._content_problem(session, second.reply, own_lines, last_student)
                 if not problem2:
                     out = second
-                elif "not in your facts" in problem2:
+                elif "not in your facts" in problem2 or "name" in problem2:
                     notes.append(f"still {problem2}: fallback line")
                     return None
                 else:
@@ -551,7 +593,7 @@ class Engine:
     def _content_problem(self, session: Session, reply: str, own_lines: list[str], last_student: str) -> str:
         """'' if the reply is fine; otherwise why not (a repeated line, or a time/number not in the facts)."""
         def sentences(text: str) -> list[str]:  # only real sentences (4+ words) count as a repetition
-            return [x for x in re.split(r"(?<=[.!?])\s+", text.strip()) if len(x.split()) >= 4]
+            return [x for x in SENTENCE_END.split(text.strip()) if len(x.split()) >= 4]
         earlier = [x for line in own_lines for x in sentences(line)] + own_lines
         for part in [reply] + sentences(reply):
             for line in earlier:
@@ -568,6 +610,20 @@ class Engine:
         invented = sorted(_time_tokens(reply) - allowed)
         if invented:
             return f"mentions {', '.join(invented)}, which is not in your facts"
+
+        # Names: only the character's known names, or names the nurse said; the nurse's own name only as an
+        # address ("Thank you, Tom"), never as the name of someone else.
+        student_lines = [h["text"] for h in session.history if h["speaker"] == "student"]
+        nurse = _nurse_names(student_lines)
+        known = {w for n in session.scenario.data.get("known_names", []) for w in re.findall(r"[A-Z][a-z]+", n)}
+        said = {w for line in student_lines for w, _ in _name_candidates(line)} | {
+            w for line in student_lines for w in re.findall(r"\b[A-Z][a-z]+\b", line)}
+        for word, vocative in _name_candidates(reply):
+            if word in nurse:
+                if not vocative:
+                    return f"uses the nurse's name {word} for someone else (only say it to address the nurse)"
+            elif word not in known and word not in said:
+                return f"uses the name {word}, which you do not know"
         return ""
 
     # -- step 6: validation with one retry

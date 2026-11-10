@@ -17,6 +17,10 @@
     }
   },
   "facts_instruction": "you do not know the prognosis or any test result; never invent medical facts",
+  "known_names": [
+    "Patient X",
+    "Mr. X"
+  ],
   "language": "en",
   "student_role": "a nurse who comes into the room where you sit next to your sleeping husband",
   "persona": {
