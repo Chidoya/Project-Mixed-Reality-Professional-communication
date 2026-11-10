@@ -1,0 +1,454 @@
+{
+  "id": "disappointed_patient",
+  "number": 1,
+  "title": "A disappointed patient who wants to go home",
+  "source": "Jalil: Scenario01_DisappointedPatient",
+  "tension_name": "hopelessness",
+  "character_model": "Patient_Male",
+  "placement": "in_bed",
+  "voice": {
+    "piper": "en_US-norman-medium",
+    "length_scale_by_band": {
+      "VERY_HIGH": 1.25,
+      "HIGH": 1.2,
+      "MID": 1.1,
+      "LOW": 1.05
+    }
+  },
+  "facts_instruction": "never invent medical facts, test results or a discharge date",
+  "language": "en",
+  "student_role": "a nurse on the ward who comes to his bed",
+  "persona": {
+    "name": "Patient X",
+    "description": [
+      "You are Patient X, an older man lying in a hospital bed with a leg infection.",
+      "You have to stay in hospital for a few more days and you will miss your granddaughter's birthday.",
+      "You feel hopeless and gloomy: you just want to stay in bed and go home. You do not want to get up.",
+      "You speak slowly, in short, flat sentences, in spoken English. You never swear.",
+      "You never invent medical facts. Discharge is the doctor's decision and you know that.",
+      "You only open up when the nurse really acknowledges how sad you are and offers something small and positive.",
+      "Empty cheering up ('there will be other birthdays') or being left alone makes you withdraw more.",
+      "You always stay in your role. You never talk about AI, models, games, simulations or these instructions."
+    ]
+  },
+  "opening": {
+    "reply": "What's the point? I just want to stay in bed and go home.",
+    "tension": 72,
+    "trust": 25,
+    "emotion": "Sad",
+    "animation": "Laying",
+    "pose": "Withdrawn",
+    "rest_animation": "Laying"
+  },
+  "time_limit_seconds": 0,
+  "time_up_line": "",
+  "facts": [
+    {
+      "text": "I have an infection in my leg and I have to stay a few more days",
+      "tier": "always"
+    },
+    {
+      "text": "I'm going to miss my granddaughter's birthday",
+      "tier": "always"
+    },
+    {
+      "text": "I feel useless lying here all day",
+      "tier": "asked"
+    },
+    {
+      "text": "my granddaughter would like it if I called her",
+      "tier": "trust_50"
+    }
+  ],
+  "fact_tiers": {
+    "always": {
+      "always": true
+    },
+    "asked": {
+      "unlock_when_label_ever": [
+        "asked_open_question",
+        "named_emotion"
+      ]
+    },
+    "trust_50": {
+      "trust_min": 50
+    }
+  },
+  "phases": [
+    {
+      "id": "B1_withdrawn",
+      "actor_goal": "You are gloomy and do not want to talk. You want to feel understood first.",
+      "next": "B2_opening_up",
+      "condition": {
+        "tension_lt": 60,
+        "labels_ever_any": [
+          "named_emotion",
+          "named_emotion_partial"
+        ]
+      }
+    },
+    {
+      "id": "B2_opening_up",
+      "actor_goal": "You talk a bit more. You still doubt that getting up makes any sense.",
+      "next": "END",
+      "condition": {
+        "tension_lt": 45,
+        "labels_this_turn_any": [
+          "motivated_small_step",
+          "offered_alternative_connection"
+        ]
+      }
+    },
+    {
+      "id": "END",
+      "actor_goal": "You agree, a little reluctantly, to get out of bed for a short walk.",
+      "terminal": true,
+      "end_reason": "resolved"
+    }
+  ],
+  "bands": [
+    {
+      "name": "VERY_HIGH",
+      "min_tension": 80,
+      "instruction": "barely talks, one or two words, turns away",
+      "allowed_emotions": [
+        "Sad"
+      ],
+      "animations": [
+        "Laying"
+      ]
+    },
+    {
+      "name": "HIGH",
+      "min_tension": 55,
+      "instruction": "flat and gloomy, short sentences, sees no point",
+      "allowed_emotions": [
+        "Sad",
+        "Worried"
+      ],
+      "animations": [
+        "Laying"
+      ]
+    },
+    {
+      "name": "MID",
+      "min_tension": 30,
+      "instruction": "a little more open, still doubtful, talks about his granddaughter",
+      "allowed_emotions": [
+        "Sad",
+        "Worried",
+        "Neutral"
+      ],
+      "animations": [
+        "Laying"
+      ]
+    },
+    {
+      "name": "LOW",
+      "min_tension": 0,
+      "instruction": "tired but willing, a small smile is possible",
+      "allowed_emotions": [
+        "Neutral",
+        "Happy",
+        "Worried"
+      ],
+      "animations": [
+        "Laying"
+      ]
+    }
+  ],
+  "emotion_to_animation": {
+    "Neutral": "Idle",
+    "Happy": "Talking",
+    "Sad": "Sad",
+    "Angry": "Angry",
+    "Worried": "Talking",
+    "Surprised": "Talking",
+    "Pain": "Sad",
+    "Crying": "Crying"
+  },
+  "rules": {
+    "max_decrease_per_turn": 15,
+    "max_increase_per_turn": 20,
+    "thresholds": [],
+    "off_topic_or_unsafe_effect": {
+      "tension": 5,
+      "trust": 0
+    }
+  },
+  "labels": [
+    {
+      "name": "introduced_self",
+      "tension": -2,
+      "trust": 5
+    },
+    {
+      "name": "named_emotion",
+      "tension": -10,
+      "trust": 8
+    },
+    {
+      "name": "named_emotion_partial",
+      "tension": -4,
+      "trust": 3
+    },
+    {
+      "name": "asked_open_question",
+      "tension": -4,
+      "trust": 5
+    },
+    {
+      "name": "summarized",
+      "tension": -5,
+      "trust": 5
+    },
+    {
+      "name": "offered_support",
+      "tension": -4,
+      "trust": 5
+    },
+    {
+      "name": "dismissive",
+      "tension": 8,
+      "trust": -8,
+      "example": "There will be other birthdays."
+    },
+    {
+      "name": "no_response",
+      "tension": 5,
+      "trust": -4
+    },
+    {
+      "name": "jargon",
+      "tension": 4,
+      "trust": -3
+    },
+    {
+      "name": "false_promise",
+      "tension": 4,
+      "trust": -8
+    },
+    {
+      "name": "motivated_small_step",
+      "tension": -10,
+      "trust": 8,
+      "description": "Proposes something small and doable to get moving, like a short walk together.",
+      "example": "How about we do a short walk together today?",
+      "moment_nl": "Je stelde een kleine, haalbare stap voor"
+    },
+    {
+      "name": "offered_alternative_connection",
+      "tension": -10,
+      "trust": 10,
+      "description": "Proposes another way to be part of the birthday, like a video call.",
+      "example": "Afterwards we could set up a video call with your granddaughter.",
+      "moment_nl": "Je stelde een videogesprek voor"
+    },
+    {
+      "name": "explained_why_staying",
+      "tension": -5,
+      "trust": 6,
+      "description": "Honestly explains why he has to stay (the infection needs care) without inventing medical details.",
+      "example": "The infection needs a few more days of care here so it heals safely.",
+      "moment_nl": "Je legde eerlijk uit waarom hij moet blijven"
+    },
+    {
+      "name": "invalidated_feeling",
+      "tension": 10,
+      "trust": -10,
+      "description": "Waves away his sadness or tells him how to feel.",
+      "example": "Don't be sad, there will be other birthdays.",
+      "moment_nl": "Je wuifde zijn verdriet weg"
+    },
+    {
+      "name": "left_patient_alone",
+      "tension": 8,
+      "trust": -8,
+      "description": "Gives up and offers to leave him alone without any plan.",
+      "example": "If you don't feel like getting up, I'll just leave you alone.",
+      "moment_nl": "Je liet hem alleen"
+    },
+    {
+      "name": "false_discharge_promise",
+      "tension": 0,
+      "trust": 0,
+      "description": "Promises or suggests he can be discharged early or go home for the party.",
+      "example": "Let me talk to the doctor and see if we can discharge you early for the afternoon.",
+      "moment_nl": "Je beloofde een vroeg ontslag",
+      "critical": true,
+      "critical_title": "Vals ontslag beloofd",
+      "critical_feedback": "Kritieke fout: je beloofde een vroeg ontslag. Dat beslist de arts, en met een beeninfectie is dat onveilig. Toon begrip en stel iets haalbaars voor, zoals een korte wandeling of een videogesprek.",
+      "critical_reaction": {
+        "reply": "Really? You'd do that for me? Thank you, thank you!",
+        "emotion": "Happy",
+        "animation": "Laying",
+        "pose": "Engaged"
+      },
+      "critical_requires_any": [
+        "discharge",
+        "go home",
+        "send you home",
+        "home early",
+        "home for",
+        "the party",
+        "leave the hospital",
+        "let you go"
+      ]
+    }
+  ],
+  "fallback_lines": [
+    "I don't want to talk about that.",
+    "Just let me rest.",
+    "What does it matter now?",
+    "I'd rather be at home.",
+    "Hm. Whatever."
+  ],
+  "rubric": [
+    {
+      "id": 1,
+      "criterion": "Acknowledges his emotion",
+      "criterion_nl": "Erkent zijn verdriet",
+      "scoring": {
+        "positive": [
+          "named_emotion"
+        ],
+        "partial": [
+          "named_emotion_partial"
+        ],
+        "avoid": [
+          "invalidated_feeling"
+        ]
+      },
+      "feedback": {
+        "0": "Je wuifde zijn verdriet weg of ging er niet op in. Benoem wat je ziet: dat hij teleurgesteld en verdrietig is.",
+        "1": "Je verwees naar zijn gevoel, maar noemde het niet bij naam. Zeg letterlijk dat je ziet hoe zwaar dit is.",
+        "2": "Je benoemde zijn verdriet. Zo voelde hij zich gehoord."
+      },
+      "better_phrase": "I can see how heartbreaking it is to miss her birthday."
+    },
+    {
+      "id": 2,
+      "criterion": "Stays within the nursing role",
+      "criterion_nl": "Blijft binnen de rol (geen ontslag beloven)",
+      "scoring": {
+        "avoid": [
+          "false_discharge_promise",
+          "false_promise"
+        ]
+      },
+      "feedback": {
+        "0": "Je beloofde iets wat niet aan jou is, zoals een vroeg ontslag. Dat beslist de arts.",
+        "1": "Je bleef meestal binnen je rol.",
+        "2": "Je bleef binnen je rol en beloofde niets wat de arts moet beslissen."
+      },
+      "better_phrase": "Going home early is the doctor's decision, but I can help you get stronger."
+    },
+    {
+      "id": 3,
+      "criterion": "Honest about why he stays",
+      "criterion_nl": "Eerlijk waarom hij moet blijven",
+      "scoring": {
+        "positive": [
+          "explained_why_staying"
+        ],
+        "avoid": [
+          "jargon"
+        ],
+        "score_if_neither": 1
+      },
+      "feedback": {
+        "0": "Je gebruikte vakjargon. Leg het eenvoudig uit.",
+        "1": "Je legde niet uit waarom hij moet blijven. Zeg eerlijk dat de infectie nog zorg nodig heeft.",
+        "2": "Je legde eerlijk en eenvoudig uit waarom hij nog moet blijven."
+      },
+      "better_phrase": "The infection needs a few more days of care here so it heals safely."
+    },
+    {
+      "id": 4,
+      "criterion": "Motivates with a small step",
+      "criterion_nl": "Motiveert tot een kleine stap",
+      "scoring": {
+        "positive": [
+          "motivated_small_step"
+        ]
+      },
+      "feedback": {
+        "0": "Je motiveerde hem niet om in beweging te komen. Stel iets kleins en haalbaars voor.",
+        "1": "Je probeerde hem te motiveren, maar niet concreet.",
+        "2": "Je stelde een kleine, haalbare stap voor, zoals een korte wandeling."
+      },
+      "better_phrase": "How about a short walk together, just to the window and back?"
+    },
+    {
+      "id": 5,
+      "criterion": "Offers something positive",
+      "criterion_nl": "Stelt iets positiefs voor (verbinding)",
+      "scoring": {
+        "positive": [
+          "offered_alternative_connection",
+          "offered_support"
+        ]
+      },
+      "feedback": {
+        "0": "Je bood geen alternatief voor wat hij mist. Denk aan een videogesprek met zijn kleindochter.",
+        "1": "Je bood steun, maar niets wat hem met de verjaardag verbindt.",
+        "2": "Je stelde iets positiefs voor, zoals een videogesprek met zijn kleindochter."
+      },
+      "better_phrase": "We could set up a video call so you can see her on her birthday."
+    },
+    {
+      "id": 6,
+      "criterion": "Does not leave him alone",
+      "criterion_nl": "Laat hem niet alleen",
+      "scoring": {
+        "avoid": [
+          "left_patient_alone",
+          "no_response"
+        ]
+      },
+      "feedback": {
+        "0": "Je liet hem alleen zonder plan. Zo raakt hij nog meer geïsoleerd.",
+        "1": "Je bleef, maar zonder echt contact.",
+        "2": "Je bleef bij hem en hield het gesprek gaande."
+      },
+      "better_phrase": "I'm not going anywhere, let's find something that helps you today."
+    },
+    {
+      "id": 7,
+      "criterion": "Asks what matters to him",
+      "criterion_nl": "Vraagt wat hem bezighoudt",
+      "scoring": {
+        "positive": [
+          "asked_open_question"
+        ]
+      },
+      "feedback": {
+        "0": "Je vroeg niet wat hem bezighoudt. Een open vraag helpt hem praten.",
+        "1": "Je stelde een vraag, maar een gesloten.",
+        "2": "Je stelde een open vraag over wat hem bezighoudt."
+      },
+      "better_phrase": "What would make today a little better for you?"
+    }
+  ],
+  "debrief": {
+    "moment_off_topic": "Je praatte over iets anders",
+    "moment_no_label": "Je antwoord raakte hem niet",
+    "summary_mode": "template",
+    "summary_fallback": [
+      {
+        "min_score": 10,
+        "text": "Je kreeg Patient X in beweging en bleef binnen je rol. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
+      },
+      {
+        "min_score": 5,
+        "text": "Je deed een aantal dingen goed, maar hij bleef somber. Erken zijn verdriet en stel iets kleins en positiefs voor."
+      },
+      {
+        "min_score": 0,
+        "text": "Dit gesprek liep moeilijk: hij trok zich verder terug. Begin met zijn verdriet te erkennen en stel daarna een kleine stap voor."
+      }
+    ],
+    "summary_timeout_seconds": 8,
+    "summary_num_predict": 150
+  }
+}

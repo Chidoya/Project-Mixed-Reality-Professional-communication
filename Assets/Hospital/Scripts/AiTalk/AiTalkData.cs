@@ -54,6 +54,8 @@ namespace ProCommVR.Hospital.AiTalk
         // Alleen in de opening (van /session/start)
         public float time_limit_seconds;
         public string time_up_line;
+        public string rest_animation;
+        public string tension_name;
 
         // Alleen in Unity, niet van de server
         [NonSerialized] public bool localFallback;

@@ -1,6 +1,6 @@
 """Terminal chat with a scenario character through the AI server.
 
-    .venv\\Scripts\\python chat.py [scenario_id]
+    .venv\\Scripts\\python chat.py [scenario_id] [--debrief]
 
 Type in English. Empty line = silence (no_response). /quit ends and saves the session.
 Input can also be piped (one line per turn), e.g. for scripted tests.
@@ -29,6 +29,9 @@ def post(client: httpx.Client, path: str, body: dict | None = None) -> dict:
     return r.json()
 
 
+NAME = "SARAH"
+
+
 def show_turn(t: dict) -> None:
     b, a = t["before"], t["after"]
     flags = [f for f in ("off_topic", "unsafe", "fallback_used") if t.get(f)]
@@ -43,20 +46,24 @@ def show_turn(t: dict) -> None:
     if t.get("tokens"):
         print("  tokens : " + "   ".join(f"{k} in {v['in']} / out {v['out']} ({v['calls']} call{'s' if v['calls'] > 1 else ''})"
                                      for k, v in t["tokens"].items()))
-    print(f"SARAH [{t['emotion']}/{t['animation']}/{t['pose']}]: {t['reply']}")
+    print(f"{NAME} [{t['emotion']}/{t['animation']}/{t['pose']}]: {t['reply']}")
     if t.get("facts_used"):
         print(f"  facts  : {t['facts_used']}")
 
 
 def main() -> None:
-    scenario_id = sys.argv[1] if len(sys.argv) > 1 else "angry_daughter"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    scenario_id = args[0] if args else "angry_daughter"
+    want_debrief = "--debrief" in sys.argv
     piped = not sys.stdin.isatty()
     with httpx.Client(timeout=300) as client:
         start = post(client, "/session/start", {"scenario_id": scenario_id})
         sid, op = start["session_id"], start["opening"]
+        global NAME
+        NAME = op.get("character_name", "SARAH").upper()
         print(f"session {sid}  (type /quit to stop)\n")
         print(f"  anger {op['anger']}  trust {op['trust']}  band {op['band']}")
-        print(f"SARAH [{op['emotion']}/{op['animation']}]: {op['reply']}\n")
+        print(f"{NAME} [{op['emotion']}/{op['animation']}]: {op['reply']}\n")
         try:
             while True:
                 try:
@@ -77,6 +84,22 @@ def main() -> None:
             print()
         end = post(client, f"/session/{sid}/end")
         print(f"saved {end['turns']} turns to {end['saved']} (end reason: {end['end_reason']})")
+        if want_debrief:
+            show_debrief(post(client, f"/session/{sid}/debrief"))
+
+
+def show_debrief(d: dict) -> None:
+    print(f"\n=== DEBRIEF {d['total_score']}/{d['max_score']}  end: {d['end_reason']}  "
+          f"({d.get('tension_name', 'anger')} curve: {' '.join(map(str, d['anger_curve']))})")
+    if d.get("critical"):
+        c = d["critical"]
+        print(f"  !! CRITICAL ERROR (turn {c['turn']}): {c['title']}  \"{c['quote']}\"")
+    print("  " + d["summary"])
+    for i in d["items"]:
+        mark = " (onzeker)" if i["uncertain"] else ""
+        print(f"  {i['id']:2d}. {i['criterion_nl']:<48} {i['score']}/2{mark}  {i['evidence_quote']!r}")
+    for m in d["key_moments"]:
+        print(f"  moment turn {m['turn_index']}: {m['what_happened']} ({m['effect']})")
 
 
 if __name__ == "__main__":

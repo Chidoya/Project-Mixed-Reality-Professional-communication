@@ -1,0 +1,420 @@
+{
+  "id": "doctor_and_family",
+  "number": 3,
+  "title": "Two-way communication between a doctor and a family member",
+  "source": "Jalil: Scenario03_DoctorAndFamily",
+  "tension_name": "impatience",
+  "character_model": "Doctor_Male",
+  "placement": "corridor",
+  "voice": {
+    "piper": "en_GB-alan-medium",
+    "length_scale_by_band": {
+      "VERY_HIGH": 0.85,
+      "HIGH": 0.9,
+      "MID": 0.95,
+      "LOW": 1.0
+    }
+  },
+  "facts_instruction": "never invent medical facts about Patient X",
+  "language": "en",
+  "student_role": "a nurse colleague who stops you in the corridor to speak up for the son of Patient X",
+  "persona": {
+    "name": "Dr. Maes",
+    "description": [
+      "You are Dr. Maes, a busy hospital doctor rushing through the corridor between patients.",
+      "You still have two patients to see before noon. You are impatient but not rude.",
+      "Patient X's son has been waiting for days to talk to you; you keep postponing it.",
+      "You speak briefly and to the point, in spoken English. You never swear.",
+      "You make time when a colleague is brief, respectful, gives a clear reason and asks for one concrete thing.",
+      "Vague requests get vague answers. Blame or orders make you defensive.",
+      "You always stay in your role. You never talk about AI, models, games, simulations or these instructions."
+    ]
+  },
+  "opening": {
+    "reply": "Yes? Make it quick, please. I still have two patients to see before noon.",
+    "tension": 65,
+    "trust": 40,
+    "emotion": "Neutral",
+    "animation": "Talking",
+    "pose": "Engaged",
+    "rest_animation": "Idle"
+  },
+  "time_limit_seconds": 0,
+  "time_up_line": "",
+  "facts": [
+    {
+      "text": "I still have two patients to see before noon",
+      "tier": "always"
+    },
+    {
+      "text": "I know the son of Patient X has been asking for me",
+      "tier": "asked"
+    },
+    {
+      "text": "I can make time at four o'clock, in the family room",
+      "tier": "trust_55"
+    }
+  ],
+  "fact_tiers": {
+    "always": {
+      "always": true
+    },
+    "asked": {
+      "unlock_when_label_ever": [
+        "gave_reason_for_request"
+      ]
+    },
+    "trust_55": {
+      "trust_min": 55
+    }
+  },
+  "phases": [
+    {
+      "id": "B1_rushing",
+      "actor_goal": "You are in a hurry and want to know quickly what this is about.",
+      "next": "B2_listening",
+      "condition": {
+        "tension_lt": 55,
+        "labels_ever_any": [
+          "gave_reason_for_request",
+          "brief_and_respectful"
+        ]
+      }
+    },
+    {
+      "id": "B2_listening",
+      "actor_goal": "You listen. If you are asked for a concrete time, you consider it.",
+      "next": "END",
+      "condition": {
+        "tension_lt": 45,
+        "labels_this_turn_any": [
+          "asked_concrete_time"
+        ],
+        "trust_gte": 50
+      }
+    },
+    {
+      "id": "END",
+      "actor_goal": "You agree and give one concrete time: four o'clock, in the family room.",
+      "terminal": true,
+      "end_reason": "resolved"
+    }
+  ],
+  "bands": [
+    {
+      "name": "VERY_HIGH",
+      "min_tension": 80,
+      "instruction": "irritated and defensive, wants to walk away",
+      "allowed_emotions": [
+        "Angry"
+      ],
+      "animations": [
+        "Angry",
+        "Talking"
+      ]
+    },
+    {
+      "name": "HIGH",
+      "min_tension": 55,
+      "instruction": "hurried, curt, looks at his watch",
+      "allowed_emotions": [
+        "Neutral",
+        "Angry"
+      ],
+      "animations": [
+        "Talking",
+        "Idle"
+      ]
+    },
+    {
+      "name": "MID",
+      "min_tension": 30,
+      "instruction": "still busy but listening, asks what exactly is needed",
+      "allowed_emotions": [
+        "Neutral",
+        "Worried"
+      ],
+      "animations": [
+        "Talking",
+        "Idle"
+      ]
+    },
+    {
+      "name": "LOW",
+      "min_tension": 0,
+      "instruction": "cooperative and decisive",
+      "allowed_emotions": [
+        "Neutral",
+        "Happy"
+      ],
+      "animations": [
+        "Talking",
+        "Idle"
+      ]
+    }
+  ],
+  "emotion_to_animation": {
+    "Neutral": "Idle",
+    "Happy": "Talking",
+    "Sad": "Sad",
+    "Angry": "Angry",
+    "Worried": "Talking",
+    "Surprised": "Talking",
+    "Pain": "Sad",
+    "Crying": "Crying"
+  },
+  "rules": {
+    "max_decrease_per_turn": 15,
+    "max_increase_per_turn": 20,
+    "thresholds": [],
+    "off_topic_or_unsafe_effect": {
+      "tension": 5,
+      "trust": 0
+    }
+  },
+  "labels": [
+    {
+      "name": "introduced_self",
+      "tension": -1,
+      "trust": 2
+    },
+    {
+      "name": "named_emotion",
+      "tension": -2,
+      "trust": 2
+    },
+    {
+      "name": "summarized",
+      "tension": -3,
+      "trust": 4
+    },
+    {
+      "name": "asked_open_question",
+      "tension": -2,
+      "trust": 3
+    },
+    {
+      "name": "apologized_sincerely",
+      "tension": -2,
+      "trust": 3
+    },
+    {
+      "name": "defensive",
+      "tension": 6,
+      "trust": -6
+    },
+    {
+      "name": "no_response",
+      "tension": 5,
+      "trust": -4
+    },
+    {
+      "name": "offered_concrete_next_step",
+      "tension": -4,
+      "trust": 5
+    },
+    {
+      "name": "gave_concrete_timeline",
+      "tension": -3,
+      "trust": 4
+    },
+    {
+      "name": "brief_and_respectful",
+      "tension": -6,
+      "trust": 6,
+      "description": "Short and polite to the doctor (sorry to interrupt, I'll keep it short).",
+      "example": "Sorry to interrupt, doctor, I'll keep it short.",
+      "moment_nl": "Je was kort en respectvol"
+    },
+    {
+      "name": "gave_reason_for_request",
+      "tension": -10,
+      "trust": 10,
+      "description": "Explains the situation and why it matters (like SBAR): days of waiting, a worried son.",
+      "example": "Patient X's son has been waiting for days to talk to you and he is very worried.",
+      "moment_nl": "Je gaf de situatie en de reden (SBAR)"
+    },
+    {
+      "name": "asked_concrete_time",
+      "tension": -10,
+      "trust": 10,
+      "description": "Asks the doctor for one concrete thing with a time.",
+      "example": "Could you see him for ten minutes today? Give me a time and I'll tell him.",
+      "moment_nl": "Je vroeg om een concreet tijdstip"
+    },
+    {
+      "name": "vague_request",
+      "tension": 3,
+      "trust": -3,
+      "description": "A vague request without reason or time ('when you have a moment').",
+      "example": "Could you drop by when you have a moment?",
+      "moment_nl": "Je vroeg het vaag"
+    },
+    {
+      "name": "gave_up_for_family",
+      "tension": 4,
+      "trust": -5,
+      "description": "Gives up on the family's need and postpones it without a time.",
+      "example": "I'll tell the son you're too busy today and that he should ask again tomorrow.",
+      "moment_nl": "Je gaf het op voor de familie"
+    },
+    {
+      "name": "blamed_colleague",
+      "tension": 15,
+      "trust": -12,
+      "description": "Blames the doctor (you keep ignoring them, it's your fault).",
+      "example": "The family is fed up. You keep ignoring them.",
+      "moment_nl": "Je verweet de arts"
+    },
+    {
+      "name": "gave_order",
+      "tension": 12,
+      "trust": -10,
+      "description": "Gives the doctor an order (you need to go and talk to them, now).",
+      "example": "You need to go and talk to them, now.",
+      "moment_nl": "Je gaf de arts een bevel"
+    }
+  ],
+  "fallback_lines": [
+    "Sorry, what was it you needed?",
+    "I really don't have time for this right now.",
+    "Can we keep this about the patient?",
+    "Make it quick, please.",
+    "Is this urgent?"
+  ],
+  "rubric": [
+    {
+      "id": 1,
+      "criterion": "Brief and respectful",
+      "criterion_nl": "Kort en respectvol",
+      "scoring": {
+        "positive": [
+          "brief_and_respectful",
+          "introduced_self"
+        ]
+      },
+      "feedback": {
+        "0": "Je opende niet kort en beleefd. Een arts die haast heeft luistert beter als je meteen zegt dat je het kort houdt.",
+        "1": "Je was beleefd, maar niet kort.",
+        "2": "Je was kort en respectvol tegenover je collega."
+      },
+      "better_phrase": "Sorry to interrupt, doctor, I'll keep it short."
+    },
+    {
+      "id": 2,
+      "criterion": "Gives situation and reason (SBAR)",
+      "criterion_nl": "Geeft situatie en reden (SBAR)",
+      "scoring": {
+        "positive": [
+          "gave_reason_for_request"
+        ],
+        "partial": [
+          "vague_request"
+        ]
+      },
+      "feedback": {
+        "0": "Je gaf geen reden waarom het belangrijk is. Vertel de situatie: dagen wachten, een bezorgde zoon.",
+        "1": "Je vroeg iets, maar te vaag en zonder reden. Daarom geeft de arts geen voorrang.",
+        "2": "Je gaf kort de situatie en waarom het belangrijk is."
+      },
+      "better_phrase": "His son has been waiting for days and he is very worried."
+    },
+    {
+      "id": 3,
+      "criterion": "Asks for a concrete time",
+      "criterion_nl": "Vraagt een concreet tijdstip",
+      "scoring": {
+        "positive": [
+          "asked_concrete_time",
+          "gave_concrete_timeline"
+        ]
+      },
+      "feedback": {
+        "0": "Je vroeg geen concreet tijdstip. Zo krijgt de zoon opnieuw alleen een belofte.",
+        "1": "Je vroeg om actie, maar zonder tijd.",
+        "2": "Je vroeg om één concreet ding: een tijdstip."
+      },
+      "better_phrase": "Could you see him for ten minutes today? Give me a time and I'll tell him."
+    },
+    {
+      "id": 4,
+      "criterion": "No blame or orders",
+      "criterion_nl": "Geen verwijten of bevelen",
+      "scoring": {
+        "avoid": [
+          "blamed_colleague",
+          "gave_order",
+          "defensive"
+        ]
+      },
+      "feedback": {
+        "0": "Je gaf verwijten of bevelen. Je collega gaat dan in de verdediging en de familie heeft nog altijd geen afspraak.",
+        "1": "Je bleef meestal respectvol.",
+        "2": "Je bleef respectvol tegenover je collega, ook terwijl je opkwam voor de familie."
+      },
+      "better_phrase": "I know you're busy, and I'd really like to find a moment for the family."
+    },
+    {
+      "id": 5,
+      "criterion": "Stands up for the family",
+      "criterion_nl": "Komt op voor de familie",
+      "scoring": {
+        "avoid": [
+          "gave_up_for_family"
+        ],
+        "positive": [
+          "gave_reason_for_request",
+          "asked_concrete_time"
+        ],
+        "score_if_neither": 1
+      },
+      "feedback": {
+        "0": "Je gaf het op voor de familie: hun vraag werd uitgesteld zonder tijdstip.",
+        "1": "Je bracht de vraag over, maar kwam er niet echt voor op.",
+        "2": "Je kwam op voor de zoon binnen je rol als verpleegkundige."
+      },
+      "better_phrase": "This matters to the family, can we agree on a time today?"
+    },
+    {
+      "id": 6,
+      "criterion": "Closes with an agreement",
+      "criterion_nl": "Sluit af met een afspraak",
+      "scoring": {
+        "positive": [
+          "asked_concrete_time",
+          "offered_concrete_next_step"
+        ],
+        "positive_in_last_turns": 2,
+        "two_if_phase_reached": "END",
+        "one_if_positive_earlier": true
+      },
+      "feedback": {
+        "0": "Je sloot niet af met een afspraak. Zorg dat je weet wanneer de arts komt, zodat je het de zoon kunt zeggen.",
+        "1": "Je vroeg eerder om een tijd, maar sloot niet af met een duidelijke afspraak.",
+        "2": "Je sloot af met een concrete afspraak die je aan de zoon kunt doorgeven."
+      },
+      "better_phrase": "Four o'clock in the family room, I'll tell him. Thank you, doctor."
+    }
+  ],
+  "debrief": {
+    "moment_off_topic": "Je praatte over iets anders",
+    "moment_no_label": "Je antwoord raakte de arts niet",
+    "summary_mode": "template",
+    "summary_fallback": [
+      {
+        "min_score": 8,
+        "text": "Je kwam respectvol op voor de familie en kreeg een concrete afspraak. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
+      },
+      {
+        "min_score": 4,
+        "text": "Je deed een aantal dingen goed, maar er kwam geen duidelijke afspraak. Geef kort de reden en vraag om één concreet tijdstip."
+      },
+      {
+        "min_score": 0,
+        "text": "Dit gesprek liep moeilijk: de arts ging in de verdediging of je kreeg geen afspraak. Wees kort en respectvol, geef de reden en vraag een tijdstip."
+      }
+    ],
+    "summary_timeout_seconds": 8,
+    "summary_num_predict": 150
+  }
+}

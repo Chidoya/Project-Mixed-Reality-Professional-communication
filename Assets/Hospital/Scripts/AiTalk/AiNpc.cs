@@ -69,6 +69,7 @@ namespace ProCommVR.Hospital.AiTalk
         private bool _endedRaised;
         private float _timeLimit;
         private float _conversationStart;
+        private string _restState = "Idle";
 
         public bool Busy { get; private set; }
         public bool IsSpeaking => _voice != null && _voice.isPlaying;
@@ -156,6 +157,8 @@ namespace ProCommVR.Hospital.AiTalk
             if (!opening.localFallback)
             {
                 _timeLimit = opening.time_limit_seconds;
+                // Rusthouding uit het scenario (bv. Laying in bed, Sitting op een stoel), standaard Idle
+                _restState = string.IsNullOrEmpty(opening.rest_animation) ? "Idle" : opening.rest_animation;
                 _conversationStart = Time.time;
             }
             Apply(opening);
@@ -203,7 +206,7 @@ namespace ProCommVR.Hospital.AiTalk
         public void SetIdle()
         {
             _voice.Stop();
-            PlayState("Idle");
+            PlayState(_restState);
             if (_headLook != null)
                 _headLook.Mode = HeadLookAt.LookMode.LookAtPlayer;
         }
@@ -373,7 +376,7 @@ namespace ProCommVR.Hospital.AiTalk
             {
                 // Zin uitgesproken: van Talking terug naar Idle, en het einde melden als het gesprek klaar is
                 if (_lastAnimation == "Talking")
-                    PlayState("Idle");
+                    PlayState(_restState);
                 if (!Busy && !HasEnded)
                     SetStatus("Your turn");
                 RaiseEndIfPending();

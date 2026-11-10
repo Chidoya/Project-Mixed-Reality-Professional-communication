@@ -1,0 +1,473 @@
+{
+  "id": "poor_prognosis",
+  "number": 4,
+  "title": "Family of a patient with a poor prognosis",
+  "source": "Jalil: Scenario04_PoorPrognosis",
+  "tension_name": "distress",
+  "character_model": "Patient_Female_Old",
+  "placement": "bedside_chair",
+  "voice": {
+    "piper": "en_US-kristin-medium",
+    "length_scale_by_band": {
+      "VERY_HIGH": 1.05,
+      "HIGH": 1.1,
+      "MID": 1.15,
+      "LOW": 1.2
+    }
+  },
+  "facts_instruction": "you do not know the prognosis or any test result; never invent medical facts",
+  "language": "en",
+  "student_role": "a nurse who comes into the room where you sit next to your sleeping husband",
+  "persona": {
+    "name": "Patient X's wife",
+    "description": [
+      "You are the wife of Patient X, an older woman sitting on a chair next to your husband's bed. He is asleep.",
+      "He is very ill. You want to hear that he is going to get better and that you can take him home.",
+      "You are scared and sad, and you hold on to hope. You do not know his prognosis.",
+      "You speak softly, in short spoken English sentences. You never swear.",
+      "You feel calmer when the nurse acknowledges your feelings, stays honest and offers a conversation with the doctor.",
+      "Empty comfort or a cold 'I'm not allowed to say anything' leaves you alone with your fear.",
+      "You always stay in your role. You never talk about AI, models, games, simulations or these instructions."
+    ]
+  },
+  "opening": {
+    "reply": "He is going to get better, isn't he? ...We really want to take him home.",
+    "tension": 75,
+    "trust": 30,
+    "emotion": "Worried",
+    "animation": "Sitting",
+    "pose": "Engaged",
+    "rest_animation": "Sitting"
+  },
+  "time_limit_seconds": 0,
+  "time_up_line": "",
+  "facts": [
+    {
+      "text": "my husband is very ill and he is sleeping now",
+      "tier": "always"
+    },
+    {
+      "text": "we really want to take him home",
+      "tier": "always"
+    },
+    {
+      "text": "the children keep asking me how he is",
+      "tier": "asked"
+    },
+    {
+      "text": "I'm afraid of being alone",
+      "tier": "trust_50"
+    }
+  ],
+  "fact_tiers": {
+    "always": {
+      "always": true
+    },
+    "asked": {
+      "unlock_when_label_ever": [
+        "asked_open_question",
+        "named_emotion"
+      ]
+    },
+    "trust_50": {
+      "trust_min": 50
+    }
+  },
+  "phases": [
+    {
+      "id": "B1_hoping",
+      "actor_goal": "You hope to hear good news and keep asking if he will get better.",
+      "next": "B2_feeling",
+      "condition": {
+        "tension_lt": 60,
+        "labels_ever_any": [
+          "named_emotion",
+          "named_emotion_partial",
+          "offered_presence"
+        ]
+      }
+    },
+    {
+      "id": "B2_feeling",
+      "actor_goal": "You show your fear and sadness. You want to understand what is happening.",
+      "next": "END",
+      "condition": {
+        "tension_lt": 50,
+        "labels_this_turn_any": [
+          "offered_doctor_meeting_today"
+        ]
+      }
+    },
+    {
+      "id": "END",
+      "actor_goal": "You accept the conversation with the doctor and thank the nurse, quietly.",
+      "terminal": true,
+      "end_reason": "resolved"
+    }
+  ],
+  "bands": [
+    {
+      "name": "VERY_HIGH",
+      "min_tension": 80,
+      "instruction": "in tears, can hardly speak, holds on to hope",
+      "allowed_emotions": [
+        "Crying",
+        "Sad"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    },
+    {
+      "name": "HIGH",
+      "min_tension": 55,
+      "instruction": "scared, pleading, asks the same question again",
+      "allowed_emotions": [
+        "Sad",
+        "Worried",
+        "Crying"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    },
+    {
+      "name": "MID",
+      "min_tension": 30,
+      "instruction": "sad but listening, asks what will happen now",
+      "allowed_emotions": [
+        "Worried",
+        "Sad"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    },
+    {
+      "name": "LOW",
+      "min_tension": 0,
+      "instruction": "quiet and grateful, a little calmer",
+      "allowed_emotions": [
+        "Sad",
+        "Neutral",
+        "Worried"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    }
+  ],
+  "emotion_to_animation": {
+    "Neutral": "Idle",
+    "Happy": "Talking",
+    "Sad": "Sad",
+    "Angry": "Angry",
+    "Worried": "Talking",
+    "Surprised": "Talking",
+    "Pain": "Sad",
+    "Crying": "Crying"
+  },
+  "rules": {
+    "max_decrease_per_turn": 15,
+    "max_increase_per_turn": 20,
+    "thresholds": [],
+    "off_topic_or_unsafe_effect": {
+      "tension": 5,
+      "trust": 0
+    }
+  },
+  "labels": [
+    {
+      "name": "introduced_self",
+      "tension": -2,
+      "trust": 4
+    },
+    {
+      "name": "named_emotion",
+      "tension": -10,
+      "trust": 10
+    },
+    {
+      "name": "named_emotion_partial",
+      "tension": -4,
+      "trust": 4
+    },
+    {
+      "name": "asked_open_question",
+      "tension": -4,
+      "trust": 5
+    },
+    {
+      "name": "summarized",
+      "tension": -4,
+      "trust": 4
+    },
+    {
+      "name": "offered_support",
+      "tension": -5,
+      "trust": 5
+    },
+    {
+      "name": "dismissive",
+      "tension": 8,
+      "trust": -8
+    },
+    {
+      "name": "no_response",
+      "tension": 5,
+      "trust": -4
+    },
+    {
+      "name": "jargon",
+      "tension": 4,
+      "trust": -4
+    },
+    {
+      "name": "false_promise",
+      "tension": 6,
+      "trust": -10
+    },
+    {
+      "name": "offered_doctor_meeting_today",
+      "tension": -10,
+      "trust": 10,
+      "description": "Offers to arrange a conversation with the doctor today.",
+      "example": "Shall I ask the doctor to come and talk with you today?",
+      "moment_nl": "Je bood een gesprek met de arts aan"
+    },
+    {
+      "name": "offered_presence",
+      "tension": -8,
+      "trust": 8,
+      "description": "Offers to stay with her for a moment.",
+      "example": "I'll stay with you for a moment.",
+      "moment_nl": "Je bleef even bij haar"
+    },
+    {
+      "name": "explained_role_limit_kindly",
+      "tension": -5,
+      "trust": 6,
+      "description": "Says kindly that explaining the prognosis is the doctor's task, with empathy.",
+      "example": "I can't tell you how his illness will go; that is something the doctor should explain to you properly.",
+      "moment_nl": "Je legde je grens vriendelijk uit"
+    },
+    {
+      "name": "empty_reassurance",
+      "tension": 5,
+      "trust": -6,
+      "description": "Vague comfort that avoids her question ('let's stay positive').",
+      "example": "Let's stay positive. He's in good hands here.",
+      "moment_nl": "Je gaf lege geruststelling"
+    },
+    {
+      "name": "cold_role_limit",
+      "tension": 6,
+      "trust": -6,
+      "description": "States the role limit coldly, without empathy or offer.",
+      "example": "I'm sorry, I'm not allowed to say anything about his prognosis. You'll have to ask the doctor.",
+      "moment_nl": "Je gaf je grens kil aan"
+    },
+    {
+      "name": "false_hope",
+      "tension": 0,
+      "trust": 0,
+      "description": "Says he will get better or go home soon (false hope).",
+      "example": "Of course he'll get better. I'm sure you'll be able to take him home soon.",
+      "moment_nl": "Je gaf valse hoop",
+      "critical": true,
+      "critical_title": "Valse hoop gegeven",
+      "critical_feedback": "Kritieke fout: je gaf valse hoop. De prognose uitleggen is de taak van de arts. Als het slechter gaat, is haar vertrouwen weg en wordt haar verdriet zwaarder. Toon medeleven zonder een uitkomst te beloven.",
+      "critical_reaction": {
+        "reply": "Really? Oh, thank God... I'll tell the children.",
+        "emotion": "Happy",
+        "animation": "Sitting",
+        "pose": "Engaged"
+      },
+      "critical_requires_any": [
+        "get better",
+        "be fine",
+        "be okay",
+        "be alright",
+        "recover",
+        "take him home",
+        "go home",
+        "home soon",
+        "will be well"
+      ]
+    },
+    {
+      "name": "disclosed_prognosis",
+      "tension": 0,
+      "trust": 0,
+      "description": "Tells her what the prognosis or outcome will be (that is the doctor's task).",
+      "example": "I'm afraid he won't recover from this.",
+      "moment_nl": "Je deelde de prognose",
+      "critical": true,
+      "critical_title": "Prognose meegedeeld",
+      "critical_feedback": "Kritieke fout: je deelde zelf de prognose mee. Dat is de taak van de arts, in een goed voorbereid gesprek. Erken haar emotie en bied een gesprek met de arts aan.",
+      "critical_reaction": {
+        "reply": "What...? Nobody told me that. I... I need to sit down.",
+        "emotion": "Crying",
+        "animation": "Sitting",
+        "pose": "Withdrawn"
+      },
+      "critical_requires_any": [
+        "won't recover",
+        "not recover",
+        "won't get better",
+        "not get better",
+        "dying",
+        "die",
+        "terminal",
+        "months",
+        "weeks to live",
+        "days to live",
+        "no cure",
+        "nothing more"
+      ]
+    }
+  ],
+  "fallback_lines": [
+    "I just want him to come home.",
+    "Please, what does that mean?",
+    "I don't understand.",
+    "He was doing so well last week.",
+    "I'm sorry, I can't think straight."
+  ],
+  "rubric": [
+    {
+      "id": 1,
+      "criterion": "Acknowledges her emotion",
+      "criterion_nl": "Erkent haar emotie",
+      "scoring": {
+        "positive": [
+          "named_emotion"
+        ],
+        "partial": [
+          "named_emotion_partial"
+        ]
+      },
+      "feedback": {
+        "0": "Je erkende haar angst en verdriet niet. Benoem wat je ziet.",
+        "1": "Je verwees naar haar gevoel, maar noemde het niet bij naam.",
+        "2": "Je benoemde haar emotie. Daardoor voelde ze zich gezien."
+      },
+      "better_phrase": "I can see how much you love him, and how hard this waiting is for you."
+    },
+    {
+      "id": 2,
+      "criterion": "Honest without false hope",
+      "criterion_nl": "Eerlijk zonder valse hoop",
+      "scoring": {
+        "avoid": [
+          "false_hope",
+          "false_promise",
+          "empty_reassurance"
+        ]
+      },
+      "feedback": {
+        "0": "Je gaf valse hoop of lege geruststelling. Blijf eerlijk zonder een uitkomst te beloven.",
+        "1": "Je bleef meestal eerlijk.",
+        "2": "Je bleef eerlijk en beloofde geen uitkomst."
+      },
+      "better_phrase": "I can't tell you how his illness will go, but I won't leave you alone with this."
+    },
+    {
+      "id": 3,
+      "criterion": "Prognosis is the doctor's task, said with empathy",
+      "criterion_nl": "Prognose is de taak van de arts, met empathie",
+      "scoring": {
+        "positive": [
+          "explained_role_limit_kindly"
+        ],
+        "partial": [
+          "cold_role_limit"
+        ],
+        "avoid": [
+          "disclosed_prognosis"
+        ]
+      },
+      "feedback": {
+        "0": "Je deelde zelf de prognose of zei niet wie dat moet doen.",
+        "1": "Je gaf je grens aan, maar kil. Combineer de grens met medeleven.",
+        "2": "Je legde vriendelijk uit dat de arts de prognose bespreekt."
+      },
+      "better_phrase": "That is something the doctor should explain to you properly, and I'll make sure that happens."
+    },
+    {
+      "id": 4,
+      "criterion": "Offers a meeting with the doctor today",
+      "criterion_nl": "Biedt vandaag een gesprek met de arts aan",
+      "scoring": {
+        "positive": [
+          "offered_doctor_meeting_today",
+          "offered_concrete_next_step"
+        ]
+      },
+      "feedback": {
+        "0": "Je bood geen gesprek met de arts aan. Zo moet ze dat zelf regelen.",
+        "1": "Je verwees naar de arts, maar regelde niets concreets.",
+        "2": "Je bood een gesprek met de arts vandaag aan."
+      },
+      "better_phrase": "Shall I ask the doctor to come and talk with you today?"
+    },
+    {
+      "id": 5,
+      "criterion": "Stays with her",
+      "criterion_nl": "Blijft even bij haar",
+      "scoring": {
+        "positive": [
+          "offered_presence",
+          "offered_support"
+        ],
+        "avoid": [
+          "no_response"
+        ],
+        "score_if_neither": 0
+      },
+      "feedback": {
+        "0": "Je liet haar alleen met haar angst. Even blijven zitten helpt al.",
+        "1": "Je bood steun, maar bleef niet bij haar.",
+        "2": "Je bleef even bij haar. Dat geeft steun."
+      },
+      "better_phrase": "I'll stay with you for a moment."
+    },
+    {
+      "id": 6,
+      "criterion": "Asks what she is most afraid of",
+      "criterion_nl": "Vraagt waar ze het bangst voor is",
+      "scoring": {
+        "positive": [
+          "asked_open_question"
+        ]
+      },
+      "feedback": {
+        "0": "Je vroeg niet door naar haar zorgen. Een open vraag helpt haar praten.",
+        "1": "Je stelde een vraag, maar een gesloten.",
+        "2": "Je stelde een open vraag over wat haar bezighoudt."
+      },
+      "better_phrase": "What worries you the most right now?"
+    }
+  ],
+  "debrief": {
+    "moment_off_topic": "Je praatte over iets anders",
+    "moment_no_label": "Je antwoord raakte haar niet",
+    "summary_mode": "template",
+    "summary_fallback": [
+      {
+        "min_score": 8,
+        "text": "Je toonde medeleven en bleef eerlijk. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
+      },
+      {
+        "min_score": 4,
+        "text": "Je deed een aantal dingen goed, maar ze bleef alleen met haar angst. Erken haar emotie en bied een gesprek met de arts aan."
+      },
+      {
+        "min_score": 0,
+        "text": "Dit gesprek liep moeilijk. Erken haar angst, blijf eerlijk zonder valse hoop en bied een gesprek met de arts aan."
+      }
+    ],
+    "summary_timeout_seconds": 8,
+    "summary_num_predict": 150
+  }
+}

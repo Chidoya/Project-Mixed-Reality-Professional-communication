@@ -1,8 +1,10 @@
 {
   "id": "angry_daughter",
+  "number": 2,
   "title": "Angry daughter in the waiting area",
   "tension_name": "anger",
   "character_model": "Visitor_Daughter",
+  "placement": "corridor",
   "voice": {
     "piper": "en_US-amy-medium",
     "length_scale_by_band": {

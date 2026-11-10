@@ -164,6 +164,11 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
+def _has_word(text: str, word: str) -> bool:
+    """Whole-word (or whole-phrase) match, case-insensitive."""
+    return re.search(r"(?<![a-z])" + re.escape(word.lower()) + r"(?![a-z])", text.lower()) is not None
+
+
 def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s']", " ", text.lower())).strip()
 
@@ -210,6 +215,8 @@ class Engine:
             "band": sc.band_for(session.anger)["name"],
             "phase": session.phase,
             "tension_name": sc.tension_name,
+            "rest_animation": op.get("rest_animation", "Idle"),
+            "character_name": sc.data["persona"]["name"],
         }
         return session, opening
 
@@ -275,6 +282,14 @@ class Engine:
 
         # 2b. critical error: the scenario ends at once, the character reacts with a fixed line
         critical = [l for l in cls["labels"] if l in sc.critical_labels]
+        for name in list(critical):
+            # A critical label ends the whole scenario: it only counts if one of its keywords is really said
+            words = sc.labels[name].get("critical_requires_any", [])
+            if words and not any(_has_word(text, w) for w in words):
+                critical.remove(name)
+                cls["labels"] = [l for l in cls["labels"] if l != name]
+                result["labels"] = cls["labels"]
+                result["notes"].append(f"critical label {name} dropped: none of its keywords in the sentence")
         if critical:
             t = time.perf_counter()
             self._apply_labels(session, cls["labels"], result["notes"])
@@ -532,6 +547,9 @@ class Engine:
                 "pose": pose or "Unchanged",
                 "facts_used": [],
             })
+            # e.g. a patient in bed only has "Laying": never let a fixed line make him stand up
+            if band.get("animations") and result["animation"] not in band["animations"]:
+                result["animation"] = band["animations"][0]
             result["fallback_used"] = fallback
         session.history.append({"speaker": "character", "text": result["reply"]})
         timings["total_ms"] = int((time.perf_counter() - t_start) * 1000)

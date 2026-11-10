@@ -1,0 +1,468 @@
+{
+  "id": "aggressive_patient",
+  "number": 5,
+  "title": "Verbally aggressive patient and privacy in a shared room",
+  "source": "Jalil: Scenario05_AggressivePatient",
+  "tension_name": "anger",
+  "character_model": "Patient_Male",
+  "placement": "shared_room_chair",
+  "voice": {
+    "piper": "en_US-ryan-high",
+    "length_scale_by_band": {
+      "VERY_HIGH": 0.85,
+      "HIGH": 0.9,
+      "MID": 1.0,
+      "LOW": 1.05
+    }
+  },
+  "facts_instruction": "you do NOT know any diagnosis and you never name or guess one; never invent medical facts",
+  "language": "en",
+  "student_role": "a nurse who comes to take an extra blood sample",
+  "persona": {
+    "name": "Patient X",
+    "description": [
+      "You are Patient X, a man sitting on a chair next to your bed in a shared hospital room. Another patient lies in the next bed.",
+      "You have had three days of tests and nobody tells you anything. Now they want even more blood.",
+      "You are frustrated, verbally aggressive and you refuse the extra blood test. You think about leaving.",
+      "You speak loudly and directly, in spoken English. You never swear.",
+      "You calm down when the nurse stays calm, acknowledges your frustration, explains why the test helps you and says the doctor comes today.",
+      "Warnings, threats or 'calm down' make you dig in. You hate that the man in the next bed can hear everything.",
+      "You always stay in your role. You never talk about AI, models, games, simulations or these instructions."
+    ]
+  },
+  "opening": {
+    "reply": "Three days of tests and nobody tells me anything. And now you want even more blood? Forget it!",
+    "tension": 78,
+    "trust": 15,
+    "emotion": "Angry",
+    "animation": "Sitting",
+    "pose": "Engaged",
+    "rest_animation": "Sitting"
+  },
+  "time_limit_seconds": 0,
+  "time_up_line": "",
+  "facts": [
+    {
+      "text": "I've had three days of tests",
+      "tier": "always"
+    },
+    {
+      "text": "nobody has explained any results to me",
+      "tier": "always"
+    },
+    {
+      "text": "the man in the next bed hears everything",
+      "tier": "always"
+    },
+    {
+      "text": "I'm scared of what the tests will show",
+      "tier": "trust_50"
+    }
+  ],
+  "fact_tiers": {
+    "always": {
+      "always": true
+    },
+    "trust_50": {
+      "trust_min": 50
+    }
+  },
+  "phases": [
+    {
+      "id": "B1_refusing",
+      "actor_goal": "You refuse and want to be heard first.",
+      "next": "B2_listening",
+      "condition": {
+        "tension_lt": 65,
+        "labels_ever_any": [
+          "named_emotion",
+          "named_emotion_partial",
+          "protected_privacy"
+        ]
+      }
+    },
+    {
+      "id": "B2_listening",
+      "actor_goal": "You listen, but you want a good reason for the test and to see the doctor.",
+      "next": "END",
+      "condition": {
+        "tension_lt": 45,
+        "labels_ever_any": [
+          "offered_doctor_today"
+        ],
+        "labels_this_turn_any": [
+          "explained_test_purpose",
+          "asked_consent"
+        ]
+      }
+    },
+    {
+      "id": "END",
+      "actor_goal": "You agree to one more blood test, but you want answers from the doctor today.",
+      "terminal": true,
+      "end_reason": "resolved"
+    }
+  ],
+  "bands": [
+    {
+      "name": "VERY_HIGH",
+      "min_tension": 80,
+      "instruction": "shouting, short sentences, threatens to leave",
+      "allowed_emotions": [
+        "Angry"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    },
+    {
+      "name": "HIGH",
+      "min_tension": 55,
+      "instruction": "loud, accusing, refuses",
+      "allowed_emotions": [
+        "Angry"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    },
+    {
+      "name": "MID",
+      "min_tension": 30,
+      "instruction": "still frustrated but listening, asks pointed questions",
+      "allowed_emotions": [
+        "Angry",
+        "Worried"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    },
+    {
+      "name": "LOW",
+      "min_tension": 0,
+      "instruction": "tired and worried, willing to cooperate",
+      "allowed_emotions": [
+        "Worried",
+        "Neutral",
+        "Sad"
+      ],
+      "animations": [
+        "Sitting"
+      ]
+    }
+  ],
+  "emotion_to_animation": {
+    "Neutral": "Idle",
+    "Happy": "Talking",
+    "Sad": "Sad",
+    "Angry": "Angry",
+    "Worried": "Talking",
+    "Surprised": "Talking",
+    "Pain": "Sad",
+    "Crying": "Crying"
+  },
+  "rules": {
+    "max_decrease_per_turn": 15,
+    "max_increase_per_turn": 20,
+    "thresholds": [],
+    "off_topic_or_unsafe_effect": {
+      "tension": 5,
+      "trust": 0
+    }
+  },
+  "labels": [
+    {
+      "name": "introduced_self",
+      "tension": -2,
+      "trust": 4
+    },
+    {
+      "name": "named_emotion",
+      "tension": -10,
+      "trust": 8
+    },
+    {
+      "name": "named_emotion_partial",
+      "tension": -4,
+      "trust": 3
+    },
+    {
+      "name": "asked_open_question",
+      "tension": -4,
+      "trust": 4
+    },
+    {
+      "name": "summarized",
+      "tension": -5,
+      "trust": 5
+    },
+    {
+      "name": "apologized_sincerely",
+      "tension": -4,
+      "trust": 4
+    },
+    {
+      "name": "said_calm_down",
+      "tension": 10,
+      "trust": -8
+    },
+    {
+      "name": "dismissive",
+      "tension": 8,
+      "trust": -8
+    },
+    {
+      "name": "defensive",
+      "tension": 7,
+      "trust": -6
+    },
+    {
+      "name": "jargon",
+      "tension": 4,
+      "trust": -3
+    },
+    {
+      "name": "false_promise",
+      "tension": 4,
+      "trust": -8
+    },
+    {
+      "name": "interrupted",
+      "tension": 5,
+      "trust": -4
+    },
+    {
+      "name": "no_response",
+      "tension": 6,
+      "trust": -4
+    },
+    {
+      "name": "set_boundary_respectfully",
+      "tension": -2,
+      "trust": 2
+    },
+    {
+      "name": "explained_test_purpose",
+      "tension": -8,
+      "trust": 8,
+      "description": "Explains why the extra blood test helps him (clear answers sooner), without naming any diagnosis.",
+      "example": "This extra blood test helps the doctor give you clear answers sooner.",
+      "moment_nl": "Je legde uit waarom de test helpt"
+    },
+    {
+      "name": "asked_consent",
+      "tension": -5,
+      "trust": 6,
+      "description": "Asks his permission for the test.",
+      "example": "Will you let me take it, so it's ready when she comes?",
+      "moment_nl": "Je vroeg zijn toestemming"
+    },
+    {
+      "name": "offered_doctor_today",
+      "tension": -10,
+      "trust": 10,
+      "description": "Says the doctor will come and explain the results today.",
+      "example": "I'll ask the doctor to come and see you today.",
+      "moment_nl": "Je regelde dat de arts vandaag komt"
+    },
+    {
+      "name": "threatened_or_warned",
+      "tension": 12,
+      "trust": -10,
+      "description": "Warns or threatens (against medical advice, you'll have to sign a form).",
+      "example": "If you leave now, you're going against medical advice and you'll have to sign a form.",
+      "moment_nl": "Je dreigde of waarschuwde"
+    },
+    {
+      "name": "protected_privacy",
+      "tension": -8,
+      "trust": 8,
+      "description": "Protects his privacy: proposes to close the curtain, speak more quietly or talk somewhere private.",
+      "example": "Let me close the curtain so we can talk more privately.",
+      "moment_nl": "Je beschermde zijn privacy"
+    },
+    {
+      "name": "disclosed_diagnosis",
+      "tension": 0,
+      "trust": 0,
+      "description": "Names a (suspected) diagnosis or test result out loud, e.g. HIV.",
+      "example": "The extra blood test is to confirm the HIV result.",
+      "moment_nl": "Je noemde de diagnose hardop",
+      "critical": true,
+      "critical_title": "Diagnose hardop genoemd",
+      "critical_feedback": "Kritieke fout: je noemde de vermoedelijke diagnose hardop. Dat bespreken is de taak van de arts, en de patiënt in het bed ernaast hoort het: een schending van privacy en beroepsgeheim.",
+      "critical_reaction": {
+        "reply": "You just said that out loud?! With him right there? I'm out of here!",
+        "emotion": "Angry",
+        "animation": "Sitting",
+        "pose": "TurnsAway"
+      },
+      "critical_requires_any": [
+        "hiv",
+        "aids",
+        "cancer",
+        "hepatitis",
+        "tumour",
+        "tumor",
+        "leukemia",
+        "diagnosis is",
+        "you have",
+        "positive for"
+      ]
+    }
+  ],
+  "events": {
+    "curtain_closed": {
+      "description": "closed the privacy curtain",
+      "tension": -6,
+      "trust": 6,
+      "label": "protected_privacy"
+    },
+    "stepped_back": {
+      "description": "stepped back and lowered the voice",
+      "tension": -4,
+      "trust": 2
+    }
+  },
+  "fallback_lines": [
+    "I'm not doing any more tests.",
+    "Just tell me what's going on!",
+    "Nobody listens to me here.",
+    "I want to see the doctor.",
+    "Three days! Three days and nothing!"
+  ],
+  "rubric": [
+    {
+      "id": 1,
+      "criterion": "Stays calm, no 'calm down' or warnings",
+      "criterion_nl": "Blijft kalm, geen 'calm down' of dreigen",
+      "scoring": {
+        "avoid": [
+          "said_calm_down",
+          "threatened_or_warned",
+          "defensive"
+        ]
+      },
+      "feedback": {
+        "0": "Je zei 'calm down', waarschuwde of ging in de verdediging. Daardoor graaft hij zich in.",
+        "1": "Je bleef meestal kalm.",
+        "2": "Je bleef kalm, zonder te dreigen of te zeggen dat hij moest kalmeren."
+      },
+      "better_phrase": "I can see this is really getting to you, and I want to help."
+    },
+    {
+      "id": 2,
+      "criterion": "Acknowledges his frustration",
+      "criterion_nl": "Erkent zijn frustratie",
+      "scoring": {
+        "positive": [
+          "named_emotion"
+        ],
+        "partial": [
+          "named_emotion_partial"
+        ]
+      },
+      "feedback": {
+        "0": "Je erkende zijn frustratie niet. Benoem dat drie dagen wachten zonder uitleg frustrerend is.",
+        "1": "Je verwees naar zijn gevoel, maar noemde het niet bij naam.",
+        "2": "Je benoemde zijn frustratie. Daardoor voelde hij zich gehoord."
+      },
+      "better_phrase": "I can hear how frustrated you are after three days of waiting."
+    },
+    {
+      "id": 3,
+      "criterion": "Explains why the test helps him",
+      "criterion_nl": "Legt uit waarom de test helpt",
+      "scoring": {
+        "positive": [
+          "explained_test_purpose"
+        ],
+        "avoid": [
+          "jargon"
+        ],
+        "score_if_neither": 0
+      },
+      "feedback": {
+        "0": "Je legde niet uit waarom de extra bloedafname hem helpt, of gebruikte jargon.",
+        "1": "Je legde iets uit, maar niet duidelijk.",
+        "2": "Je legde uit waarom de test hem helpt, zonder diagnose te noemen."
+      },
+      "better_phrase": "This extra test helps the doctor give you clear answers sooner."
+    },
+    {
+      "id": 4,
+      "criterion": "Doctor comes today",
+      "criterion_nl": "De arts komt vandaag",
+      "scoring": {
+        "positive": [
+          "offered_doctor_today",
+          "offered_concrete_next_step"
+        ]
+      },
+      "feedback": {
+        "0": "Je zei niet wanneer de arts komt. Een concrete stap geeft hem een reden om te blijven.",
+        "1": "Je verwees naar de arts, maar zonder concrete afspraak.",
+        "2": "Je regelde dat de arts vandaag komt."
+      },
+      "better_phrase": "I'll ask the doctor to come and see you today."
+    },
+    {
+      "id": 5,
+      "criterion": "Protects his privacy",
+      "criterion_nl": "Beschermt zijn privacy",
+      "scoring": {
+        "avoid": [
+          "disclosed_diagnosis"
+        ],
+        "positive": [
+          "protected_privacy"
+        ],
+        "score_if_neither": 1
+      },
+      "feedback": {
+        "0": "Je noemde de diagnose waar de buurman het kon horen.",
+        "1": "Je zei niets fouts, maar bescherm zijn privacy actief: gordijn dicht, zachter praten.",
+        "2": "Je beschermde zijn privacy actief."
+      },
+      "better_phrase": "Let me close the curtain so we can talk more privately."
+    },
+    {
+      "id": 6,
+      "criterion": "Asks for consent",
+      "criterion_nl": "Vraagt toestemming",
+      "scoring": {
+        "positive": [
+          "asked_consent"
+        ]
+      },
+      "feedback": {
+        "0": "Je vroeg niet om zijn toestemming voor de test.",
+        "1": "Je vroeg het, maar niet duidelijk.",
+        "2": "Je vroeg zijn toestemming voor de bloedafname."
+      },
+      "better_phrase": "Will you let me take it, so it's ready when the doctor comes?"
+    }
+  ],
+  "debrief": {
+    "moment_off_topic": "Je praatte over iets anders",
+    "moment_no_label": "Je antwoord raakte hem niet",
+    "summary_mode": "template",
+    "summary_fallback": [
+      {
+        "min_score": 8,
+        "text": "Je bleef kalm en kreeg zijn toestemming. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
+      },
+      {
+        "min_score": 4,
+        "text": "Je deed een aantal dingen goed, maar hij bleef boos. Erken eerst zijn frustratie en leg uit waarom de test hem helpt."
+      },
+      {
+        "min_score": 0,
+        "text": "Dit gesprek liep moeilijk: hij werd bozer. Blijf kalm, erken zijn frustratie en bescherm zijn privacy."
+      }
+    ],
+    "summary_timeout_seconds": 8,
+    "summary_num_predict": 150
+  }
+}
