@@ -1,0 +1,12 @@
+{
+  "ollama_url": "http://localhost:11434",
+  "model_classifier": "qwen3.5:4b",
+  "model_actor": "qwen3.5:4b",
+  "model_judge": "qwen3.5:4b",
+  "temperature_classifier": 0,
+  "temperature_actor": 0.7,
+  "temperature_judge": 0,
+  "keep_alive": "30m",
+  "request_timeout_seconds": 120,
+  "port": 8765
+}
