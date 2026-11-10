@@ -14,11 +14,11 @@ namespace ProCommVR.Hospital.Face
         public static readonly string[] ShapeNames =
         {
             "Blink", "EyesWide", "EyesNarrow", "LookDown", "BrowsAngry", "BrowsSad", "BrowsRaise",
-            "Smile", "Frown", "MouthOpen", "MouthTight", "Tears",
+            "Smile", "Frown", "MouthOpen", "MouthTight", "Tears", "EyesSqueeze", "Grimace",
         };
 
         private const int IBlink = 0, IEyesWide = 1, IEyesNarrow = 2, ILookDown = 3, IBrowsSad = 5, IBrowsRaise = 6,
-            IMouthOpen = 9, ITears = 11;
+            IMouthOpen = 9, ITears = 11, IEyesSqueeze = 12;
 
         [SerializeField] private FacePresets _presets;
         [SerializeField] private FaceExpression _startExpression = FaceExpression.Neutral;
@@ -226,7 +226,7 @@ namespace ProCommVR.Hospital.Face
 
         private float BlinkAmount(float dt)
         {
-            if (_autoBlink && Expression != FaceExpression.Crying && _blinkTime < 0f && _clock >= _nextBlink)
+            if (_autoBlink && Expression != FaceExpression.Crying && Expression != FaceExpression.Pain && _blinkTime < 0f && _clock >= _nextBlink)
                 _blinkTime = 0f;
             if (_blinkTime < 0f)
                 return 0f;
@@ -303,6 +303,7 @@ namespace ProCommVR.Hospital.Face
                 _applied[IEyesWide] *= open;
                 _applied[IEyesNarrow] *= open;
                 _applied[ILookDown] *= open;
+                _applied[IEyesSqueeze] *= open;
             }
 
             _applied[IMouthOpen] = Mathf.Max(_applied[IMouthOpen], talk * 100f);

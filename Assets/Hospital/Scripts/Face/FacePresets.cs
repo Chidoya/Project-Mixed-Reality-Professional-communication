@@ -62,7 +62,7 @@ namespace ProCommVR.Hospital.Face
                 P(FaceExpression.Angry, ("BrowsAngry", 100), ("EyesNarrow", 60), ("MouthTight", 60), ("Frown", 45)),
                 P(FaceExpression.Worried, ("BrowsSad", 70), ("BrowsRaise", 50), ("EyesWide", 40), ("MouthTight", 30)),
                 P(FaceExpression.Surprised, ("BrowsRaise", 100), ("EyesWide", 80), ("MouthOpen", 55)),
-                P(FaceExpression.Pain, ("BrowsSad", 100), ("BrowsAngry", 20), ("EyesNarrow", 90), ("Frown", 45), ("MouthOpen", 30)),
+                P(FaceExpression.Pain, ("EyesSqueeze", 100), ("Grimace", 100), ("BrowsSad", 100)),
                 P(FaceExpression.Crying, ("BrowsSad", 100), ("Blink", 60), ("Frown", 80), ("MouthOpen", 30), ("Tears", 100)),
             };
         }

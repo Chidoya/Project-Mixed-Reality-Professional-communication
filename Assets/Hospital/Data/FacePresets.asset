@@ -63,16 +63,12 @@ MonoBehaviour:
       Weight: 55
   - Expression: 6
     Weights:
+    - Shape: EyesSqueeze
+      Weight: 100
+    - Shape: Grimace
+      Weight: 100
     - Shape: BrowsSad
       Weight: 100
-    - Shape: BrowsAngry
-      Weight: 20
-    - Shape: EyesNarrow
-      Weight: 90
-    - Shape: Frown
-      Weight: 45
-    - Shape: MouthOpen
-      Weight: 30
   - Expression: 7
     Weights:
     - Shape: BrowsSad
