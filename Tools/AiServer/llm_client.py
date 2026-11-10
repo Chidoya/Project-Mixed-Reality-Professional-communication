@@ -6,10 +6,14 @@ To plug in another provider later, write a class with the same chat_json method
 from __future__ import annotations
 
 import json
+import logging
+import threading
 from typing import Any
 
 import httpx
 import ollama
+
+log = logging.getLogger("aiserver")
 
 
 class LlmUnavailableError(RuntimeError):
@@ -32,6 +36,14 @@ class LlmClient:
             "actor": config.get("temperature_actor", 0.7),
             "judge": config.get("temperature_judge", 0),
         }
+        self.num_predict = {
+            "classifier": config.get("num_predict_classifier", 200),
+            "actor": config.get("num_predict_actor", 300),
+            "judge": config.get("num_predict_judge", 600),
+        }
+        # token usage of the last chat_json call in this thread:
+        # {"in": prompt tokens, "out": output tokens, "model_ms": time inside Ollama}
+        self._usage = threading.local()
         self._client = ollama.Client(host=self.url, timeout=config.get("request_timeout_seconds", 120))
 
     def chat_json(
@@ -44,7 +56,8 @@ class LlmClient:
         """Send one chat request and return the JSON object the model produced.
 
         `schema` is a JSON schema (from a Pydantic model); Ollama constrains the output to it.
-        `role` picks model and temperature from config.json.
+        `role` picks model, temperature and num_predict from config.json.
+        After the call, `last_usage()` gives the token counts.
         """
         if role not in self.ROLES:
             raise ValueError(f"unknown role {role!r}")
@@ -56,7 +69,7 @@ class LlmClient:
                 format=schema,
                 think=False,
                 keep_alive=self.keep_alive,
-                options={"temperature": self.temperatures[role]},
+                options={"temperature": self.temperatures[role], "num_predict": self.num_predict[role]},
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError) as exc:
             raise LlmUnavailableError(
@@ -70,7 +83,17 @@ class LlmClient:
                 ) from exc
             raise LlmUnavailableError(f"Ollama returned an error: {exc}") from exc
 
+        self._usage.value = {
+            "in": response.prompt_eval_count or 0,
+            "out": response.eval_count or 0,
+            "model_ms": int((response.total_duration or 0) / 1e6),
+        }
+        if response.message.thinking:
+            log.warning("%s produced thinking tokens although think=false (%d chars)",
+                        role, len(response.message.thinking))
         content = response.message.content or ""
+        if response.done_reason == "length":
+            raise LlmOutputError(f"output cut off at num_predict={self.num_predict[role]} tokens")
         try:
             data = json.loads(content)
         except json.JSONDecodeError as exc:
@@ -78,3 +101,6 @@ class LlmClient:
         if not isinstance(data, dict):
             raise LlmOutputError(f"model returned JSON that is not an object: {content[:200]!r}")
         return data
+
+    def last_usage(self) -> dict[str, int]:
+        return getattr(self._usage, "value", {"in": 0, "out": 0, "model_ms": 0})

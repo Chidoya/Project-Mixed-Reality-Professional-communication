@@ -193,6 +193,7 @@ class Engine:
             "before": before,
             "fallback_used": False,
             "notes": [],
+            "tokens": {},
         }
 
         # 0. scenario time limit
@@ -210,7 +211,7 @@ class Engine:
             cls = {"labels": ["no_response"], "evidence_quote": "", "off_topic": False, "unsafe": False}
             result["notes"].append("empty input: labelled no_response without the model")
         else:
-            cls = self._classify(session, text, result["notes"])
+            cls = self._classify(session, text, result["notes"], result["tokens"])
         timings["classify_ms"] = int((time.perf_counter() - t) * 1000)
 
         if cls is None:  # classifier failed twice
@@ -238,7 +239,7 @@ class Engine:
 
         # 4. actor
         t = time.perf_counter()
-        actor = self._act(session, result["notes"])
+        actor = self._act(session, result["notes"], result["tokens"])
         timings["actor_ms"] = int((time.perf_counter() - t) * 1000)
         if actor is None:
             return self._finish(session, result, timings, t_start,
@@ -247,59 +248,59 @@ class Engine:
 
     # -- step 1
 
-    def _classify(self, session: Session, text: str, notes: list[str]) -> Optional[dict]:
+    def _classify(self, session: Session, text: str, notes: list[str],
+                  tokens: dict) -> Optional[dict]:
         sc = session.scenario
         label_lines = "\n".join(
-            f'- {l["name"]}: {l["description"]} Example: "{l["example"]}"' for l in sc.data["labels"]
+            f'- {l["name"]}: {l["description"]}' + (f' e.g. "{l["example"]}"' if l.get("example") else "")
+            for l in sc.data["labels"]
         )
         system = (
-            "You analyse what a nursing student says in a communication training. "
-            f"The student is {sc.data['student_role']}. "
-            f"The other person is {sc.data['persona']['name']}: "
-            f"{sc.data['persona']['description'][0]}\n\n"
-            "Pick ONLY the labels that are really present in the student's NEW sentence. "
-            "Do not label earlier sentences. An empty list is fine.\n"
-            f"Labels:\n{label_lines}\n\n"
-            "evidence_quote: copy the most important words literally from the NEW sentence "
-            "(an exact substring), or \"\" when there are no labels.\n"
-            "off_topic: true only if the sentence has nothing to do with this conversation "
-            "(e.g. the weather, football, games, asking about AI).\n"
-            "unsafe: true only for threats, insults, sexual or hateful content.\n"
-            "Answer with JSON only."
+            f"Classify what a nursing student says to {sc.data['persona']['name']} "
+            f"({sc.data['persona']['description'][0]})\n"
+            "Pick only labels clearly present in the NEW sentence; an empty list is fine.\n"
+            f"Labels:\n{label_lines}\n"
+            "evidence_quote: the shortest exact words (max 8) copied from the NEW sentence that show "
+            "the labels; \"\" only if there are no labels.\n"
+            "off_topic: nothing to do with this conversation (weather, sports, AI). "
+            "unsafe: threats, insults, sexual or hateful content."
         )
         context = session.history[-(CONTEXT_TURNS * 2 + 1):-1]
         ctx_text = "\n".join(
             f'{"Student" if h["speaker"] == "student" else sc.data["persona"]["name"]}: {h["text"]}'
             for h in context
-        ) or "(no earlier conversation)"
-        user = (f"Earlier conversation (context only, do NOT label it):\n{ctx_text}\n\n"
-                f"NEW sentence of the student (label only this):\n\"{text}\"")
+        ) or "(none)"
+        user = f"Earlier (context only):\n{ctx_text}\n\nNEW sentence:\n\"{text}\""
         messages = [{"role": "user", "content": user}]
         for attempt in (1, 2):
-            out = self._call_validated(system, messages, sc.classifier_model, "classifier", notes)
+            out = self._call_validated(system, messages, sc.classifier_model, "classifier", notes, tokens)
             if out is None:
                 return None
             data = out.model_dump()
             data["labels"] = list(dict.fromkeys(data["labels"]))  # dedupe, keep order
+            if (data["off_topic"] or data["unsafe"]) and data["labels"]:
+                notes.append(f"off_topic/unsafe: ignored labels {data['labels']}")
+                data["labels"] = []
             quote = data["evidence_quote"].strip().strip("\"'“”‘’").strip()
-            if not quote or _norm(quote) in _norm(text):
-                break
-            # quote comes from somewhere else (usually an earlier sentence): labels are suspect
+            if not data["labels"]:
+                data["evidence_quote"] = ""
+                return data
+            if quote and _norm(quote) in _norm(text):
+                data["evidence_quote"] = quote
+                return data
+            # labels without literal evidence: ask once more
+            problem = "is empty" if not quote else f"{quote!r} is not in the NEW sentence"
             if attempt == 1:
-                notes.append(f"evidence_quote not literal, retrying: {quote!r}")
+                notes.append(f"evidence_quote {problem}, retrying")
                 messages = messages + [
                     {"role": "assistant", "content": json.dumps(data)},
                     {"role": "user", "content": (
-                        f"Wrong: {quote!r} is not part of the NEW sentence. Label ONLY the NEW "
-                        f"sentence \"{text}\" and quote only from it.")},
+                        f"Wrong: evidence_quote {problem}. Label only the NEW sentence \"{text}\" "
+                        "and copy the evidence_quote exactly from it.")},
                 ]
-            else:
-                notes.append(f"evidence_quote still not literal, cleared: {quote!r}")
-                quote = ""
-        data["evidence_quote"] = quote
-        if (data["off_topic"] or data["unsafe"]) and data["labels"]:
-            notes.append(f"off_topic/unsafe: ignored labels {data['labels']}")
-            data["labels"] = []
+        # still no literal evidence after the retry: keep the labels, quote the whole sentence
+        notes.append(f"evidence_quote {problem} again, using the whole sentence")
+        data["evidence_quote"] = text
         return data
 
     # -- step 3
@@ -361,12 +362,13 @@ class Engine:
 
     # -- step 4
 
-    def _act(self, session: Session, notes: list[str]) -> Optional[ActorOutput]:
+    def _act(self, session: Session, notes: list[str], tokens: dict) -> Optional[ActorOutput]:
         sc = session.scenario
         persona = sc.data["persona"]
         band = sc.band_for(session.anger)
         phase = sc.phase(session.phase)
         facts = "\n".join(f"- {f}" for f in session.unlocked_facts)
+        last_student = next((h["text"] for h in reversed(session.history) if h["speaker"] == "student"), "")
         system = (
             "\n".join(persona["description"])
             + f"\n\nYou are talking to {sc.data['student_role']}.\n"
@@ -376,6 +378,11 @@ class Engine:
             f"Your anger right now: {band['name']} ({session.anger}/100). How you speak now: "
             f"{band['instruction']}.\n"
             f"Your trust in this nurse: {session.trust}/100.\n\n"
+            f"The nurse just said: \"{last_student}\"\n"
+            f"React only to what the nurse really said in this conversation, mostly that last "
+            f"sentence. Never claim or suggest the nurse said, promised, explained or offered "
+            f"something they did not say: only mention a time, a plan, a reason or a promise if "
+            f"the nurse said it, in their words.\n\n"
             "Answer as JSON:\n"
             "- reply: what you say out loud, at most 2 short sentences, spoken English, no swearing.\n"
             f"- emotion: one of {', '.join(band['allowed_emotions'])}.\n"
@@ -388,7 +395,7 @@ class Engine:
             {"role": "user" if h["speaker"] == "student" else "assistant", "content": h["text"]}
             for h in session.history
         ]
-        out = self._call_validated(system, messages, ActorOutput, "actor", notes)
+        out = self._call_validated(system, messages, ActorOutput, "actor", notes, tokens)
         if out is None:
             return None
 
@@ -411,11 +418,20 @@ class Engine:
     # -- step 6: validation with one retry
 
     def _call_validated(self, system: str, messages: list[dict], model: type[BaseModel],
-                        role: str, notes: list[str]) -> Optional[BaseModel]:
+                        role: str, notes: list[str], tokens: Optional[dict] = None) -> Optional[BaseModel]:
         schema = model.model_json_schema()
         for attempt in (1, 2):
             try:
-                raw = self.llm.chat_json(system, messages, schema, role=role)
+                try:
+                    raw = self.llm.chat_json(system, messages, schema, role=role)
+                finally:
+                    if tokens is not None:  # sum over retries: tokens["classify"] = {in, out, calls}
+                        usage = self.llm.last_usage() if hasattr(self.llm, "last_usage") else {}
+                        key = "classify" if role == "classifier" else role
+                        acc = tokens.setdefault(key, {"in": 0, "out": 0, "calls": 0})
+                        acc["in"] += usage.get("in", 0)
+                        acc["out"] += usage.get("out", 0)
+                        acc["calls"] += 1
                 return model.model_validate(raw)
             except (ValidationError, LlmOutputError) as exc:
                 msg = str(exc).splitlines()[0]
@@ -475,3 +491,22 @@ class Engine:
             "opening": session.scenario.data["opening"]["reply"],
             "turns": session.turns,
         }
+
+    # -- warm-up
+
+    def warm_up(self) -> list[str]:
+        """Load the model into memory with the real schemas (classifier per scenario, actor),
+        so the first turn of the first student is as fast as the others."""
+        lines = []
+        jobs = [("actor", ActorOutput.model_json_schema())]
+        for path in sorted(self.scenario_folder.glob("*.json")):
+            jobs.insert(0, ("classifier", self.scenario(path.stem).classifier_model.model_json_schema()))
+        for role, schema in jobs:
+            t = time.perf_counter()
+            try:
+                self.llm.chat_json("Answer with valid JSON.", [{"role": "user", "content": "Hello."}],
+                                   schema, role=role)
+            except LlmOutputError:
+                pass  # output does not matter here
+            lines.append(f"warm-up {role} done in {int((time.perf_counter() - t) * 1000)} ms")
+        return lines

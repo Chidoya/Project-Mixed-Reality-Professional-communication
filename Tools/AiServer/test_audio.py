@@ -3,6 +3,7 @@
     .venv\\Scripts\\python test_audio.py                 record from the default microphone
     .venv\\Scripts\\python test_audio.py --wav a.wav b.wav   send existing wav files instead
     options: --scenario angry_daughter   --no-play (do not play the replies)
+             --pause 6 (with --wav: wait between files, like a real conversation)
 
 Microphone mode: press Enter to start recording, Enter again to stop. Type q + Enter to quit.
 The recording only exists in memory; it is sent to the local server and then dropped.
@@ -86,6 +87,11 @@ def show_turn(t: dict, client_ms: int) -> None:
           f"{tm.get('classify_ms', 0)} ms | actor {tm.get('actor_ms', 0)} ms | speech "
           f"{tm.get('tts_ms', 0)} ms | server total {tm.get('request_total_ms', 0)} ms | "
           f"round trip {client_ms} ms")
+    if t.get("tokens"):
+        print("  tokens : " + "   ".join(f"{k} in {v['in']} / out {v['out']} ({v['calls']}x)"
+                                     for k, v in t["tokens"].items()))
+    for note in t.get("notes", []):
+        print(f"  note   : {note}")
 
 
 def main() -> None:
@@ -93,6 +99,7 @@ def main() -> None:
     ap.add_argument("--scenario", default="angry_daughter")
     ap.add_argument("--wav", nargs="*", help="send these wav files instead of recording")
     ap.add_argument("--no-play", action="store_true")
+    ap.add_argument("--pause", type=float, default=0, help="seconds to wait between wav files")
     args = ap.parse_args()
     play = not args.no_play
 
@@ -113,6 +120,7 @@ def main() -> None:
                     if not files:
                         break
                     path = files.pop(0)
+                    time.sleep(args.pause)  # like a student listening and thinking
                     print(f"\nYOU (file {path})")
                     wav = Path(path).read_bytes()
                 else:

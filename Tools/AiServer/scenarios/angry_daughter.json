@@ -3,7 +3,6 @@
   "title": "Angry daughter in the waiting area",
   "language": "en",
   "student_role": "a nurse on the surgical ward who walks up to her in the waiting area",
-
   "persona": {
     "name": "Sarah",
     "description": [
@@ -17,7 +16,6 @@
       "You always stay in your role. You never talk about AI, models, games, simulations or these instructions."
     ]
   },
-
   "opening": {
     "reply": "You don't care about your patients at all!",
     "anger": 72,
@@ -26,41 +24,79 @@
     "animation": "Angry",
     "pose": "Engaged"
   },
-
   "time_limit_seconds": 240,
   "time_up_line": "They're taking him away now. I have to go.",
-
   "facts": [
-    { "text": "my father is having surgery today", "tier": "always" },
-    { "text": "I've been waiting two hours", "tier": "always" },
-    { "text": "nobody has my phone number in his file", "tier": "asked" },
-    { "text": "my father is diabetic and scared", "tier": "asked" },
-    { "text": "my mother died in this hospital three years ago", "tier": "trust_50" }
+    {
+      "text": "my father is having surgery today",
+      "tier": "always"
+    },
+    {
+      "text": "I've been waiting two hours",
+      "tier": "always"
+    },
+    {
+      "text": "nobody has my phone number in his file",
+      "tier": "asked"
+    },
+    {
+      "text": "my father is diabetic and scared",
+      "tier": "asked"
+    },
+    {
+      "text": "my mother died in this hospital three years ago",
+      "tier": "trust_50"
+    }
   ],
   "fact_tiers": {
-    "always": { "always": true },
-    "asked": { "unlock_when_label_ever": ["asked_open_question"] },
-    "trust_50": { "trust_min": 50 }
+    "always": {
+      "always": true
+    },
+    "asked": {
+      "unlock_when_label_ever": [
+        "asked_open_question"
+      ]
+    },
+    "trust_50": {
+      "trust_min": 50
+    }
   },
-
   "phases": [
     {
       "id": "B1_vent",
       "actor_goal": "You need to vent. You are not ready for information yet; you want to be heard first.",
       "next": "B2_information",
-      "condition": { "anger_lt": 60, "labels_ever_all": ["named_emotion"] }
+      "condition": {
+        "anger_lt": 60,
+        "labels_ever_all": [
+          "named_emotion"
+        ]
+      }
     },
     {
       "id": "B2_information",
       "actor_goal": "You feel a little heard. Now you want concrete, honest information about your father and what happens next.",
       "next": "B3_agreement",
-      "condition": { "anger_lt": 45, "labels_ever_any": ["gave_concrete_timeline", "offered_concrete_next_step"] }
+      "condition": {
+        "anger_lt": 45,
+        "labels_ever_any": [
+          "gave_concrete_timeline",
+          "offered_concrete_next_step"
+        ]
+      }
     },
     {
       "id": "B3_agreement",
       "actor_goal": "You are willing to make an agreement. Check that the plan is real and say what you need.",
       "next": "END",
-      "condition": { "anger_lt": 30, "labels_this_turn_any": ["summarized", "offered_concrete_next_step", "gave_concrete_timeline"] }
+      "condition": {
+        "anger_lt": 30,
+        "labels_this_turn_any": [
+          "summarized",
+          "offered_concrete_next_step",
+          "gave_concrete_timeline"
+        ]
+      }
     },
     {
       "id": "END",
@@ -69,12 +105,42 @@
       "end_reason": "resolved"
     }
   ],
-
   "bands": [
-    { "name": "VERY_HIGH", "min_anger": 80, "instruction": "raises voice, very short sentences, interrupts, demands the surgeon", "allowed_emotions": ["Angry"] },
-    { "name": "HIGH", "min_anger": 55, "instruction": "sharp and accusing, short sentences", "allowed_emotions": ["Angry"] },
-    { "name": "MID", "min_anger": 30, "instruction": "still upset but listens, asks pointed questions", "allowed_emotions": ["Angry", "Worried"] },
-    { "name": "LOW", "min_anger": 0, "instruction": "tired and worried, softer, may show fear for her father", "allowed_emotions": ["Worried", "Sad", "Neutral"] }
+    {
+      "name": "VERY_HIGH",
+      "min_anger": 80,
+      "instruction": "raises voice, very short sentences, interrupts, demands the surgeon",
+      "allowed_emotions": [
+        "Angry"
+      ]
+    },
+    {
+      "name": "HIGH",
+      "min_anger": 55,
+      "instruction": "sharp and accusing, short sentences",
+      "allowed_emotions": [
+        "Angry"
+      ]
+    },
+    {
+      "name": "MID",
+      "min_anger": 30,
+      "instruction": "still upset but listens, asks pointed questions",
+      "allowed_emotions": [
+        "Angry",
+        "Worried"
+      ]
+    },
+    {
+      "name": "LOW",
+      "min_anger": 0,
+      "instruction": "tired and worried, softer, may show fear for her father",
+      "allowed_emotions": [
+        "Worried",
+        "Sad",
+        "Neutral"
+      ]
+    }
   ],
   "emotion_to_animation": {
     "Neutral": "Idle",
@@ -86,79 +152,151 @@
     "Pain": "Sad",
     "Crying": "Crying"
   },
-
   "rules": {
     "max_decrease_per_turn": 15,
     "max_increase_per_turn": 20,
     "thresholds": [
-      { "stat": "anger", "floor": 40, "until_label_ever": "explained_delay" }
+      {
+        "stat": "anger",
+        "floor": 40,
+        "until_label_ever": "explained_delay"
+      }
     ],
-    "off_topic_or_unsafe_effect": { "anger": 5, "trust": 0 }
+    "off_topic_or_unsafe_effect": {
+      "anger": 5,
+      "trust": 0
+    }
   },
-
   "labels": [
-    { "name": "introduced_self", "anger": -3, "trust": 5,
-      "description": "The student says their name and/or role (e.g. 'I'm the nurse of your father').",
-      "example": "Hello, I'm Tom, I'm one of the nurses on this ward." },
-    { "name": "named_emotion", "anger": -8, "trust": 8,
-      "description": "The student explicitly names her feeling (angry, scared, worried, frustrated, afraid) as her feeling.",
-      "example": "I can see you're really angry, and probably scared for your father." },
-    { "name": "named_emotion_partial", "anger": -3, "trust": 3,
-      "description": "The student vaguely refers to her state without clearly naming the emotion.",
-      "example": "This must be a lot for you." },
-    { "name": "acknowledged_wait", "anger": -6, "trust": 6,
-      "description": "The student acknowledges that she has been waiting a long time without information.",
-      "example": "You've been sitting here for two hours without hearing anything, that's a long time." },
-    { "name": "apologized_sincerely", "anger": -6, "trust": 6,
-      "description": "A sincere, specific apology (not 'sorry, but...' followed by an excuse).",
-      "example": "I'm sorry nobody came to tell you what was going on." },
-    { "name": "summarized", "anger": -6, "trust": 6,
-      "description": "The student summarizes what she said and/or checks if they understood her correctly.",
-      "example": "So if I understand you correctly, nobody told you anything and you don't know where he is, is that right?" },
-    { "name": "asked_open_question", "anger": -4, "trust": 5,
-      "description": "An open question about her, her worries or her father (not a yes/no question).",
-      "example": "What worries you the most right now?" },
-    { "name": "explained_delay", "anger": -8, "trust": 6,
-      "description": "An honest, concrete explanation of why the surgery or the information is delayed.",
-      "example": "The operation before your father's took longer than planned, that's why everything is running late." },
-    { "name": "gave_concrete_timeline", "anger": -10, "trust": 10,
-      "description": "A concrete, realistic time indication (a time or a number of minutes).",
-      "example": "He's scheduled to go to the operating room in about twenty minutes." },
-    { "name": "offered_concrete_next_step", "anger": -10, "trust": 10,
-      "description": "A concrete action the student will take, with who/what/when.",
-      "example": "I'll call the OR now and I'll come back to you within ten minutes with an answer." },
-    { "name": "offered_support", "anger": -5, "trust": 5,
-      "description": "Offers something for her comfort or support (sit down, water, see her father, someone to call).",
-      "example": "Would you like to sit down? I can get you a glass of water." },
-    { "name": "set_boundary_respectfully", "anger": -2, "trust": 2,
-      "description": "Respectfully sets a limit on her behaviour while staying calm and kind.",
-      "example": "I want to help you, but I'd like you to stop shouting so we can talk." },
-    { "name": "said_calm_down", "anger": 10, "trust": -8,
-      "description": "Tells her to calm down, relax or not to get upset.",
-      "example": "Ma'am, please calm down." },
-    { "name": "dismissive", "anger": 8, "trust": -8,
-      "description": "Minimizes her feelings or her problem, or brushes her off.",
-      "example": "It's only two hours, that's normal here." },
-    { "name": "blamed_others_or_system", "anger": 6, "trust": -5,
-      "description": "Blames colleagues, the doctors, the hospital or the system, or says it is not their responsibility.",
-      "example": "We're busy, it's not my fault the doctors are late." },
-    { "name": "jargon", "anger": 4, "trust": -3,
-      "description": "Uses medical jargon or abbreviations she wouldn't understand.",
-      "example": "He's pre-op, waiting for the anesthesiologist to clear his ASA status." },
-    { "name": "false_promise", "anger": 3, "trust": -10,
-      "description": "Promises something the student cannot know or guarantee.",
-      "example": "Don't worry, I promise everything will be perfectly fine." },
-    { "name": "interrupted", "anger": 5, "trust": -4,
-      "description": "Cuts her off or talks over her (e.g. 'let me stop you there', 'yes yes, but').",
-      "example": "Yes, yes, but listen to me first." },
-    { "name": "defensive", "anger": 7, "trust": -6,
-      "description": "Defends themselves or the ward instead of listening (we do our best, that's not true).",
-      "example": "That's not true, we do care, we work very hard here." },
-    { "name": "no_response", "anger": 6, "trust": -4,
-      "description": "The student says nothing meaningful (silence, 'uh', 'okay') in reaction to her.",
-      "example": "Uh... okay." }
+    {
+      "name": "introduced_self",
+      "anger": -3,
+      "trust": 5,
+      "description": "Says their own name and/or role."
+    },
+    {
+      "name": "named_emotion",
+      "anger": -8,
+      "trust": 8,
+      "description": "Names her feeling with a feeling word: angry, scared, worried, frustrated, afraid.",
+      "example": "I can see you're really angry, and probably scared for your father."
+    },
+    {
+      "name": "named_emotion_partial",
+      "anger": -3,
+      "trust": 3,
+      "description": "Hints at her state WITHOUT a feeling word ('this must be a lot').",
+      "example": "This must be a lot for you."
+    },
+    {
+      "name": "acknowledged_wait",
+      "anger": -6,
+      "trust": 6,
+      "description": "Acknowledges she waited long without information."
+    },
+    {
+      "name": "apologized_sincerely",
+      "anger": -6,
+      "trust": 6,
+      "description": "A specific, sincere apology without 'but' and an excuse."
+    },
+    {
+      "name": "summarized",
+      "anger": -6,
+      "trust": 6,
+      "description": "Repeats back what SHE said (the facts) and/or checks if they understood it.",
+      "example": "So if I understand you correctly, nobody told you anything and you don't know where he is, is that right?"
+    },
+    {
+      "name": "asked_open_question",
+      "anger": -4,
+      "trust": 5,
+      "description": "Open question (what/how/why) about her, her worry or her father."
+    },
+    {
+      "name": "explained_delay",
+      "anger": -8,
+      "trust": 6,
+      "description": "Gives a reason why it is taking long (e.g. an earlier operation ran late).",
+      "example": "The operation before your father's took longer than planned, that's why everything is running late."
+    },
+    {
+      "name": "gave_concrete_timeline",
+      "anger": -10,
+      "trust": 10,
+      "description": "A concrete time or number of minutes.",
+      "example": "He's scheduled to go to the operating room in about twenty minutes."
+    },
+    {
+      "name": "offered_concrete_next_step",
+      "anger": -10,
+      "trust": 10,
+      "description": "A concrete action the student will take, ideally with when.",
+      "example": "I'll call the OR now and I'll come back to you within ten minutes with an answer."
+    },
+    {
+      "name": "offered_support",
+      "anger": -5,
+      "trust": 5,
+      "description": "Offers comfort: a seat, water, someone to call, a visit."
+    },
+    {
+      "name": "set_boundary_respectfully",
+      "anger": -2,
+      "trust": 2,
+      "description": "Calmly and kindly limits her behaviour (shouting)."
+    },
+    {
+      "name": "said_calm_down",
+      "anger": 10,
+      "trust": -8,
+      "description": "Tells her to calm down or relax."
+    },
+    {
+      "name": "dismissive",
+      "anger": 8,
+      "trust": -8,
+      "description": "Minimizes her feelings or problem, brushes her off."
+    },
+    {
+      "name": "blamed_others_or_system",
+      "anger": 6,
+      "trust": -5,
+      "description": "Blames colleagues, doctors, the hospital, or 'not my fault'."
+    },
+    {
+      "name": "jargon",
+      "anger": 4,
+      "trust": -3,
+      "description": "Medical terms or abbreviations (pre-op, ASA, NPO); everyday words are not jargon.",
+      "example": "He's pre-op, waiting for the anesthesiologist to clear his ASA status."
+    },
+    {
+      "name": "false_promise",
+      "anger": 3,
+      "trust": -10,
+      "description": "Promises something they cannot know or guarantee."
+    },
+    {
+      "name": "interrupted",
+      "anger": 5,
+      "trust": -4,
+      "description": "Cuts her off or talks over her ('yes yes, but')."
+    },
+    {
+      "name": "defensive",
+      "anger": 7,
+      "trust": -6,
+      "description": "Defends self or ward instead of listening ('we do our best').",
+      "example": "That's not true, we do care, we work very hard here."
+    },
+    {
+      "name": "no_response",
+      "anger": 6,
+      "trust": -4,
+      "description": "Says nothing meaningful ('uh', 'okay')."
+    }
   ],
-
   "fallback_lines": [
     "I don't care about that. Where is my father's surgeon?",
     "Don't change the subject. I want to know what's happening with my father.",
@@ -166,29 +304,105 @@
     "That has nothing to do with my father. Two hours, and still nothing!",
     "Please, just tell me where my father is."
   ],
-
   "rubric": [
-    { "id": 1, "criterion": "Introduces themselves",
-      "levels": { "0": "Does not introduce themselves.", "1": "Gives only a name or only a role, or does it late.", "2": "Introduces themselves with name and role at the start." } },
-    { "id": 2, "criterion": "Does not get defensive and does not say 'calm down'",
-      "levels": { "0": "Says 'calm down' or defends themselves/the ward several times.", "1": "Once defensive or minimizing, then corrects it.", "2": "Stays calm and non-defensive throughout, never says 'calm down'." } },
-    { "id": 3, "criterion": "Lets her finish speaking",
-      "levels": { "0": "Interrupts her repeatedly.", "1": "Interrupts once or rushes to a solution.", "2": "Lets her vent fully before responding." } },
-    { "id": 4, "criterion": "Names the emotion",
-      "levels": { "0": "Does not refer to her feelings.", "1": "Refers to her feelings vaguely.", "2": "Explicitly names her emotion (anger, fear, worry)." } },
-    { "id": 5, "criterion": "Shows understanding",
-      "levels": { "0": "No acknowledgement of her situation.", "1": "Generic understanding ('I understand').", "2": "Specific acknowledgement (the two-hour wait, no information)." } },
-    { "id": 6, "criterion": "Summarizes and checks (LSD: listen, summarize, ask further)",
-      "levels": { "0": "Does not summarize.", "1": "Summarizes without checking.", "2": "Summarizes and checks whether it is correct." } },
-    { "id": 7, "criterion": "Asks about the real concern",
-      "levels": { "0": "Asks no questions about her concern.", "1": "Only closed questions.", "2": "Open questions that reveal the real concern (fear for her father)." } },
-    { "id": 8, "criterion": "Honest information without jargon or false promises",
-      "levels": { "0": "Jargon or false promises.", "1": "Information is vague or partly unclear.", "2": "Honest, understandable information, admits what they don't know." } },
-    { "id": 9, "criterion": "Concrete next step with a time",
-      "levels": { "0": "No next step.", "1": "Next step without a time or owner.", "2": "Concrete next step with who and when." } },
-    { "id": 10, "criterion": "Sets boundaries respectfully",
-      "levels": { "0": "No boundary when needed, or a harsh/threatening one.", "1": "Boundary set, but abruptly.", "2": "Boundary set calmly and respectfully, when needed (or not needed)." } },
-    { "id": 11, "criterion": "Closes with an agreement",
-      "levels": { "0": "Ends without an agreement.", "1": "Vague agreement ('I'll see what I can do').", "2": "Clear agreement she confirms (what, who, when)." } }
+    {
+      "id": 1,
+      "criterion": "Introduces themselves",
+      "levels": {
+        "0": "Does not introduce themselves.",
+        "1": "Gives only a name or only a role, or does it late.",
+        "2": "Introduces themselves with name and role at the start."
+      }
+    },
+    {
+      "id": 2,
+      "criterion": "Does not get defensive and does not say 'calm down'",
+      "levels": {
+        "0": "Says 'calm down' or defends themselves/the ward several times.",
+        "1": "Once defensive or minimizing, then corrects it.",
+        "2": "Stays calm and non-defensive throughout, never says 'calm down'."
+      }
+    },
+    {
+      "id": 3,
+      "criterion": "Lets her finish speaking",
+      "levels": {
+        "0": "Interrupts her repeatedly.",
+        "1": "Interrupts once or rushes to a solution.",
+        "2": "Lets her vent fully before responding."
+      }
+    },
+    {
+      "id": 4,
+      "criterion": "Names the emotion",
+      "levels": {
+        "0": "Does not refer to her feelings.",
+        "1": "Refers to her feelings vaguely.",
+        "2": "Explicitly names her emotion (anger, fear, worry)."
+      }
+    },
+    {
+      "id": 5,
+      "criterion": "Shows understanding",
+      "levels": {
+        "0": "No acknowledgement of her situation.",
+        "1": "Generic understanding ('I understand').",
+        "2": "Specific acknowledgement (the two-hour wait, no information)."
+      }
+    },
+    {
+      "id": 6,
+      "criterion": "Summarizes and checks (LSD: listen, summarize, ask further)",
+      "levels": {
+        "0": "Does not summarize.",
+        "1": "Summarizes without checking.",
+        "2": "Summarizes and checks whether it is correct."
+      }
+    },
+    {
+      "id": 7,
+      "criterion": "Asks about the real concern",
+      "levels": {
+        "0": "Asks no questions about her concern.",
+        "1": "Only closed questions.",
+        "2": "Open questions that reveal the real concern (fear for her father)."
+      }
+    },
+    {
+      "id": 8,
+      "criterion": "Honest information without jargon or false promises",
+      "levels": {
+        "0": "Jargon or false promises.",
+        "1": "Information is vague or partly unclear.",
+        "2": "Honest, understandable information, admits what they don't know."
+      }
+    },
+    {
+      "id": 9,
+      "criterion": "Concrete next step with a time",
+      "levels": {
+        "0": "No next step.",
+        "1": "Next step without a time or owner.",
+        "2": "Concrete next step with who and when."
+      }
+    },
+    {
+      "id": 10,
+      "criterion": "Sets boundaries respectfully",
+      "levels": {
+        "0": "No boundary when needed, or a harsh/threatening one.",
+        "1": "Boundary set, but abruptly.",
+        "2": "Boundary set calmly and respectfully, when needed (or not needed)."
+      }
+    },
+    {
+      "id": 11,
+      "criterion": "Closes with an agreement",
+      "levels": {
+        "0": "Ends without an agreement.",
+        "1": "Vague agreement ('I'll see what I can do').",
+        "2": "Clear agreement she confirms (what, who, when)."
+      }
+    }
   ]
 }

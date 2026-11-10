@@ -29,9 +29,23 @@ WHISPER_RATE = 16000
 CUDA_DLLS_WINDOWS = ("cublas64_12.dll", "cublasLt64_12.dll", "cudnn64_9.dll", "cudnn_ops64_9.dll")
 
 
+def _add_nvidia_dll_dirs() -> None:
+    """Make the DLLs from the nvidia-cublas-cu12 / nvidia-cudnn-cu12 pip packages findable."""
+    try:
+        import nvidia  # namespace package from the pip packages (requirements-gpu.txt)
+    except ImportError:
+        return
+    for base in getattr(nvidia, "__path__", []):
+        for bin_dir in Path(base).glob("*/bin"):
+            if str(bin_dir) not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ.get("PATH", "")
+                os.add_dll_directory(str(bin_dir))
+
+
 def _missing_cuda_dlls() -> list[str]:
     if sys.platform != "win32":
         return []
+    _add_nvidia_dll_dirs()
     missing = []
     for dll in CUDA_DLLS_WINDOWS:
         try:

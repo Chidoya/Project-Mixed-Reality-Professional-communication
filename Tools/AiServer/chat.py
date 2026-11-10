@@ -40,6 +40,9 @@ def show_turn(t: dict) -> None:
         print(f"  note   : {note}")
     tm = t["timings_ms"]
     print("  time   : " + ", ".join(f"{k} {v}" for k, v in tm.items()) + f"   (t+{t['elapsed_s']}s)")
+    if t.get("tokens"):
+        print("  tokens : " + "   ".join(f"{k} in {v['in']} / out {v['out']} ({v['calls']} call{'s' if v['calls'] > 1 else ''})"
+                                     for k, v in t["tokens"].items()))
     print(f"SARAH [{t['emotion']}/{t['animation']}/{t['pose']}]: {t['reply']}")
     if t.get("facts_used"):
         print(f"  facts  : {t['facts_used']}")

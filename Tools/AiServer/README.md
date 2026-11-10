@@ -54,11 +54,12 @@ Transcripts are saved in `sessions/<id>.json` (not in git).
 
 | key | default | meaning |
 | --- | --- | --- |
-| `ollama_url` | `http://localhost:11434` | Ollama address |
+| `ollama_url` | `http://127.0.0.1:11434` | Ollama address (use 127.0.0.1, not localhost: on Windows localhost first tries IPv6 and every new connection then loses about 2 s) |
 | `model_classifier`, `model_actor`, `model_judge` | `qwen3.5:4b` | model per role |
 | `temperature_classifier` / `_actor` / `_judge` | 0 / 0.7 / 0 | temperature per role |
 | `keep_alive` | `30m` | how long Ollama keeps the model in memory |
 | `request_timeout_seconds` | 120 | timeout per model call |
+| `num_predict_classifier` / `_actor` / `_judge` | 200 / 300 / 600 | max output tokens per role |
 | `port` | 8765 | server port (listens on 127.0.0.1 only) |
 | `stt_model` | `small.en` | faster-whisper model |
 | `stt_try_gpu` | true | try CUDA first; falls back to CPU int8 when CUDA/cuDNN is missing |
@@ -70,8 +71,14 @@ Transcripts are saved in `sessions/<id>.json` (not in git).
 
 ### Speech recognition on the GPU
 
-On Windows, faster-whisper needs the CUDA 12 cuBLAS and cuDNN 9 DLLs for the GPU. If they are
-missing, the server logs which ones and uses the CPU (int8). `/health` shows the device in use.
+On Windows, faster-whisper needs the CUDA 12 cuBLAS and cuDNN 9 DLLs for the GPU. Install them
+in the venv (about 1.5 GB, NVIDIA GPU only):
+```
+.venv\Scripts\pip install -r requirements-gpu.txt
+```
+The server finds them automatically. If they are missing, it logs which ones and uses the CPU
+(int8). `/health` shows the device in use. On an RTX 4070 Laptop: about 0.2-0.6 s per sentence
+on the GPU, about 1.9 s on the CPU.
 
 ## API
 
@@ -86,7 +93,7 @@ missing, the server logs which ones and uses the CPU (int8). `/health` shows the
 A turn returns: `reply, emotion, animation, pose, facts_used, labels, evidence_quote,
 off_topic, unsafe, before {anger, trust, band, phase}, after {...}, anger, trust, band, phase,
 ended (null | "resolved" | "time_up"), fallback_used, notes [...], timings_ms {classify_ms,
-state_ms, actor_ms, total_ms}`.
+state_ms, actor_ms, total_ms}, tokens {classify: {in, out, calls}, actor: {in, out, calls}}`.
 
 For `/turn/audio`, `timings_ms` also has `stt_ms`, `tts_ms` and `request_total_ms`, and these
 are saved in the session log too (the audio itself is not). The uploaded wav is only processed in

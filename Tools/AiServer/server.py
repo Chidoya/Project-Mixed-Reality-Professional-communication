@@ -38,19 +38,6 @@ stt: Optional[SpeechToText] = None
 tts: Optional[TextToSpeech] = None
 
 
-def warm_up_llm() -> None:
-    """Load the model(s) into memory with a tiny request, so the first turn is fast."""
-    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
-    warmed: set[str] = set()
-    for role in ("classifier", "actor", "judge"):
-        if llm.models[role] in warmed:
-            continue  # same model is already loaded
-        warmed.add(llm.models[role])
-        t = time.perf_counter()
-        llm.chat_json("Answer with JSON.", [{"role": "user", "content": "Say ok."}], schema, role=role)
-        log.info("warm-up %s (%s) done in %d ms", role, llm.models[role], (time.perf_counter() - t) * 1000)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global stt, tts
@@ -59,7 +46,8 @@ async def lifespan(app: FastAPI):
     _, ms = timed(tts.synthesize, "Hello.")
     log.info("warm-up text to speech done in %d ms", ms)
     try:
-        warm_up_llm()
+        for line in engine.warm_up():
+            log.info(line)
     except LlmUnavailableError as exc:
         log.error("WARM-UP FAILED: %s", exc)
         log.error("The server keeps running, but every turn will fail until Ollama is available.")
