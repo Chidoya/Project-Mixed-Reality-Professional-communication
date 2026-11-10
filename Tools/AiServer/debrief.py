@@ -1,53 +1,32 @@
-"""Debrief: the judge model scores the conversation with the scenario's rubric.
+"""Debrief: rubric scores computed in Python from the labels per turn (no model for the scores).
 
-- The JSON schema has one fixed field per rubric item (item_1 .. item_11), so the model must give every
-  item exactly once.
-- The judge runs `judge_runs` times (default 2), in parallel. Run 2 sees the rubric in reverse order, so it
-  is a real second opinion even at temperature 0. Per item the lowest score wins; if the runs disagree the
-  item is marked uncertain.
-- Python checks every quote (it must be literal from the STUDENT) and applies the score rules:
-  "do" items (e.g. names the emotion): a 1 or 2 needs a literal quote, otherwise 0 (it never happened).
-  "avoid" items (e.g. not defensive): a 2 is allowed without quote (the bad behaviour never happened);
-  the quote then shows the bad sentence if there was one.
-  "if_needed" items (set boundaries): a 2 is allowed without quote (it was not needed), a 1 needs a quote.
-- feedback must be Dutch and better_phrase English; if one run got the language wrong, the other run's
-  text is used.
-- The effect of the key moments is computed from the log, not taken from the model.
+Per rubric item the scenario says how to score it ("scoring"):
+  positive  labels: 2 if one of them fell at least once (optionally only in the last N turns)
+  partial   labels: 1 if only those fell
+  avoid     labels: 2 if they NEVER fell, 0 if they fell (the quote of that turn is the evidence)
+  score_if_neither: score when an item has both positive and avoid labels and neither fell
+  two_if_anger_never_above: 2 if anger never went above this value (e.g. a boundary was not needed)
+  two_if_phase_reached:     2 if the conversation reached this phase
+  one_if_positive_earlier:  1 if a positive label fell, but not in the last N turns
+The quote is the classifier's evidence_quote of the turn where the label fell; if that turn used the
+quote fallback (the classifier was unsure) the item is marked uncertain.
+Feedback (per score) and the better phrase are fixed texts in the scenario. Key moments are the 3 turns
+with the biggest change in anger. Only the 2-sentence summary comes from the model (actor model, short,
+with a timeout); if that fails, a fixed sentence from the scenario is used.
 """
 from __future__ import annotations
 
 import json
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Literal, Optional
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from llm_client import LlmClient, LlmOutputError
+from llm_client import LlmClient, LlmOutputError, LlmUnavailableError
 
-
-class DebriefItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    score: Literal[0, 1, 2]
-    evidence_quote: str
-    feedback: str = Field(min_length=1)
-    better_phrase: str = Field(min_length=1)
-
-
-class KeyMoment(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    turn_index: int
-    what_happened: str = Field(min_length=1)
-    effect: str
-
-
-def make_output_model(rubric_ids: list[int]) -> type[BaseModel]:
-    fields: dict[str, Any] = {f"item_{i}": (DebriefItem, ...) for i in rubric_ids}
-    fields["key_moments"] = (list[KeyMoment], Field(max_length=3))
-    fields["summary"] = (str, Field(min_length=1))
-    return create_model("DebriefOutput", __config__=ConfigDict(extra="forbid"), **fields)
-
+_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="summary")
 
 _DUTCH = re.compile(r"\b(ik|u|uw|je|jij|jouw|het|een|de|niet|nodig|dat|zijn|heeft|wordt|en|wat|voor|met|"
                     r"zonder|nu|dus|kom|terug|bel|wil|er|naar|over|ook|heel|eerst|om|bij|van|op|maar|geen|"
@@ -60,30 +39,15 @@ def _is_dutch(text: str) -> bool:
     return len(_DUTCH.findall(text)) > len(_ENGLISH.findall(text))
 
 
-class _Translations(BaseModel):
+class _Summary(BaseModel):
+    """Two fields, one short sentence each: keeps a small model from writing about the task instead."""
     model_config = ConfigDict(extra="forbid")
-    english: list[str]
-
-
-def _translate_to_english(llm: LlmClient, phrases: list[str]) -> list[str]:
-    """One short call for all better_phrases that came out in Dutch."""
-    numbered = "\n".join(f"{i + 1}. {p}" for i, p in enumerate(phrases))
-    raw = llm.chat_json(
-        "Translate each Dutch sentence into natural spoken English, as words a nurse says. "
-        "Keep the same order and the same number of sentences.",
-        [{"role": "user", "content": numbered}], _Translations.model_json_schema(), role="judge")
-    out = _Translations.model_validate(raw).english
-    if len(out) != len(phrases):
-        raise LlmOutputError(f"translated {len(out)} of {len(phrases)} phrases")
-    return out
-
-
-def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", re.sub(r"[^\w\s']", " ", text.lower())).strip()
+    zin_sterk_punt: str = Field(min_length=10, max_length=180)
+    zin_werkpunt: str = Field(min_length=10, max_length=180)
 
 
 def build_log(session) -> list[dict[str, Any]]:
-    """The facts per turn that the judge gets (and that Unity draws)."""
+    """The facts per turn that the scores, the key moments and Unity's graph come from."""
     rows = []
     for t in session.turns:
         rows.append({
@@ -95,235 +59,216 @@ def build_log(session) -> list[dict[str, Any]]:
             "off_topic_or_unsafe": bool(t.get("off_topic") or t.get("unsafe")),
             "anger": [t["before"]["anger"], t["after"]["anger"]],
             "trust": [t["before"]["trust"], t["after"]["trust"]],
+            "phase": t["after"]["phase"],
             "reply": t.get("reply", ""),
         })
     return rows
 
 
-def _prompt(session, log: list[dict], reverse: bool) -> tuple[str, str]:
-    sc = session.scenario
-    rubric = list(sc.data["rubric"])
-    if reverse:
-        rubric = rubric[::-1]
-    rubric_text = "\n".join(
-        f'item_{r["id"]} ({r.get("kind", "do")}): {r["criterion"]} | 0: {r["levels"]["0"]} | '
-        f'1: {r["levels"]["1"]} | 2: {r["levels"]["2"]}'
-        for r in rubric
-    )
-    name = sc.data["persona"]["name"]
-    system = (
-        "You are a strict but fair communication trainer for nursing students. Score the STUDENT in this "
-        f"conversation with {name} ({sc.data['persona']['description'][0]})\n"
-        f"Rubric:\n{rubric_text}\n\n"
-        "Rules:\n"
-        f"- evidence_quote: words copied exactly from a STUDENT line. Never quote {name}.\n"
-        "- 'do' items: score 1 or 2 only with an evidence_quote of the student doing it. "
-        "If the student never did it: score 0 and evidence_quote \"\".\n"
-        "- 'avoid' items (bad behaviour to avoid): if the student did the bad thing, quote that sentence "
-        "and give 0 or 1. If it never happened, give 2 with evidence_quote \"\".\n"
-        "- 'if_needed' items: 2 with evidence_quote \"\" if it was not needed; otherwise like a 'do' item.\n"
-        "- The labels per turn come from an automatic classifier: a hint only, check the student's words "
-        "yourself. quote_fallback means the classifier was unsure.\n"
-        "- feedback: one short sentence in DUTCH (Nederlands) to the student, max 15 words. Use 'je', "
-        "never 'u'. Example: \"Je benoemde haar angst, daardoor voelde ze zich gehoord.\"\n"
-        "- better_phrase: always one short ENGLISH sentence with the exact words the nurse says to "
-        f"{name} (not an instruction), also when the score is 2. It must be NEW: not a sentence the student "
-        f"or {name} already said. Example: \"I can see you're scared for your father.\"\n"
-        "- The evidence_quote must really show THIS item (e.g. item 7 needs an open question).\n"
-        "- key_moments: at most 3 student turns that changed the conversation most (turn_index = turn "
-        "number), what_happened in Dutch (one sentence), effect like \"anger +10\".\n"
-        "- summary: exactly 2 sentences in Dutch, encouraging and honest."
-    )
-    lines = [f'Turn 0. {name}: "{sc.data["opening"]["reply"]}"']
-    for r in log:
-        extra = ", quote_fallback" if r["quote_fallback"] else ""
-        extra += ", off_topic_or_unsafe" if r["off_topic_or_unsafe"] else ""
-        lines.append(
-            f'Turn {r["turn"]}. STUDENT: "{r["student"]}"\n'
-            f'   labels: {", ".join(r["labels"]) or "-"}{extra}; anger {r["anger"][0]}->{r["anger"][1]}, '
-            f'trust {r["trust"][0]}->{r["trust"][1]}\n'
-            f'   {name}: "{r["reply"]}"'
-        )
-    end = session.ended or "stopped"
-    user = "Conversation (end: " + end + "):\n" + "\n".join(lines) + "\n\nScore the student now."
-    return system, user
+def _first_hit(log: list[dict], labels: list[str]) -> Optional[dict]:
+    """First turn with a label, in the priority order of the scenario list (the first label is the best
+    evidence), so e.g. an apology is the evidence for 'shows understanding' rather than 'offered support'."""
+    for label in labels:
+        hit = next((r for r in log if label in r["labels"]), None)
+        if hit is not None:
+            return hit
+    return None
 
 
-def _one_run(llm: LlmClient, session, log, reverse: bool) -> tuple[Optional[BaseModel], dict]:
-    system, user = _prompt(session, log, reverse)
-    ids = [r["id"] for r in session.scenario.data["rubric"]]
-    model = make_output_model(ids)
-    info = {"reverse": reverse, "ms": 0, "in": 0, "out": 0, "attempts": 0, "errors": []}
-    t = time.perf_counter()
-    for attempt in (1, 2):
-        info["attempts"] = attempt
-        try:
-            raw = llm.chat_json(system, [{"role": "user", "content": user}], model.model_json_schema(), role="judge")
-            usage = llm.last_usage()
-            info["in"] += usage.get("in", 0)
-            info["out"] += usage.get("out", 0)
-            out = model.model_validate(raw)
-            info["ms"] = int((time.perf_counter() - t) * 1000)
-            return out, info
-        except (ValidationError, LlmOutputError) as exc:
-            info["errors"].append(str(exc).splitlines()[0])
-    info["ms"] = int((time.perf_counter() - t) * 1000)
-    return None, info
+def score_item(item: dict, log: list[dict], phases: list[str], opening_anger: int) -> dict:
+    rule = item["scoring"]
+    positive, partial, avoid = rule.get("positive", []), rule.get("partial", []), rule.get("avoid", [])
+    last_n = rule.get("positive_in_last_turns")
+    score, hit, why = 0, None, ""
 
+    avoid_hit = _first_hit(log, avoid) if avoid else None
+    positive_log = log[-last_n:] if last_n else log
+    positive_hit = _first_hit(positive_log, positive) if positive else None
+    partial_hit = _first_hit(log, partial) if partial else None
 
-def _check_item(rid: int, kind: str, item: DebriefItem, student_texts: list[str], all_texts: list[str],
-                notes: list[str]) -> dict:
-    d = item.model_dump()
-    quote = d["evidence_quote"].strip().strip("\"'“”‘’").strip()
-    if quote and not any(_norm(quote) in _norm(s) for s in student_texts if s):
-        notes.append(f"item {rid}: quote is not from the student, removed: {quote!r}")
+    if avoid_hit:
+        score, hit = 0, avoid_hit
+        why = "avoid label " + ", ".join(sorted(set(avoid) & set(avoid_hit["labels"])))
+    elif positive_hit:
+        score, hit = 2, positive_hit
+        why = "positive label " + ", ".join(sorted(set(positive) & set(positive_hit["labels"])))
+    elif partial_hit:
+        score, hit = 1, partial_hit
+        why = "partial label " + ", ".join(sorted(set(partial) & set(partial_hit["labels"])))
+    elif "two_if_anger_never_above" in rule and max([opening_anger] + [r["anger"][1] for r in log]) <= rule["two_if_anger_never_above"]:
+        score, why = 2, f"anger never above {rule['two_if_anger_never_above']} (not needed)"
+    elif "two_if_phase_reached" in rule and rule["two_if_phase_reached"] in phases and any(
+            r["phase"] in phases and phases.index(r["phase"]) >= phases.index(rule["two_if_phase_reached"]) for r in log):
+        score, why = 2, f"phase {rule['two_if_phase_reached']} reached"
+    elif rule.get("one_if_positive_earlier") and _first_hit(log, positive):
+        score, hit = 1, _first_hit(log, positive)
+        why = "positive label earlier, not at the end"
+    elif avoid and not positive:
+        score, why = 2, "avoid labels never fell"
+    elif avoid and positive:
+        score, why = rule.get("score_if_neither", 1), "neither positive nor avoid labels fell"
+    else:
+        why = "label never fell"
+
+    # One evidence_quote per turn: with several labels in that turn it may belong to another label,
+    # so then the whole sentence of the student is the evidence.
+    if hit is None:
         quote = ""
-    if ((kind == "do" and d["score"] > 0) or (kind == "if_needed" and d["score"] == 1)) and not quote:
-        notes.append(f"item {rid}: score {d['score']} without a student quote, set to 0")
-        d["score"] = 0
-    d["evidence_quote"] = quote
-    # better_phrase must be English and new (not a line of the student or the character)
-    d["better_phrase_dutch"] = _is_dutch(d["better_phrase"])
-    d["better_phrase_copied"] = any(_norm(d["better_phrase"]) == _norm(s) for s in all_texts if s)
-    d["feedback_dutch"] = _is_dutch(d["feedback"])
-    d["feedback_formal"] = bool(re.search(r"\b(u|uw)\b", d["feedback"], re.I))  # we want 'je', not 'u'
-    return d
+    elif len(hit["labels"]) > 1 or not hit["quote"]:
+        quote = hit["student"]
+    else:
+        quote = hit["quote"]
+    return {
+        "id": item["id"],
+        "criterion": item["criterion"],
+        "criterion_nl": item.get("criterion_nl", item["criterion"]),
+        "score": score,
+        "uncertain": bool(hit and hit["quote_fallback"]),
+        "evidence_quote": quote,
+        "evidence_turn": hit["turn"] if hit else None,
+        "feedback": item["feedback"][str(score)],
+        "better_phrase": item["better_phrase"],
+        "why": why,
+    }
 
 
-def _cross_check_labels(items: list[dict], rubric: dict, log: list[dict], notes: list[str]) -> None:
-    """The classifier labels per turn as a second opinion (a help, not a replacement).
-
-    do / if_needed items: points from the judge but the related label never fell -> uncertain, one point
-    less; the quote's turn has none of the labels (but another turn does) -> uncertain; the label fell but
-    the judge gave 0 -> uncertain. avoid items (the labels are the bad behaviour): judge says it never
-    happened (2) but the classifier saw it -> uncertain, one point less; judge saw it but the classifier
-    never did -> uncertain.
-    """
-    for item in items:
-        labels = set(rubric[item["id"]].get("evidence_labels", []))
-        if not labels:
-            continue
-        turns_with = [r for r in log if labels & set(r["labels"])]
-        quote_turn = next((r for r in log if item["evidence_quote"]
-                           and _norm(item["evidence_quote"]) in _norm(r["student"])), None)
-        reason = None
-        if item["kind"] == "avoid":
-            if item["score"] == 2 and turns_with:
-                reason = f"classifier saw {sorted(labels & set(turns_with[0]['labels']))} in turn {turns_with[0]['turn']}"
-                item["score"] = 1
-            elif item["score"] < 2 and not turns_with:
-                reason = "classifier never saw this bad behaviour"
-        else:
-            if item["score"] > 0 and not turns_with:
-                if item["kind"] == "if_needed" and item["score"] == 2 and not item["evidence_quote"]:
-                    continue  # not needed: nothing to check
-                reason = f"classifier never saw {sorted(labels)}"
-                item["score"] -= 1
-            elif item["score"] > 0 and quote_turn is not None and not labels & set(quote_turn["labels"]):
-                reason = f"quote is from turn {quote_turn['turn']}, classifier saw it in turn {turns_with[0]['turn']}"
-            elif item["score"] == 0 and turns_with:
-                reason = f"classifier saw {sorted(labels & set(turns_with[0]['labels']))} in turn {turns_with[0]['turn']}"
-        if reason:
-            item["uncertain"] = True
-            item["label_check"] = reason
-            notes.append(f"item {item['id']}: {reason} -> uncertain, score {item['score']}")
-
-
-def run_debrief(llm: LlmClient, session, runs: int = 2) -> dict[str, Any]:
-    t_start = time.perf_counter()
-    log = build_log(session)
-    sc = session.scenario
-    student_texts = [r["student"] for r in log]
-    all_texts = student_texts + [r["reply"] for r in log] + [sc.data["opening"]["reply"]]
-    rubric = {r["id"]: r for r in sc.data["rubric"]}
-
-    with ThreadPoolExecutor(max_workers=max(1, runs)) as pool:
-        futures = [pool.submit(_one_run, llm, session, log, i % 2 == 1) for i in range(runs)]
-        results = [f.result() for f in futures]
-
-    valid = [out for out, _ in results if out is not None]
-    run_info = [info for _, info in results]
-    if not valid:
-        raise LlmOutputError("judge failed in every run: " + "; ".join(e for i in run_info for e in i["errors"]))
-
-    notes: list[str] = []
-    if len(valid) < runs:
-        notes.append(f"only {len(valid)} of {runs} judge runs were valid: no uncertainty check")
-    checked = [{rid: _check_item(rid, rubric[rid].get("kind", "do"), getattr(out, f"item_{rid}"), student_texts, all_texts, notes)
-                for rid in rubric} for out in valid]
-    items = []
-    for rid, r in rubric.items():
-        candidates = [c[rid] for c in checked]
-        lowest = min(candidates, key=lambda c: c["score"])
-        # a better phrase that is English and new, from any run (Dutch ones are translated below)
-        better = lowest["better_phrase"]
-        if lowest["better_phrase_dutch"] or lowest["better_phrase_copied"]:
-            usable = [c["better_phrase"] for c in candidates
-                      if not c["better_phrase_dutch"] and not c["better_phrase_copied"]]
-            english = [c["better_phrase"] for c in candidates if not c["better_phrase_dutch"]]
-            better = (usable or english or [better])[0]
-        feedback = lowest["feedback"]
-        if not lowest["feedback_dutch"] or lowest["feedback_formal"]:
-            same = [c for c in candidates if c["feedback_dutch"] and c["score"] == lowest["score"]]
-            informal = [c["feedback"] for c in same if not c["feedback_formal"]]
-            dutch = [c["feedback"] for c in same]
-            feedback = (informal or dutch or [feedback])[0]
-            if not _is_dutch(feedback):
-                notes.append(f"item {rid}: feedback is not Dutch")
-        items.append({
-            "id": rid,
-            "kind": r.get("kind", "do"),
-            "criterion": r["criterion"],
-            "criterion_nl": r.get("criterion_nl", r["criterion"]),
-            "score": lowest["score"],
-            "scores": [c["score"] for c in candidates],
-            "uncertain": len({c["score"] for c in candidates}) > 1,
-            "evidence_quote": lowest["evidence_quote"],
-            "feedback": feedback,
-            "better_phrase": better,
-        })
-
-    _cross_check_labels(items, rubric, log, notes)
-
-    # better phrases that are still Dutch: translate them in one extra call
-    dutch = [i for i in items if _is_dutch(i["better_phrase"])]
-    if dutch:
-        try:
-            for item, english in zip(dutch, _translate_to_english(llm, [i["better_phrase"] for i in dutch])):
-                notes.append(f"item {item['id']}: better_phrase translated: {item['better_phrase']!r} -> {english!r}")
-                item["better_phrase"] = english
-        except (ValidationError, LlmOutputError) as exc:
-            notes.append(f"translation of better phrases failed: {exc}")
-
-    # key moments from the first valid run; effect and anger from the log, not from the model
-    by_turn = {r["turn"]: r for r in log}
+def key_moments(sc, log: list[dict], count: int = 3) -> list[dict]:
+    """The turns with the biggest change in anger, in conversation order."""
+    texts = {l["name"]: l.get("moment_nl", l["name"]) for l in sc.data["labels"]}
+    cfg = sc.data.get("debrief", {})
+    changed = [r for r in log if r["anger"][1] != r["anger"][0]]
+    top = sorted(changed, key=lambda r: (-abs(r["anger"][1] - r["anger"][0]), r["turn"]))[:count]
     moments = []
-    for m in valid[0].key_moments:
-        r = by_turn.get(m.turn_index)
-        if r is None or any(x["turn_index"] == m.turn_index for x in moments):
-            notes.append(f"key moment with unknown or double turn {m.turn_index} dropped")
-            continue
+    for r in sorted(top, key=lambda r: r["turn"]):
+        if r["off_topic_or_unsafe"]:
+            text = cfg.get("moment_off_topic", "off topic")
+        elif r["labels"]:
+            parts = [texts.get(l, l) for l in r["labels"][:2]]
+            text = parts[0] + (" en " + re.sub(r"^Je ", "", parts[1]) if len(parts) > 1 else "")
+        else:
+            text = cfg.get("moment_no_label", "-")
         da, dt = r["anger"][1] - r["anger"][0], r["trust"][1] - r["trust"][0]
-        moments.append({"turn_index": m.turn_index, "what_happened": m.what_happened,
-                        "effect": f"anger {da:+d}, trust {dt:+d}", "model_effect": m.effect,
-                        "anger_after": r["anger"][1]})
+        moments.append({"turn_index": r["turn"], "what_happened": text, "quote": r["quote"],
+                        "effect": f"anger {da:+d}, trust {dt:+d}", "anger_after": r["anger"][1]})
+    return moments
 
+
+def _fallback_summary(sc, total: int) -> str:
+    options = sorted(sc.data.get("debrief", {}).get("summary_fallback", []), key=lambda o: -o["min_score"])
+    return next((o["text"] for o in options if total >= o["min_score"]), "Goed geprobeerd.")
+
+
+def strength_and_weakness(items: list[dict]) -> tuple[Optional[dict], Optional[dict]]:
+    """Python picks what the summary is about: the first item with 2 (that was really done, not just
+    'never did the bad thing') and the first item with 0, so the model cannot invent other points."""
+    done = [i for i in items if i["score"] == 2 and i["evidence_quote"]]
+    strength = done[0] if done else None
+    zeros = [i for i in items if i["score"] == 0]
+    ones = [i for i in items if i["score"] == 1]
+    weakness = (zeros or ones or [None])[0]
+    return strength, weakness
+
+
+def _model_summary(llm: LlmClient, sc, items: list[dict], moments: list[dict], end: str, num_predict: int) -> str:
+    name = sc.data["persona"]["name"]
+    strength, weakness = strength_and_weakness(items)
+    total = sum(i["score"] for i in items)
+    good = (f'Sterk punt: {strength["criterion_nl"]} ({strength["feedback"]})' if strength
+            else "Sterk punt: geen. Zeg dat het een moeilijk gesprek was en dat oefenen helpt.")
+    work = (f'Werkpunt: {weakness["criterion_nl"]} ({weakness["feedback"]})' if weakness
+            else "Werkpunt: geen. Moedig aan om het zo te blijven doen.")
+    system = (
+        "Je bent een vriendelijke communicatietrainer voor verpleegkundestudenten. Schrijf 2 korte zinnen "
+        f"in het Nederlands tegen de student over het gesprek met {name}: zin_sterk_punt over het sterke punt, "
+        "zin_werkpunt over het werkpunt. Elke zin maximaal 20 woorden. Spreek de student aan met 'je'. "
+        "Wees bemoedigend en eerlijk. Schrijf alleen de zinnen zelf, geen uitleg over de opdracht. "
+        "Gebruik ALLEEN de twee punten hieronder, noem niets anders. Schrijf nooit 'de student'.\n"
+        "Voorbeeld van de vorm (over een ander gesprek): \"Je luisterde goed naar de patiënt, daardoor durfde "
+        "hij meer te vertellen. Probeer de volgende keer wat trager te praten.\""
+    )
+    user = f"Score: {total}/{2 * len(items)}. Einde: {end}.\n{good}\n{work}"
+    problem = ""
+    for _ in range(2):
+        raw = llm.chat_json(system, [{"role": "user", "content": user + problem}], _Summary.model_json_schema(),
+                            role="actor", num_predict=num_predict, temperature=0.3)
+        out = _Summary.model_validate(raw)
+        parts = [x.strip().rstrip(".!") + "." for x in (out.zin_sterk_punt, out.zin_werkpunt)]
+        text = " ".join(parts)
+        sentences = [s for s in re.split(r"(?<=[.!?])\s+", text) if s]
+        if not _is_dutch(text):
+            problem = "\n(Vorige poging was niet in het Nederlands.)"
+        elif not re.search(r"\b(je|jij|jouw)\b", text, re.I) or re.search(r"\bde student\b", text, re.I):
+            problem = "\n(Vorige poging sprak de student niet aan met 'je'.)"
+        elif len(sentences) != 2:
+            problem = "\n(Vorige poging had geen 2 zinnen.)"
+        else:
+            return text
+    raise LlmOutputError(f"summary not usable: {text!r}")
+
+
+def run_debrief(llm: LlmClient, session) -> dict[str, Any]:
+    t_start = time.perf_counter()
+    sc = session.scenario
+    log = build_log(session)
+    phases = [p["id"] for p in sc.phases]
+    opening = sc.data["opening"]
+    items = [score_item(r, log, phases, opening["anger"]) for r in sc.data["rubric"]]
+    moments = key_moments(sc, log)
+    total = sum(i["score"] for i in items)
+    t_scores = int((time.perf_counter() - t_start) * 1000)
+
+    cfg = sc.data.get("debrief", {})
+    notes: list[str] = []
+    t = time.perf_counter()
+    if cfg.get("summary_mode", "model") == "template":
+        # No model: the fixed feedback of the strongest and the weakest item
+        strength, weakness = strength_and_weakness(items)
+        if strength is None:
+            summary = _fallback_summary(sc, total)
+        else:
+            first = strength["feedback"]["2"] if isinstance(strength["feedback"], dict) else strength["feedback"]
+            summary = re.split(r"(?<=[.!?])\s+", first)[0]
+            if weakness is not None:
+                fact = re.split(r"(?<=[.!?])\s+", weakness["feedback"])[0]
+                summary += " Werkpunt: " + fact[0].lower() + fact[1:]
+            else:
+                summary += " Ga zo door."
+        return _result(session, sc, log, items, moments, total, summary, "template", notes, t_start, t_scores, t)
+    if strength_and_weakness(items)[0] is None:
+        # nothing was really done well: the model cannot write an honest first sentence, use the fixed one
+        summary, source = _fallback_summary(sc, total), "fallback"
+        notes.append("no strength to summarize, fixed sentence used")
+        return _result(session, sc, log, items, moments, total, summary, source, notes, t_start, t_scores, t)
+    future = _pool.submit(_model_summary, llm, sc, items, moments, session.ended or "stopped",
+                          cfg.get("summary_num_predict", 150))
+    try:
+        summary, source = future.result(timeout=cfg.get("summary_timeout_seconds", 8)), "model"
+    except FutureTimeout:
+        summary, source = _fallback_summary(sc, total), "fallback"
+        notes.append(f"summary took longer than {cfg.get('summary_timeout_seconds', 8)} s, fixed sentence used")
+    except (LlmOutputError, LlmUnavailableError, ValidationError) as exc:
+        summary, source = _fallback_summary(sc, total), "fallback"
+        notes.append(f"summary failed ({str(exc).splitlines()[0]}), fixed sentence used")
+    return _result(session, sc, log, items, moments, total, summary, source, notes, t_start, t_scores, t)
+
+
+def _result(session, sc, log, items, moments, total, summary, source, notes, t_start, t_scores, t_summary_start):
     opening = sc.data["opening"]
     return {
         "session_id": session.id,
         "scenario_id": sc.id,
         "end_reason": session.ended or "stopped",
-        "summary": valid[0].summary,
+        "summary": summary,
+        "summary_source": source,
         "items": items,
-        "total_score": sum(i["score"] for i in items),
+        "total_score": total,
         "max_score": 2 * len(items),
         "key_moments": moments,
         "anger_curve": [opening["anger"]] + [r["anger"][1] for r in log],
         "trust_curve": [opening["trust"]] + [r["trust"][1] for r in log],
         "notes": notes,
-        "runs": run_info,
-        "timings_ms": {"total_ms": int((time.perf_counter() - t_start) * 1000),
-                       "runs_ms": [i["ms"] for i in run_info]},
+        "timings_ms": {"scores_ms": t_scores, "summary_ms": int((time.perf_counter() - t_summary_start) * 1000),
+                       "total_ms": int((time.perf_counter() - t_start) * 1000)},
     }
 
 

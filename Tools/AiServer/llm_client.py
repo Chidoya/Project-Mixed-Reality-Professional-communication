@@ -54,11 +54,13 @@ class LlmClient:
         messages: list[dict[str, str]],
         schema: dict[str, Any],
         role: str = "actor",
+        num_predict: int | None = None,
+        temperature: float | None = None,
     ) -> dict:
         """Send one chat request and return the JSON object the model produced.
 
         `schema` is a JSON schema (from a Pydantic model); Ollama constrains the output to it.
-        `role` picks model, temperature and num_predict from config.json.
+        `role` picks model, temperature and num_predict from config.json (`num_predict` overrides it).
         After the call, `last_usage()` gives the token counts.
         """
         if role not in self.ROLES:
@@ -71,7 +73,7 @@ class LlmClient:
                 format=schema,
                 think=False,
                 keep_alive=self.keep_alive,
-                options={"temperature": self.temperatures[role], "num_predict": self.num_predict[role],
+                options={"temperature": self.temperatures[role] if temperature is None else temperature, "num_predict": num_predict or self.num_predict[role],
                          "num_ctx": self.num_ctx},
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError) as exc:
@@ -96,7 +98,7 @@ class LlmClient:
                         role, len(response.message.thinking))
         content = response.message.content or ""
         if response.done_reason == "length":
-            raise LlmOutputError(f"output cut off at num_predict={self.num_predict[role]} tokens")
+            raise LlmOutputError(f"output cut off at num_predict={num_predict or self.num_predict[role]} tokens")
         try:
             data = json.loads(content)
         except json.JSONDecodeError as exc:

@@ -191,7 +191,7 @@ def session_end(session_id: str, req: Optional[EndRequest] = None):
 
 @app.post("/session/{session_id}/debrief")
 def session_debrief(session_id: str, force: bool = False):
-    """Scores the conversation with the rubric (judge model, judge_runs times). Ends the session if needed."""
+    """Rubric scores from the labels per turn (Python) and a short model summary. Ends the session if needed."""
     session = get_session(session_id)
     with session.lock:
         if session.debrief is not None and not force:
@@ -199,13 +199,14 @@ def session_debrief(session_id: str, force: bool = False):
         if session.ended is None:
             session.ended = "stopped"
         try:
-            result = run_debrief(llm, session, CONFIG.get("judge_runs", 2))
+            result = run_debrief(llm, session)
         except LlmOutputError as exc:
             raise HTTPException(502, f"debrief failed: {exc}")
         session.debrief = result
         path = save_session(session)
-    log.info("debrief %s: %d/%d in %d ms (runs %s), saved to %s", session_id, result["total_score"],
-             result["max_score"], result["timings_ms"]["total_ms"], result["timings_ms"]["runs_ms"], path)
+    log.info("debrief %s: %d/%d in %d ms (summary %s %d ms), saved to %s", session_id, result["total_score"],
+             result["max_score"], result["timings_ms"]["total_ms"], result["summary_source"],
+             result["timings_ms"]["summary_ms"], path)
     return result
 
 

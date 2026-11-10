@@ -93,26 +93,30 @@ on the GPU, about 1.9 s on the CPU.
 
 ### Debrief (`debrief.py`)
 
-The judge model (`model_judge`, temperature 0, `num_predict_judge` 1500) gets the transcript, the rubric,
-the labels per turn (with `quote_fallback`) and anger/trust per turn. The JSON schema has one fixed field per
-rubric item, so every item comes back exactly once. It runs `judge_runs` (2) times; run 2 sees the rubric
-in reverse order. Per item the lowest score wins; if the runs differ the item is `uncertain`.
-Python then checks:
-- the quote must be literal from the student (never from the character);
-- `do` items: 1 or 2 only with a student quote, otherwise 0; `avoid` items (not defensive, no jargon or
-  false promises, letting her finish): 2 without quote means the bad behaviour never happened;
-  `if_needed` (boundaries): 2 without quote means it was not needed;
-- the classifier labels per turn (`evidence_labels` per rubric item in the scenario) as a second opinion:
-  points without any related label, or a 2 on an `avoid` item while the classifier saw the bad behaviour,
-  lowers the score by 1 and marks the item uncertain;
-- feedback must be Dutch (with `je`), better_phrase English and new; Dutch phrases are translated in one
-  extra call;
-- the effect of the key moments comes from the log, not from the model.
+The scores are computed in Python from the labels per turn, no model. Every rubric item in the scenario has
+a `scoring` rule:
+- `positive` labels: 2 if one of them fell (the first label in the list is the preferred evidence);
+  `partial` labels: 1 if only those fell;
+- `avoid` labels: 2 if they never fell, 0 if they fell (the quote of that turn is the evidence);
+  with both positive and avoid labels and neither fell: `score_if_neither`;
+- extras: `two_if_anger_never_above` (boundaries not needed), `positive_in_last_turns`,
+  `two_if_phase_reached`, `one_if_positive_earlier` (closing agreement).
 
-Response: `{summary, items: [{id, criterion_nl, score, scores, uncertain, evidence_quote, feedback,
-better_phrase}], total_score, max_score, key_moments: [{turn_index, what_happened, effect}], anger_curve,
-trust_curve, notes, timings_ms}`. Time: about 25-30 s with only the server running, 60-80 s while the Unity
-Editor is in Play mode (Ollama runs the two judge runs one after the other and shares the GPU with Unity).
+The quote is the classifier's `evidence_quote` of that turn (the whole sentence if the turn had several
+labels). If that turn used the quote fallback, the item is `uncertain` (grey in Unity). Feedback for score
+0, 1 and 2 and the better phrase are fixed texts in the scenario (`feedback`, `better_phrase`), to be checked
+by a nurse. Key moments: the 3 turns with the biggest change in anger, described with `moment_nl` per label.
+
+Only the 2-sentence summary comes from the model (`model_actor`, `summary_num_predict` 150, temperature 0.3).
+Python picks the strength (first item with 2 that was really done) and the point to work on (first 0), the
+model only phrases them. Not Dutch, not 'je', not 2 sentences: one retry; failed or slower than
+`summary_timeout_seconds` (8): a fixed sentence from `summary_fallback`. No strength at all: the fixed
+sentence directly. `summary_mode: "template"` builds the summary from the fixed feedback, without a model.
+
+Response: `{summary, summary_source (model | fallback | template), items: [{id, criterion_nl, score,
+uncertain, evidence_quote, evidence_turn, feedback, better_phrase, why}], total_score, max_score,
+key_moments: [{turn_index, what_happened, effect}], anger_curve, trust_curve, notes, timings_ms}`.
+Time: 1-2.5 s (the summary), also with the Unity Editor in Play mode.
 
 A turn returns: `reply, emotion, animation, pose, facts_used, labels, evidence_quote,
 off_topic, unsafe, before {anger, trust, band, phase}, after {...}, anger, trust, band, phase,

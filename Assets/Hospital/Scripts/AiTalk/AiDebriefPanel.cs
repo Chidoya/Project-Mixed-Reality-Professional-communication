@@ -14,7 +14,7 @@ namespace ProCommVR.Hospital.AiTalk
     /// Opent als het gesprek eindigt (resolved, tijd op, of de testtoets E), vraagt de beoordeling aan de server
     /// en toont de samenvatting, de lijn van de boosheid met de 3 belangrijke momenten, de rubric-items
     /// (score als bolletjes, onzeker in het grijs, citaat en betere zin) en de knoppen Opnieuw proberen en Klaar.
-    /// Knoppen: muis in de Editor (EventSystem), of R en Enter. Op de Quest is nog een XR-ray nodig.
+    /// Knoppen: A / B op de rechtercontroller (Quest, geen XR-ray nodig), R / Enter of de muis in de Editor.
     /// </summary>
     public class AiDebriefPanel : MonoBehaviour
     {
@@ -56,6 +56,13 @@ namespace ProCommVR.Hospital.AiTalk
         /// <summary>Na Klaar.</summary>
         public event Action Closed;
 
+        // Knoppen zonder XR-ray: A / B op de rechtercontroller (Quest), R / Enter op het toetsenbord (Editor)
+        public const string RetryLabel = "Opnieuw proberen (A / R)";
+        public const string DoneLabel = "Klaar (B / Enter)";
+        private InputAction _retryAction;
+        private InputAction _doneAction;
+        private InputAction _endAction;
+
         private void Start()
         {
             if (_npc == null)
@@ -64,24 +71,59 @@ namespace ProCommVR.Hospital.AiTalk
                 _npc.OnConversationEnded.AddListener(OnEnded);
         }
 
+        private void OnEnable()
+        {
+            _retryAction = new InputAction("DebriefRetry", InputActionType.Button);
+            _retryAction.AddBinding("<XRController>{RightHand}/{PrimaryButton}");   // A
+            _retryAction.AddBinding("<Keyboard>/r");
+            _doneAction = new InputAction("DebriefDone", InputActionType.Button);
+            _doneAction.AddBinding("<XRController>{RightHand}/{SecondaryButton}");  // B
+            _doneAction.AddBinding("<Keyboard>/enter");
+            _doneAction.AddBinding("<Keyboard>/numpadEnter");
+            _endAction = new InputAction("DebriefTestEnd", InputActionType.Button, "<Keyboard>/e");
+            _retryAction.performed += OnRetryPressed;
+            _doneAction.performed += OnDonePressed;
+            _endAction.performed += OnEndPressed;
+            _retryAction.Enable();
+            _doneAction.Enable();
+            _endAction.Enable();
+        }
+
+        private void OnDisable()
+        {
+            foreach (var action in new[] { _retryAction, _doneAction, _endAction })
+                action?.Dispose();
+            _retryAction = _doneAction = _endAction = null;
+        }
+
         private void OnDestroy()
         {
             if (_npc != null)
                 _npc.OnConversationEnded.RemoveListener(OnEnded);
         }
 
+        private bool ButtonsActive => State is PanelState.Ready or PanelState.Failed;
+
+        private void OnRetryPressed(InputAction.CallbackContext _)
+        {
+            if (ButtonsActive)
+                Retry();
+        }
+
+        private void OnDonePressed(InputAction.CallbackContext _)
+        {
+            if (ButtonsActive)
+                Done();
+        }
+
+        private void OnEndPressed(InputAction.CallbackContext _)
+        {
+            if (_testKeyE && _npc != null && !_npc.HasEnded && !_npc.Busy)
+                _npc.EndNow("stopped");
+        }
+
         private void Update()
         {
-            var kb = Keyboard.current;
-            if (kb == null)
-                return;
-            if (_testKeyE && kb.eKey.wasPressedThisFrame && _npc != null && !_npc.HasEnded && !_npc.Busy)
-                _npc.EndNow("stopped");
-            if (State is PanelState.Ready or PanelState.Failed)
-            {
-                if (kb.rKey.wasPressedThisFrame) Retry();
-                else if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) Done();
-            }
             if (State == PanelState.Waiting && _waitingText != null)
             {
                 var dots = new string('.', 1 + (int)((Time.time - _waitStarted) * 2f) % 3);
@@ -338,8 +380,8 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void Buttons()
         {
-            Button("Opnieuw proberen (R)", new Vector2(Width / 2f - 260f, -Height + 66f), Retry);
-            Button("Klaar (Enter)", new Vector2(Width / 2f + 20f, -Height + 66f), Done);
+            Button(RetryLabel, new Vector2(Width / 2f - 300f, -Height + 66f), Retry);
+            Button(DoneLabel, new Vector2(Width / 2f + 20f, -Height + 66f), Done);
         }
 
         // --- Kleine UI-hulp ------------------------------------------------------------------------
@@ -348,13 +390,13 @@ namespace ProCommVR.Hospital.AiTalk
         {
             var go = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(_content, false);
-            TopLeft((RectTransform)go.transform, pos, new Vector2(240f, 54f));
+            TopLeft((RectTransform)go.transform, pos, new Vector2(280f, 54f));
             var image = go.GetComponent<Image>();
             image.color = new Color(0.2f, 0.42f, 0.62f);
             var button = go.GetComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener(() => onClick());
-            Text((RectTransform)go.transform, label, 20, TextMain, Vector2.zero, new Vector2(240f, 54f), TextAlignmentOptions.Center);
+            Text((RectTransform)go.transform, label, 20, TextMain, Vector2.zero, new Vector2(280f, 54f), TextAlignmentOptions.Center);
         }
 
         private TextMeshProUGUI Text(RectTransform parent, string text, float size, Color colour, Vector2 pos, Vector2 box,

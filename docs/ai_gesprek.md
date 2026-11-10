@@ -35,10 +35,15 @@ een smal vak "Even nadenken over je gesprek...". Daarna een world-space paneel (
 ongeveer 0,85 m, altijd vóór Sarah:
 - de samenvatting en de score, de lijn van de boosheid per beurt met de 3 belangrijke momenten;
 - de 11 rubric-items met de score als bolletjes (onzeker in het grijs), de feedback, het citaat en een betere zin;
-- **Opnieuw proberen** (R): nieuwe sessie, zelfde scenario. **Klaar** (Enter).
+- **Opnieuw proberen** (A / R): nieuwe sessie, zelfde scenario. **Klaar** (B / Enter).
 
-De knoppen werken in de Editor met de muis of R en Enter. Op de Quest is nog een XR-ray nodig (het project heeft
-geen XR Interaction Toolkit). Screenshots: `docs/Screenshots/ai_debrief_goed.png`, `ai_debrief_slecht.png`
+Op de Quest: A en B op de rechtercontroller (geen XR-ray nodig). In de Editor: R en Enter, of de muis.
+
+De scores komen niet van een taalmodel maar uit de labels per beurt (regels per item in
+`Tools/AiServer/scenarios/angry_daughter.json`, `rubric[].scoring`), net als de feedback en de betere zinnen
+(`rubric[].feedback`, `rubric[].better_phrase`). Die teksten moeten nog nagelezen worden door een
+verpleegkundige. Alleen de samenvatting van 2 zinnen komt van het model. De nabespreking duurt 1 tot 2,5 s.
+Screenshots: `docs/Screenshots/ai_debrief_goed.png`, `ai_debrief_slecht.png`
 en `ai_debrief_wachten.png`.
 
 ## Wachttijden
