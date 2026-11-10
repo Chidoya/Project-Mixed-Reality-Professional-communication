@@ -102,6 +102,7 @@ class Session:
     turns: list[dict[str, Any]] = field(default_factory=list)
     ended: Optional[str] = None  # None, "resolved", "time_up", "stopped"
     lock: threading.Lock = field(default_factory=threading.Lock)
+    debrief: Optional[dict[str, Any]] = None
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -490,6 +491,7 @@ class Engine:
             "unlocked_facts": session.unlocked_facts,
             "opening": session.scenario.data["opening"]["reply"],
             "turns": session.turns,
+            "debrief": session.debrief,
         }
 
     # -- warm-up

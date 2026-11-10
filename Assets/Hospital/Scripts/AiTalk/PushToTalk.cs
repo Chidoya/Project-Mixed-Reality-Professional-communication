@@ -150,6 +150,13 @@ namespace ProCommVR.Hospital.AiTalk
             RecordingFinished?.Invoke(wav, seconds);
         }
 
+        /// <summary>Stopt een lopende opname zonder ze te versturen.</summary>
+        public void Cancel()
+        {
+            if (IsRecording)
+                Abort();
+        }
+
         private void Abort()
         {
             IsRecording = false;

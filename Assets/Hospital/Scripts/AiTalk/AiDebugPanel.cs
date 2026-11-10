@@ -20,6 +20,7 @@ namespace ProCommVR.Hospital.AiTalk
         private TextMeshPro _text;
         private string _status = "";
         private AiTurn _turn;
+        private AiDebriefPanel _debrief;
 
         private void Start()
         {
@@ -60,6 +61,12 @@ namespace ProCommVR.Hospital.AiTalk
         {
             if (_panel == null)
                 return;
+            // Verborgen zolang de nabespreking open is
+            if (_debrief == null)
+                _debrief = FindAnyObjectByType<AiDebriefPanel>();
+            var show = _debrief == null || _debrief.State == AiDebriefPanel.PanelState.Hidden;
+            if (_panel.gameObject.activeSelf != show)
+                _panel.gameObject.SetActive(show);
             var cam = Camera.main;
             var npc = _npc.transform;
             var side = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : npc.right;

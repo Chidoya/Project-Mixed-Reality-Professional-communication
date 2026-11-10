@@ -312,7 +312,12 @@
         "0": "Does not introduce themselves.",
         "1": "Gives only a name or only a role, or does it late.",
         "2": "Introduces themselves with name and role at the start."
-      }
+      },
+      "criterion_nl": "Stelt zich voor",
+      "kind": "do",
+      "evidence_labels": [
+        "introduced_self"
+      ]
     },
     {
       "id": 2,
@@ -321,7 +326,15 @@
         "0": "Says 'calm down' or defends themselves/the ward several times.",
         "1": "Once defensive or minimizing, then corrects it.",
         "2": "Stays calm and non-defensive throughout, never says 'calm down'."
-      }
+      },
+      "criterion_nl": "Niet in de verdediging, geen 'calm down'",
+      "kind": "avoid",
+      "evidence_labels": [
+        "said_calm_down",
+        "defensive",
+        "dismissive",
+        "blamed_others_or_system"
+      ]
     },
     {
       "id": 3,
@@ -330,7 +343,12 @@
         "0": "Interrupts her repeatedly.",
         "1": "Interrupts once or rushes to a solution.",
         "2": "Lets her vent fully before responding."
-      }
+      },
+      "criterion_nl": "Laat haar uitpraten",
+      "kind": "avoid",
+      "evidence_labels": [
+        "interrupted"
+      ]
     },
     {
       "id": 4,
@@ -339,7 +357,13 @@
         "0": "Does not refer to her feelings.",
         "1": "Refers to her feelings vaguely.",
         "2": "Explicitly names her emotion (anger, fear, worry)."
-      }
+      },
+      "criterion_nl": "Benoemt de emotie",
+      "kind": "do",
+      "evidence_labels": [
+        "named_emotion",
+        "named_emotion_partial"
+      ]
     },
     {
       "id": 5,
@@ -348,7 +372,14 @@
         "0": "No acknowledgement of her situation.",
         "1": "Generic understanding ('I understand').",
         "2": "Specific acknowledgement (the two-hour wait, no information)."
-      }
+      },
+      "criterion_nl": "Toont begrip",
+      "kind": "do",
+      "evidence_labels": [
+        "acknowledged_wait",
+        "apologized_sincerely",
+        "named_emotion"
+      ]
     },
     {
       "id": 6,
@@ -357,7 +388,12 @@
         "0": "Does not summarize.",
         "1": "Summarizes without checking.",
         "2": "Summarizes and checks whether it is correct."
-      }
+      },
+      "criterion_nl": "Vat samen en checkt (LSD)",
+      "kind": "do",
+      "evidence_labels": [
+        "summarized"
+      ]
     },
     {
       "id": 7,
@@ -366,7 +402,12 @@
         "0": "Asks no questions about her concern.",
         "1": "Only closed questions.",
         "2": "Open questions that reveal the real concern (fear for her father)."
-      }
+      },
+      "criterion_nl": "Vraagt door naar de echte zorg",
+      "kind": "do",
+      "evidence_labels": [
+        "asked_open_question"
+      ]
     },
     {
       "id": 8,
@@ -375,7 +416,13 @@
         "0": "Jargon or false promises.",
         "1": "Information is vague or partly unclear.",
         "2": "Honest, understandable information, admits what they don't know."
-      }
+      },
+      "criterion_nl": "Eerlijke info, geen jargon of valse beloftes",
+      "kind": "avoid",
+      "evidence_labels": [
+        "jargon",
+        "false_promise"
+      ]
     },
     {
       "id": 9,
@@ -384,7 +431,13 @@
         "0": "No next step.",
         "1": "Next step without a time or owner.",
         "2": "Concrete next step with who and when."
-      }
+      },
+      "criterion_nl": "Concrete volgende stap met tijd",
+      "kind": "do",
+      "evidence_labels": [
+        "offered_concrete_next_step",
+        "gave_concrete_timeline"
+      ]
     },
     {
       "id": 10,
@@ -393,7 +446,12 @@
         "0": "No boundary when needed, or a harsh/threatening one.",
         "1": "Boundary set, but abruptly.",
         "2": "Boundary set calmly and respectfully, when needed (or not needed)."
-      }
+      },
+      "criterion_nl": "Stelt respectvol grenzen",
+      "kind": "if_needed",
+      "evidence_labels": [
+        "set_boundary_respectfully"
+      ]
     },
     {
       "id": 11,
@@ -402,7 +460,14 @@
         "0": "Ends without an agreement.",
         "1": "Vague agreement ('I'll see what I can do').",
         "2": "Clear agreement she confirms (what, who, when)."
-      }
+      },
+      "criterion_nl": "Sluit af met een afspraak",
+      "kind": "do",
+      "evidence_labels": [
+        "offered_concrete_next_step",
+        "gave_concrete_timeline",
+        "summarized"
+      ]
     }
   ]
 }

@@ -68,6 +68,8 @@ namespace ProCommVR.Editor
 
             var panel = new GameObject("AiDebugPanel").AddComponent<AiDebugPanel>();
             Set(panel, "_npc", daughter);
+            var debrief = new GameObject("AiDebriefPanel").AddComponent<AiDebriefPanel>();
+            Set(debrief, "_npc", daughter);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log($"{LogPrefix}Scene gebouwd: {ScenePath}");
@@ -192,6 +194,8 @@ namespace ProCommVR.Editor
                 list.GetArrayElementAtIndex(i).objectReferenceValue = clips[i];
             so.FindProperty("_fallbackClip").objectReferenceValue =
                 AssetDatabase.LoadAssetAtPath<AudioClip>($"{AudioFolder}/Sarah_Sorry_What.wav");
+            so.FindProperty("_timeUpClip").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<AudioClip>($"{AudioFolder}/Sarah_TimeUp.wav");
             so.ApplyModifiedPropertiesWithoutUndo();
             return npc;
         }
@@ -355,6 +359,7 @@ namespace ProCommVR.Editor
     /// Automatische test van de AI-gesprekscene, in de Editor (met venster, zodat er geluid is):
     /// Unity -projectPath . -executeMethod ProCommVR.Editor.AiTalkCapture.Run
     ///   -aiWavs "a.wav;b.wav" -aiShot docs/Screenshots/x.png [-aiShotTurn 2] -aiLog Temp/ai.log
+    ///   [-aiDebriefShot docs/Screenshots/y.png] (gesprek beëindigen en de nabespreking vastleggen)
     /// De server (Tools/AiServer) moet draaien.
     /// </summary>
     [InitializeOnLoad]
@@ -382,6 +387,7 @@ namespace ProCommVR.Editor
             SessionState.SetString(Key + "Shot", Arg("-aiShot") ?? "");
             SessionState.SetString(Key + "Log", Arg("-aiLog") ?? Path.GetFullPath("Temp/AiTalkTest.log"));
             SessionState.SetInt(Key + "ShotTurn", int.TryParse(Arg("-aiShotTurn"), out var n) ? n : 0);
+            SessionState.SetString(Key + "DebriefShot", Arg("-aiDebriefShot") ?? "");
             EditorApplication.EnterPlaymode();
         }
 
@@ -396,6 +402,7 @@ namespace ProCommVR.Editor
             runner.ScreenshotPath = SessionState.GetString(Key + "Shot", "");
             runner.ScreenshotTurn = SessionState.GetInt(Key + "ShotTurn", 0);
             runner.LogPath = SessionState.GetString(Key + "Log", "");
+            runner.DebriefShotPath = SessionState.GetString(Key + "DebriefShot", "");
             runner.Finished = ok =>
             {
                 EditorApplication.ExitPlaymode();

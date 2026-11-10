@@ -24,6 +24,9 @@ namespace ProCommVR.Hospital.AiTalk
         [Tooltip("Timeout per serveroproep.")]
         [Range(5f, 60f)] public float requestTimeoutSeconds = 20f;
 
+        [Tooltip("Timeout voor de nabespreking (de beoordelaar draait 2 keer, 20 tot 40 s).")]
+        [Range(30f, 600f)] public float debriefTimeoutSeconds = 180f;
+
         [Tooltip("Lokaal antwoord bij een fout of als de server de opname niet verstond.")]
         public string fallbackReply = "Sorry, what did you say?";
 

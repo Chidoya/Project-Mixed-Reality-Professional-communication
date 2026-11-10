@@ -41,6 +41,8 @@ class LlmClient:
             "actor": config.get("num_predict_actor", 300),
             "judge": config.get("num_predict_judge", 600),
         }
+        # one context size for every role, so Ollama never reloads the model between roles
+        self.num_ctx = config.get("num_ctx", 8192)
         # token usage of the last chat_json call in this thread:
         # {"in": prompt tokens, "out": output tokens, "model_ms": time inside Ollama}
         self._usage = threading.local()
@@ -69,7 +71,8 @@ class LlmClient:
                 format=schema,
                 think=False,
                 keep_alive=self.keep_alive,
-                options={"temperature": self.temperatures[role], "num_predict": self.num_predict[role]},
+                options={"temperature": self.temperatures[role], "num_predict": self.num_predict[role],
+                         "num_ctx": self.num_ctx},
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError) as exc:
             raise LlmUnavailableError(

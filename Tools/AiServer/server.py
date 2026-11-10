@@ -18,7 +18,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from engine import Engine, Session, SessionEndedError
-from llm_client import LlmClient, LlmUnavailableError
+from debrief import run_debrief
+from llm_client import LlmClient, LlmOutputError, LlmUnavailableError
 from speech import SpeechToText, TextToSpeech, timed
 
 HERE = Path(__file__).resolve().parent
@@ -103,6 +104,8 @@ def session_start(req: StartRequest):
     except FileNotFoundError:
         raise HTTPException(404, f"unknown scenario {req.scenario_id}")
     opening["audio_wav_base64"], opening["tts_ms"] = speak(opening["reply"], opening["band"])
+    opening["time_limit_seconds"] = session.scenario.data.get("time_limit_seconds", 0)
+    opening["time_up_line"] = session.scenario.data.get("time_up_line", "")
     sessions[session.id] = session
     log.info("session %s started (%s)", session.id, req.scenario_id)
     return {"session_id": session.id, "opening": opening}
@@ -163,19 +166,47 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
     return response
 
 
+class EndRequest(BaseModel):
+    reason: Optional[str] = None  # e.g. "time_up" when the client's timer ran out
+
+
+def save_session(session: Session) -> Path:
+    SESSIONS_DIR.mkdir(exist_ok=True)
+    path = SESSIONS_DIR / f"{session.id}.json"
+    path.write_text(json.dumps(engine.transcript(session), indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
 @app.post("/session/{session_id}/end")
-def session_end(session_id: str):
+def session_end(session_id: str, req: Optional[EndRequest] = None):
+    """Ends and saves the session. It stays in memory, so /debrief still works afterwards."""
     session = get_session(session_id)
     with session.lock:
         if session.ended is None:
-            session.ended = "stopped"
-        SESSIONS_DIR.mkdir(exist_ok=True)
-        path = SESSIONS_DIR / f"{session.id}.json"
-        transcript = engine.transcript(session)
-        path.write_text(json.dumps(transcript, indent=2, ensure_ascii=False), encoding="utf-8")
-    sessions.pop(session_id, None)
-    log.info("session %s saved to %s", session_id, path)
+            session.ended = (req.reason if req and req.reason else None) or "stopped"
+        path = save_session(session)
+    log.info("session %s ended (%s), saved to %s", session_id, session.ended, path)
     return {"saved": str(path), "end_reason": session.ended, "turns": len(session.turns)}
+
+
+@app.post("/session/{session_id}/debrief")
+def session_debrief(session_id: str, force: bool = False):
+    """Scores the conversation with the rubric (judge model, judge_runs times). Ends the session if needed."""
+    session = get_session(session_id)
+    with session.lock:
+        if session.debrief is not None and not force:
+            return session.debrief
+        if session.ended is None:
+            session.ended = "stopped"
+        try:
+            result = run_debrief(llm, session, CONFIG.get("judge_runs", 2))
+        except LlmOutputError as exc:
+            raise HTTPException(502, f"debrief failed: {exc}")
+        session.debrief = result
+        path = save_session(session)
+    log.info("debrief %s: %d/%d in %d ms (runs %s), saved to %s", session_id, result["total_score"],
+             result["max_score"], result["timings_ms"]["total_ms"], result["timings_ms"]["runs_ms"], path)
+    return result
 
 
 if __name__ == "__main__":

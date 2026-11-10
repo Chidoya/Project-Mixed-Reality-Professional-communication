@@ -51,6 +51,9 @@ namespace ProCommVR.Hospital.AiTalk
         public AiTimings timings_ms;
         public int tts_ms;
         public string audio_wav_base64;
+        // Alleen in de opening (van /session/start)
+        public float time_limit_seconds;
+        public string time_up_line;
 
         // Alleen in Unity, niet van de server
         [NonSerialized] public bool localFallback;
@@ -65,6 +68,65 @@ namespace ProCommVR.Hospital.AiTalk
     {
         public string session_id;
         public AiTurn opening;
+    }
+
+    // --- Nabespreking (/session/{id}/debrief) ------------------------------------------------
+
+    [Serializable]
+    public class AiDebriefItem
+    {
+        public int id;
+        public string kind;
+        public string criterion;
+        public string criterion_nl;
+        public int score;
+        public int[] scores;
+        public bool uncertain;
+        public string evidence_quote;
+        public string feedback;
+        public string better_phrase;
+    }
+
+    [Serializable]
+    public class AiKeyMoment
+    {
+        public int turn_index;
+        public string what_happened;
+        public string effect;
+        public int anger_after;
+    }
+
+    [Serializable]
+    public class AiDebriefTimings
+    {
+        public int total_ms;
+        public int[] runs_ms;
+    }
+
+    [Serializable]
+    public class AiDebrief
+    {
+        public string session_id;
+        public string end_reason;
+        public string summary;
+        public AiDebriefItem[] items;
+        public int total_score;
+        public int max_score;
+        public AiKeyMoment[] key_moments;
+        public int[] anger_curve;
+        public int[] trust_curve;
+        public AiDebriefTimings timings_ms;
+
+        // Alleen in Unity
+        [NonSerialized] public string error;
+        [NonSerialized] public int roundTripMs;
+        public bool Failed => !string.IsNullOrEmpty(error);
+    }
+
+    [Serializable]
+    internal class AiEndRequest
+    {
+        public string reason;
     }
 
     [Serializable]

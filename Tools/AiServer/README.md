@@ -88,7 +88,31 @@ on the GPU, about 1.9 s on the CPU.
 | POST | `/session/start` | `{scenario_id}` | `{session_id, opening: {reply, emotion, animation, pose, anger, trust, band, phase, audio_wav_base64, tts_ms}}` |
 | POST | `/turn/text` | `{session_id, text}` | one turn (see below) |
 | POST | `/turn/audio` | multipart: `session_id`, `audio` (wav, 16 kHz mono) | one turn + `transcript` + `audio_wav_base64`, or `{"retry": true}` |
-| POST | `/session/{id}/end` | | saves `sessions/<id>.json`, returns `{saved, end_reason, turns}` |
+| POST | `/session/{id}/end` | optional `{reason}` (e.g. `time_up`) | saves `sessions/<id>.json`, returns `{saved, end_reason, turns}`. The session stays in memory for `/debrief` |
+| POST | `/session/{id}/debrief` | (`?force=true` to redo) | rubric scores, key moments, anger/trust curve; also saved in `sessions/<id>.json` |
+
+### Debrief (`debrief.py`)
+
+The judge model (`model_judge`, temperature 0, `num_predict_judge` 1500) gets the transcript, the rubric,
+the labels per turn (with `quote_fallback`) and anger/trust per turn. The JSON schema has one fixed field per
+rubric item, so every item comes back exactly once. It runs `judge_runs` (2) times; run 2 sees the rubric
+in reverse order. Per item the lowest score wins; if the runs differ the item is `uncertain`.
+Python then checks:
+- the quote must be literal from the student (never from the character);
+- `do` items: 1 or 2 only with a student quote, otherwise 0; `avoid` items (not defensive, no jargon or
+  false promises, letting her finish): 2 without quote means the bad behaviour never happened;
+  `if_needed` (boundaries): 2 without quote means it was not needed;
+- the classifier labels per turn (`evidence_labels` per rubric item in the scenario) as a second opinion:
+  points without any related label, or a 2 on an `avoid` item while the classifier saw the bad behaviour,
+  lowers the score by 1 and marks the item uncertain;
+- feedback must be Dutch (with `je`), better_phrase English and new; Dutch phrases are translated in one
+  extra call;
+- the effect of the key moments comes from the log, not from the model.
+
+Response: `{summary, items: [{id, criterion_nl, score, scores, uncertain, evidence_quote, feedback,
+better_phrase}], total_score, max_score, key_moments: [{turn_index, what_happened, effect}], anger_curve,
+trust_curve, notes, timings_ms}`. Time: about 25-30 s with only the server running, 60-80 s while the Unity
+Editor is in Play mode (Ollama runs the two judge runs one after the other and shares the GPU with Unity).
 
 A turn returns: `reply, emotion, animation, pose, facts_used, labels, evidence_quote,
 off_topic, unsafe, before {anger, trust, band, phase}, after {...}, anger, trust, band, phase,

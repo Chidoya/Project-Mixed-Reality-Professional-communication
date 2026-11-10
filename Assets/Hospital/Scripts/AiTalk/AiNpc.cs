@@ -40,6 +40,8 @@ namespace ProCommVR.Hospital.AiTalk
         [SerializeField, Range(0f, 1f)] private float _listeningClipChance = 0.6f;
         [Tooltip("Ingesproken versie van settings.fallbackReply ('Sorry, what did you say?'). Optioneel.")]
         [SerializeField] private AudioClip _fallbackClip;
+        [Tooltip("Ingesproken time_up_line van het scenario ('They're taking him away now...'). Optioneel.")]
+        [SerializeField] private AudioClip _timeUpClip;
 
         [Header("Mond")]
         [SerializeField] private float _mouthGain = 9f;
@@ -65,6 +67,8 @@ namespace ProCommVR.Hospital.AiTalk
         private string _lastAnimation;
         private string _pendingEnd;
         private bool _endedRaised;
+        private float _timeLimit;
+        private float _conversationStart;
 
         public bool Busy { get; private set; }
         public bool IsSpeaking => _voice != null && _voice.isPlaying;
@@ -75,6 +79,11 @@ namespace ProCommVR.Hospital.AiTalk
         public string Phase { get; private set; } = "";
         public AiTurn LastTurn { get; private set; }
         public AiTalkSettings Settings => _settings;
+        public string EndReason { get; private set; }
+        /// <summary>Seconden sinds de openingszin (0 voor de start).</summary>
+        public float ConversationSeconds => _conversationStart > 0f ? Time.time - _conversationStart : 0f;
+        /// <summary>Tijdslimiet van het scenario in seconden (0 = geen).</summary>
+        public float TimeLimit => _timeLimit;
 
         private void Awake()
         {
@@ -129,7 +138,7 @@ namespace ProCommVR.Hospital.AiTalk
         private void OnDestroy()
         {
             // Zonder te wachten: de server bewaart het transcript zodra het verzoek aankomt
-            if (_client != null && _client.HasSession)
+            if (_client != null && _client.HasSession && !_client.IsEnded)
                 _ = _client.EndSession();
         }
 
@@ -144,8 +153,63 @@ namespace ProCommVR.Hospital.AiTalk
             if (this == null)
                 return;
             Busy = false;
+            if (!opening.localFallback)
+            {
+                _timeLimit = opening.time_limit_seconds;
+                _conversationStart = Time.time;
+            }
             Apply(opening);
         }
+
+        /// <summary>
+        /// Beëindigt het gesprek nu (bv. "time_up" of "stopped" via de testtoets E). Sarah stopt met praten,
+        /// zegt bij time_up haar laatste zin (als er een clip is) en OnConversationEnded wordt gemeld.
+        /// </summary>
+        public void EndNow(string reason)
+        {
+            if (HasEnded)
+                return;
+            if (_pushToTalk != null && _pushToTalk.IsRecording)
+                _pushToTalk.Cancel();
+            _voice.Stop();
+            _pendingEnd = reason;
+            if (reason == "time_up" && _timeUpClip != null)
+            {
+                PlayClip(_timeUpClip);
+                SetStatus("Time is up");
+                return; // het einde volgt als de clip gedaan is (Update)
+            }
+            RaiseEndIfPending();
+        }
+
+        /// <summary>Opnieuw proberen: nieuwe sessie met hetzelfde scenario, vanaf de openingszin.</summary>
+        public async Awaitable Restart()
+        {
+            if (Busy)
+                return;
+            _voice.Stop();
+            _pendingEnd = null;
+            _endedRaised = false;
+            EndReason = null;
+            LastTurn = null;
+            _timeLimit = 0f;
+            _conversationStart = 0f;
+            Anger = Trust = 0f;
+            Band = Phase = "";
+            await StartConversation();
+        }
+
+        /// <summary>Rustig staan (na het gesprek, tijdens de nabespreking).</summary>
+        public void SetIdle()
+        {
+            _voice.Stop();
+            PlayState("Idle");
+            if (_headLook != null)
+                _headLook.Mode = HeadLookAt.LookMode.LookAtPlayer;
+        }
+
+        /// <summary>Beoordeling van dit gesprek door de server (rubric). Duurt 20 tot 40 s.</summary>
+        public Awaitable<AiDebrief> RequestDebrief() => _client.RequestDebrief();
 
         /// <summary>Stuurt een opname (wav, 16 kHz mono) zoals PushToTalk dat doet. Ook voor tests.</summary>
         public async Awaitable<AiTurn> SendStudentAudio(byte[] wav)
@@ -286,6 +350,10 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void Update()
         {
+            // Tijdslimiet van het scenario (de brancard vertrekt): niet midden in een serveroproep
+            if (_timeLimit > 0f && !HasEnded && !Busy && ConversationSeconds >= _timeLimit)
+                EndNow("time_up");
+
             var speaking = IsSpeaking;
             var target = 0f;
             if (speaking)
@@ -318,10 +386,11 @@ namespace ProCommVR.Hospital.AiTalk
             if (_endedRaised || string.IsNullOrEmpty(_pendingEnd))
                 return;
             _endedRaised = true;
+            EndReason = _pendingEnd;
             SetStatus("Ended: " + _pendingEnd);
             Debug.Log($"{LogPrefix}Gesprek afgelopen: {_pendingEnd}");
+            _ = _client.EndSession(_pendingEnd);
             OnConversationEnded.Invoke(_pendingEnd);
-            _ = _client.EndSession();
         }
 
         private void SetStatus(string status) => StatusChanged?.Invoke(status);

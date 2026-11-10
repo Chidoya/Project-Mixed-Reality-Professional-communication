@@ -49,6 +49,7 @@ namespace ProCommVR.Hospital.AiTalk
                 if (response == null || string.IsNullOrEmpty(response.session_id) || response.opening == null)
                     return Fallback("onverwacht antwoord op /session/start");
                 SessionId = response.session_id;
+                IsEnded = false;
                 response.opening.roundTripMs = ms;
                 Debug.Log($"{LogPrefix}Sessie {SessionId} gestart ({_settings.scenarioId}) in {ms} ms.");
                 return response.opening;
@@ -98,23 +99,61 @@ namespace ProCommVR.Hospital.AiTalk
             }
         }
 
-        /// <summary>Sluit de sessie; de server bewaart het transcript in Tools/AiServer/sessions.</summary>
-        public async Awaitable EndSession()
+        /// <summary>
+        /// Sluit de sessie (reden bv. "time_up"); de server bewaart het transcript in Tools/AiServer/sessions.
+        /// De sessie-id blijft bewaard, zodat RequestDebrief daarna nog werkt.
+        /// </summary>
+        public async Awaitable EndSession(string reason = null)
         {
-            if (!HasSession)
+            if (!HasSession || IsEnded)
                 return;
+            IsEnded = true;
             var id = SessionId;
-            SessionId = null;
+            var body = JsonUtility.ToJson(new AiEndRequest { reason = reason });
             using var request = new UnityWebRequest(Url($"/session/{id}/end"), UnityWebRequest.kHttpVerbPOST)
             {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
                 downloadHandler = new DownloadHandlerBuffer(),
                 timeout = 5,
             };
+            request.SetRequestHeader("Content-Type", "application/json");
             var (ok, _) = await Send(request);
             if (ok)
                 Debug.Log($"{LogPrefix}Sessie {id} afgesloten: {request.downloadHandler.text}");
             else
                 Debug.LogWarning($"{LogPrefix}Sessie {id} afsluiten mislukt: {Describe(request)}");
+        }
+
+        public bool IsEnded { get; private set; }
+
+        /// <summary>Beoordeling met de rubric (duurt 20 tot 40 s). Bij een fout: AiDebrief met error.</summary>
+        public async Awaitable<AiDebrief> RequestDebrief()
+        {
+            if (!HasSession)
+                return new AiDebrief { error = "geen sessie" };
+            using var request = new UnityWebRequest(Url($"/session/{SessionId}/debrief"), UnityWebRequest.kHttpVerbPOST)
+            {
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = Mathf.CeilToInt(_settings.debriefTimeoutSeconds),
+            };
+            var (ok, ms) = await Send(request);
+            if (!ok)
+            {
+                var error = Describe(request);
+                Debug.LogWarning(LogPrefix + "Nabespreking mislukt: " + error);
+                return new AiDebrief { error = error };
+            }
+            try
+            {
+                var debrief = JsonUtility.FromJson<AiDebrief>(request.downloadHandler.text);
+                debrief.roundTripMs = ms;
+                Debug.Log($"{LogPrefix}Nabespreking: {debrief.total_score}/{debrief.max_score} in {ms} ms.");
+                return debrief;
+            }
+            catch (Exception e)
+            {
+                return new AiDebrief { error = "JSON van /debrief onleesbaar: " + e.Message };
+            }
         }
 
         private static async Awaitable<(bool ok, int ms)> Send(UnityWebRequest request)

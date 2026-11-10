@@ -27,6 +27,20 @@ Uitzetten: `showDebugPanel` in `Assets/Hospital/Data/AiTalkSettings.asset`.
 Events op `AiNpc` voor licht, geluid of de hartmonitor: `OnMoodChanged(float anger, float trust)` en
 `OnConversationEnded(string outcome)` (`resolved`, `time_up`).
 
+## Nabespreking
+
+`AiDebriefPanel` opent als het gesprek eindigt: afspraak gemaakt (`resolved`), tijd op (4 minuten, Sarah zegt
+"They're taking him away now. I have to go.") of de testtoets **E**. Tijdens het wachten staat Sarah in Idle met
+een smal vak "Even nadenken over je gesprek...". Daarna een world-space paneel (1200 x 960 mm, 1 px = 1 mm) op
+ongeveer 0,85 m, altijd vóór Sarah:
+- de samenvatting en de score, de lijn van de boosheid per beurt met de 3 belangrijke momenten;
+- de 11 rubric-items met de score als bolletjes (onzeker in het grijs), de feedback, het citaat en een betere zin;
+- **Opnieuw proberen** (R): nieuwe sessie, zelfde scenario. **Klaar** (Enter).
+
+De knoppen werken in de Editor met de muis of R en Enter. Op de Quest is nog een XR-ray nodig (het project heeft
+geen XR Interaction Toolkit). Screenshots: `docs/Screenshots/ai_debrief_goed.png`, `ai_debrief_slecht.png`
+en `ai_debrief_wachten.png`.
+
 ## Wachttijden
 
 Gemeten op de laptop (RTX 4070 Laptop), Whisper op de GPU:

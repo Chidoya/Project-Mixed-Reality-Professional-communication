@@ -19,6 +19,8 @@ namespace ProCommVR.Hospital.AiTalk.Testing
         [Tooltip("Na welke beurt (1 = eerste) het screenshot genomen wordt; 0 = de laatste.")]
         public int ScreenshotTurn;
         public string LogPath;
+        [Tooltip("Leeg = geen nabespreking. Anders: gesprek beëindigen (zoals de toets E), wachten op de nabespreking en een screenshot.")]
+        public string DebriefShotPath;
         public float PauseBetweenTurns = 1f;
         public Action<bool> Finished;
 
@@ -86,7 +88,7 @@ namespace ProCommVR.Hospital.AiTalk.Testing
                     // Midden in het antwoord: mond open, gezicht en houding van dit antwoord
                     await WaitUntil(() => npc.IsSpeaking, 2f);
                     await Awaitable.WaitForSecondsAsync(0.6f);
-                    Capture(ScreenshotPath);
+                    Capture(ScreenshotPath, 1600, 900);
                     Line($"         screenshot: {ScreenshotPath}  (TalkLevel op dat moment zichtbaar in het gezicht)");
                 }
                 await WaitUntil(() => !npc.IsSpeaking, 30f);
@@ -97,6 +99,48 @@ namespace ProCommVR.Hospital.AiTalk.Testing
                 }
             }
             Line($"EINDE  anger {npc.Anger}, trust {npc.Trust}, band {npc.Band}, phase {npc.Phase}");
+            if (string.IsNullOrEmpty(DebriefShotPath))
+                return true;
+
+            var panel = FindAnyObjectByType<AiDebriefPanel>();
+            if (panel == null)
+            {
+                Line("Geen AiDebriefPanel in de scene.");
+                return false;
+            }
+            if (!npc.HasEnded)
+            {
+                Line("Gesprek niet afgelopen: beëindigen zoals de testtoets E.");
+                npc.EndNow("stopped");
+            }
+            var started = Time.realtimeSinceStartup;
+            await WaitUntil(() => panel.State != AiDebriefPanel.PanelState.Hidden, 10f);
+            if (Camera.main != null)
+                Camera.main.fieldOfView = 72f; // testcamera: het hele paneel in beeld (de Quest ziet breder)
+            await Awaitable.WaitForSecondsAsync(1f);
+            Capture(DebriefShotPath.Replace(".png", "_wachten.png"), 1600, 900);
+            if (!await WaitUntil(() => panel.State is AiDebriefPanel.PanelState.Ready or AiDebriefPanel.PanelState.Failed, 300f))
+            {
+                Line("Nabespreking niet klaar binnen 300 s.");
+                return false;
+            }
+            var waited = Time.realtimeSinceStartup - started;
+            await Awaitable.WaitForSecondsAsync(0.5f);
+            Capture(DebriefShotPath, 2560, 1440);
+            var d = panel.Result;
+            if (d.Failed)
+            {
+                Line("NABESPREKING MISLUKT: " + d.error);
+                return false;
+            }
+            Line($"NABESPREKING {d.total_score}/{d.max_score} ({d.end_reason}), gewacht {waited:0.0} s, server {d.timings_ms?.total_ms} ms, runs [{string.Join(", ", d.timings_ms?.runs_ms ?? Array.Empty<int>())}] ms");
+            Line("   " + d.summary);
+            foreach (var item in d.items)
+                Line($"   {item.id,2}. {item.criterion_nl,-45} {item.score} [{string.Join(",", item.scores ?? Array.Empty<int>())}]{(item.uncertain ? " ONZEKER" : "")}  \"{item.evidence_quote}\"  | {item.feedback} | Beter: {item.better_phrase}");
+            foreach (var m in d.key_moments)
+                Line($"   moment beurt {m.turn_index}: {m.what_happened} ({m.effect})");
+            Line($"   boosheid: {string.Join(" ", d.anger_curve)}");
+            Line($"   screenshot: {DebriefShotPath}");
             return true;
         }
 
@@ -123,12 +167,12 @@ namespace ProCommVR.Hospital.AiTalk.Testing
             return true;
         }
 
-        private static void Capture(string path)
+        private static void Capture(string path, int width, int height)
         {
             var cam = Camera.main;
             if (cam == null)
                 return;
-            var rt = new RenderTexture(1600, 900, 24) { antiAliasing = 8 };
+            var rt = new RenderTexture(width, height, 24) { antiAliasing = 8 };
             var previous = cam.targetTexture;
             cam.targetTexture = rt;
             cam.Render();
