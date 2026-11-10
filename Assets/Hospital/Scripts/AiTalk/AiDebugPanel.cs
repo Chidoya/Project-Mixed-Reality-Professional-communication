@@ -12,8 +12,10 @@ namespace ProCommVR.Hospital.AiTalk
     public class AiDebugPanel : MonoBehaviour
     {
         [SerializeField] private AiNpc _npc;
-        [Tooltip("Positie t.o.v. het personage; negatieve x = links van het personage, gezien vanaf de speler.")]
-        [SerializeField] private Vector3 _offset = new(-0.72f, 1.42f, 0f);
+        [Tooltip("Afstand van het paneel tot de camera (m).")]
+        [SerializeField] private float _viewDistance = 0.6f;
+        [Tooltip("Plaats in het zicht van de camera: x links/rechts, y omhoog/omlaag (m, op die afstand).")]
+        [SerializeField] private Vector2 _viewOffset = new(-0.4f, -0.03f);
         [SerializeField] private Vector2 _size = new(0.56f, 0.5f);
 
         private Transform _panel;
@@ -22,7 +24,6 @@ namespace ProCommVR.Hospital.AiTalk
         private AiTurn _turn;
         private string _name = "Character";
         private string _tension = "Tension";
-        private Transform _head;
         private AiDebriefPanel _debrief;
 
         private void Start()
@@ -62,7 +63,6 @@ namespace ProCommVR.Hospital.AiTalk
             _npc.StatusChanged += OnStatus;
             _bound = true;
             _turn = null;
-            _head = null;
             _name = "Character";
             _status = "";
             Refresh();
@@ -97,19 +97,14 @@ namespace ProCommVR.Hospital.AiTalk
             if (_panel.gameObject.activeSelf != show)
                 _panel.gameObject.SetActive(show);
             var cam = Camera.main;
-            // Naast het hoofd (ook bij een liggende of zittende patiënt), iets lager dan de ogen
-            if (_head == null || !_head.IsChildOf(_npc.transform))
-            {
-                var animator = _npc.GetComponentInChildren<Animator>();
-                _head = animator != null && animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Head) : null;
-            }
-            var npc = _npc.transform;
-            var side = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : npc.right;
-            _panel.position = _head != null
-                ? _head.position + side * (_offset.x - 0.15f) + Vector3.down * 0.15f
-                : npc.position + side * _offset.x + Vector3.up * _offset.y;
-            if (cam != null)
-                _panel.rotation = Quaternion.LookRotation(_panel.position - cam.transform.position, Vector3.up);
+            if (cam == null)
+                return;
+            // Altijd in beeld: vast links in het zicht van de camera (headset), dichtbij, iets onder het midden.
+            // Zo hangt het nooit achter of in het personage, ook niet bij een liggende of zittende patiënt.
+            var c = cam.transform;
+            _panel.position = c.position + c.forward * _viewDistance + c.right * _viewOffset.x + c.up * _viewOffset.y;
+            _panel.rotation = Quaternion.LookRotation(_panel.position - c.position, c.up);
+            _panel.localScale = Vector3.one * _viewDistance; // dichtbij (vóór muren) maar even groot in beeld als op 1 m
         }
 
         private void Build()

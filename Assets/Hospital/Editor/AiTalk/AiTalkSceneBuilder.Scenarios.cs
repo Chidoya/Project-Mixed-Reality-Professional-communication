@@ -22,6 +22,10 @@ namespace ProCommVR.Editor
         private const float HipsAboveSeat = 0.12f;      // zoals UWardBuilder.Characters
         private const float SeatBackOffset = 0.05f;
         private const float TalkDistance = 1.15f;
+        private const float BedsideDistance = 1.45f;   // van het hoofd tot net voorbij het voeteneinde van het bed
+
+        /// <summary>De stoel staat rechts van het bed (+x); van daar schuin naar het voeteneinde (-z) en het bed (-x).</summary>
+        private static Vector3 TowardBedFoot(Transform room) => (-room.right * 0.5f - room.forward).normalized;
 
         private class Area
         {
@@ -106,10 +110,12 @@ namespace ProCommVR.Editor
             LayOn(husband, room.Find("Anchor_Laying").position, room.forward);
             Quiet(husband);
             var wife = Character("Patient_Female_Old", room, "Wife_Of_Patient_X");
-            var head = SitOn(wife, room.Find("Anchor_Sitting"), room.Find("Furniture/Chair"), -room.forward);
+            // Schuin naar het voeteneinde van het bed, waar de verpleegkundige staat: bed en verpleegkundige in beeld
+            var face = TowardBedFoot(room);
+            var head = SitOn(wife, room.Find("Anchor_Sitting"), room.Find("Furniture/Chair"), face);
             var npc = wife.AddComponent<AiNpc>();
             ConfigureNpc(npc, settings, ptt, "poor_prognosis");
-            var eye = new Vector3(head.x, EyeHeight, head.z) - room.forward * TalkDistance;
+            var eye = new Vector3(head.x, EyeHeight, head.z) + face * BedsideDistance;
             return new Area { Number = 4, Title = "Poor prognosis", Npc = npc, Viewpoint = LookAt(viewpoints, "Viewpoint_4", eye, head) };
         }
 
@@ -122,10 +128,11 @@ namespace ProCommVR.Editor
             LayOn(neighbour, room.Find("Anchor_Laying_2").position, room.forward);
             Quiet(neighbour);
             var patient = Character("Patient_Male", room, "Patient_X");
-            var head = SitOn(patient, room.Find("Anchor_Sitting"), room.Find("Furniture/Chair"), -room.forward);
+            var face = TowardBedFoot(room);
+            var head = SitOn(patient, room.Find("Anchor_Sitting"), room.Find("Furniture/Chair"), face);
             var npc = patient.AddComponent<AiNpc>();
             ConfigureNpc(npc, settings, ptt, "aggressive_patient");
-            var eye = new Vector3(head.x, EyeHeight, head.z) - room.forward * TalkDistance;
+            var eye = new Vector3(head.x, EyeHeight, head.z) + face * BedsideDistance;
             return new Area { Number = 5, Title = "Aggressive patient", Npc = npc, Viewpoint = LookAt(viewpoints, "Viewpoint_5", eye, head) };
         }
 

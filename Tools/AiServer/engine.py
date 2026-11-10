@@ -173,6 +173,27 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s']", " ", text.lower())).strip()
 
 
+REPEAT_THRESHOLD = 0.8  # similarity above this = a repeated line
+
+# Words that carry a time, a number or a day: the actor may only use them if they are in its facts or the
+# nurse said them ("one" is left out: "no one", "one more test").
+_NUMBER_WORDS = {"two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+                 "fifteen", "twenty", "thirty", "forty", "fifty", "sixty", "hundred", "half", "quarter",
+                 "noon", "midnight", "o'clock"}
+_DAY_WORDS = {"today", "tomorrow", "tonight", "yesterday", "monday", "tuesday", "wednesday", "thursday",
+              "friday", "saturday", "sunday", "weekend", "week", "weeks", "month", "months"}
+
+
+def _time_tokens(text: str) -> set[str]:
+    words = re.findall(r"[a-z']+|\d+(?::\d+)?", text.lower())
+    return {w for w in words if w in _NUMBER_WORDS or w in _DAY_WORDS or w[0].isdigit()}
+
+
+def _similarity(a: str, b: str) -> float:
+    from difflib import SequenceMatcher
+    return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
+
+
 def _limit_sentences(text: str, max_sentences: int = 2) -> str:
     parts = re.split(r"(?<=[.!?])\s+", text.strip())
     return " ".join(parts[:max_sentences]).strip()
@@ -453,6 +474,8 @@ class Engine:
         facts_rule = sc.data.get("facts_instruction", "do not invent other personal or medical facts")
         animations = band.get("animations") or ["Idle", "Talking", "Angry", "Sad", "Crying"]
         last_student = next((h["text"] for h in reversed(session.history) if h["speaker"] == "student"), "")
+        own_lines = [h["text"] for h in session.history if h["speaker"] == "character"]
+        last_own = "\n".join(f'- "{l}"' for l in own_lines[-3:]) or "- (nothing yet)"
         system = (
             "\n".join(persona["description"])
             + f"\n\nYou are talking to {sc.data['student_role']}.\n"
@@ -465,7 +488,10 @@ class Engine:
             f"React only to what the nurse really said in this conversation, mostly that last "
             f"sentence. Never claim or suggest the nurse said, promised, explained or offered "
             f"something they did not say: only mention a time, a plan, a reason or a promise if "
-            f"the nurse said it, in their words.\n\n"
+            f"the nurse said it, in their words. Times, numbers, days and appointments may only come literally "
+            f"from your list of things you know, or from what the nurse said.\n"
+            f"Your last lines were:\n{last_own}\n"
+            f"Do not repeat any earlier line of yours and do not repeat the nurse's question back; say something new.\n\n"
             "Answer as JSON:\n"
             "- reply: what you say out loud, at most 2 short sentences, spoken English, no swearing.\n"
             f"- emotion: one of {', '.join(band['allowed_emotions'])}.\n"
@@ -481,6 +507,25 @@ class Engine:
         out = self._call_validated(system, messages, ActorOutput, "actor", notes, tokens)
         if out is None:
             return None
+        problem = self._content_problem(session, out.reply, own_lines, last_student)
+        if problem:
+            notes.append(f"actor reply rejected ({problem}), asking once more")
+            retry_messages = messages + [
+                {"role": "assistant", "content": out.reply},
+                {"role": "user", "content": f"(Not acceptable: {problem}. Say something new, in character, "
+                                            "that does not repeat earlier lines and uses no new times or numbers.)"},
+            ]
+            second = self._call_validated(system, retry_messages, ActorOutput, "actor", notes, tokens)
+            if second is not None:
+                problem2 = self._content_problem(session, second.reply, own_lines, last_student)
+                if not problem2:
+                    out = second
+                elif "not in your facts" in problem2:
+                    notes.append(f"still {problem2}: fallback line")
+                    return None
+                else:
+                    notes.append(f"still {problem2}: kept the second reply")
+                    out = second
 
         # post-checks in Python
         reply = _limit_sentences(out.reply, 2)
@@ -502,6 +547,28 @@ class Engine:
             notes.append(f"facts_used not unlocked, removed: {unknown}")
             out.facts_used = [f for f in out.facts_used if f in session.unlocked_facts]
         return out
+
+    def _content_problem(self, session: Session, reply: str, own_lines: list[str], last_student: str) -> str:
+        """'' if the reply is fine; otherwise why not (a repeated line, or a time/number not in the facts)."""
+        def sentences(text: str) -> list[str]:  # only real sentences (4+ words) count as a repetition
+            return [x for x in re.split(r"(?<=[.!?])\s+", text.strip()) if len(x.split()) >= 4]
+        earlier = [x for line in own_lines for x in sentences(line)] + own_lines
+        for part in [reply] + sentences(reply):
+            for line in earlier:
+                if _similarity(part, line) > REPEAT_THRESHOLD:
+                    return f"repeats your earlier line \"{line}\""
+        if last_student and _similarity(reply, last_student) > REPEAT_THRESHOLD:
+            return "repeats the nurse's sentence"
+        allowed = set()
+        for fact in session.unlocked_facts:
+            allowed |= _time_tokens(fact)
+        for h in session.history:
+            if h["speaker"] == "student":
+                allowed |= _time_tokens(h["text"])
+        invented = sorted(_time_tokens(reply) - allowed)
+        if invented:
+            return f"mentions {', '.join(invented)}, which is not in your facts"
+        return ""
 
     # -- step 6: validation with one retry
 

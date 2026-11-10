@@ -156,6 +156,12 @@ about a scenario is in that file, no code change is needed for a new one:
 - `events`: non-verbal actions for `POST /session/{id}/event` (effect and optional label);
 - `rubric` (`scoring`, Dutch `feedback` per score, English `better_phrase`) and `debrief` settings.
 
+Checks on every actor reply (in Python, one retry): the character gets its last 3 lines with the rule not to repeat
+them or the nurse's question; a reply (or one of its sentences) that is more than 80 % similar to an earlier line
+of the character or to the nurse's last sentence is refused. Times, numbers and day names (`two`, `4`, `tomorrow`,
+`o'clock`...) may only appear if they are in the unlocked facts or the nurse said them; if the retry still invents
+one, a fallback line is used.
+
 The scenarios 1, 3, 4 and 5 are drafts based on Jalil's scenario texts; a nursing teacher should review them.
 `chat.py <scenario_id> --debrief` plays a scenario in the terminal and prints the debrief.
 
