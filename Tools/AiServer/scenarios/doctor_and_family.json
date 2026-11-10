@@ -4,6 +4,7 @@
   "title": "Two-way communication between a doctor and a family member",
   "source": "Jalil: Scenario03_DoctorAndFamily",
   "tension_name": "impatience",
+  "tension_name_nl": "ongeduld",
   "character_model": "Doctor_Male",
   "placement": "corridor",
   "voice": {

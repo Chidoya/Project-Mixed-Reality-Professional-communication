@@ -20,7 +20,7 @@ namespace ProCommVR.Editor
     /// Maakt ook AiTalkSettings.asset en AiTalkInput.inputactions (spatie + rechtertrigger) als ze ontbreken.
     /// Menu: ProCommVR > AI Talk > Build Test Scene.
     /// </summary>
-    public static class AiTalkSceneBuilder
+    public static partial class AiTalkSceneBuilder
     {
         public const string ScenePath = "Assets/Scenes/liam_ai_gesprek_test.unity";
         public const string SettingsPath = "Assets/Hospital/Data/AiTalkSettings.asset";
@@ -70,6 +70,9 @@ namespace ProCommVR.Editor
             Set(panel, "_npc", daughter);
             var debrief = new GameObject("AiDebriefPanel").AddComponent<AiDebriefPanel>();
             Set(debrief, "_npc", daughter);
+
+            // De andere scenario's (1, 3, 4, 5) en de kiezer (toetsen 1-5, linker joystick)
+            BuildScenarioAreas(settings, ptt, daughter, cam.transform);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log($"{LogPrefix}Scene gebouwd: {ScenePath}");
@@ -360,6 +363,7 @@ namespace ProCommVR.Editor
     /// Unity -projectPath . -executeMethod ProCommVR.Editor.AiTalkCapture.Run
     ///   -aiWavs "a.wav;b.wav" -aiShot docs/Screenshots/x.png [-aiShotTurn 2] -aiLog Temp/ai.log
     ///   [-aiDebriefShot docs/Screenshots/y.png] (gesprek beëindigen en de nabespreking vastleggen)
+    ///   [-aiScenario 1..5] (eerst dat scenario kiezen met de scenariokiezer)
     /// De server (Tools/AiServer) moet draaien.
     /// </summary>
     [InitializeOnLoad]
@@ -388,6 +392,7 @@ namespace ProCommVR.Editor
             SessionState.SetString(Key + "Log", Arg("-aiLog") ?? Path.GetFullPath("Temp/AiTalkTest.log"));
             SessionState.SetInt(Key + "ShotTurn", int.TryParse(Arg("-aiShotTurn"), out var n) ? n : 0);
             SessionState.SetString(Key + "DebriefShot", Arg("-aiDebriefShot") ?? "");
+            SessionState.SetInt(Key + "Scenario", int.TryParse(Arg("-aiScenario"), out var sc) ? sc : 0);
             EditorApplication.EnterPlaymode();
         }
 
@@ -403,6 +408,7 @@ namespace ProCommVR.Editor
             runner.ScreenshotTurn = SessionState.GetInt(Key + "ShotTurn", 0);
             runner.LogPath = SessionState.GetString(Key + "Log", "");
             runner.DebriefShotPath = SessionState.GetString(Key + "DebriefShot", "");
+            runner.ScenarioNumber = SessionState.GetInt(Key + "Scenario", 0);
             runner.Finished = ok =>
             {
                 EditorApplication.ExitPlaymode();

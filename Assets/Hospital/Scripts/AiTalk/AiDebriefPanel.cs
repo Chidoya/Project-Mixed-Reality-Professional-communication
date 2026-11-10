@@ -65,10 +65,23 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void Start()
         {
-            if (_npc == null)
-                _npc = FindAnyObjectByType<AiNpc>();
-            if (_npc != null)
-                _npc.OnConversationEnded.AddListener(OnEnded);
+            // Elk personage kan het gesprek beëindigen (scenariokiezer); wisselen sluit het paneel
+            AiNpc.AnyConversationEnded += OnAnyEnded;
+            AiNpc.ActiveChanged += OnActiveChanged;
+        }
+
+        private void OnAnyEnded(AiNpc npc, string reason)
+        {
+            _npc = npc;
+            _ = Open();
+        }
+
+        private void OnActiveChanged(AiNpc npc)
+        {
+            if (npc != null)
+                _npc = npc;
+            if (State != PanelState.Hidden && npc != null)
+                Hide();
         }
 
         private void OnEnable()
@@ -98,8 +111,8 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void OnDestroy()
         {
-            if (_npc != null)
-                _npc.OnConversationEnded.RemoveListener(OnEnded);
+            AiNpc.AnyConversationEnded -= OnAnyEnded;
+            AiNpc.ActiveChanged -= OnActiveChanged;
         }
 
         private bool ButtonsActive => State is PanelState.Ready or PanelState.Failed;
@@ -118,8 +131,9 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void OnEndPressed(InputAction.CallbackContext _)
         {
-            if (_testKeyE && _npc != null && !_npc.HasEnded && !_npc.Busy)
-                _npc.EndNow("stopped");
+            var active = AiNpc.Active != null ? AiNpc.Active : _npc;
+            if (_testKeyE && active != null && !active.HasEnded && !active.Busy)
+                active.EndNow("stopped");
         }
 
         private void Update()
@@ -131,7 +145,6 @@ namespace ProCommVR.Hospital.AiTalk
             }
         }
 
-        private void OnEnded(string reason) => _ = Open();
 
         /// <summary>Opent het paneel, zet Sarah in Idle en vraagt de beoordeling op.</summary>
         public async Awaitable Open()
@@ -242,9 +255,14 @@ namespace ProCommVR.Hospital.AiTalk
                 if (toNpc > 0f)
                     distance = Mathf.Max(_minimumDistance, Mathf.Min(distance, toNpc - 0.35f));
             }
+            // Midden in de kijkrichting (ook als de speler naar een zittend of liggend personage kijkt),
+            // maar nooit meer dan 30 graden omhoog of omlaag; het paneel staat rechtop naar de speler gedraaid
+            var view = cam.transform.forward;
+            var pitch = Mathf.Clamp(Vector3.SignedAngle(forward, view, Vector3.Cross(Vector3.up, forward)), -30f, 30f);
+            var dir = Quaternion.AngleAxis(pitch, Vector3.Cross(Vector3.up, forward)) * forward;
             var t = _canvas.transform;
-            t.position = cam.transform.position + forward * distance + Vector3.down * _belowEyes;
-            t.rotation = Quaternion.LookRotation(forward, Vector3.up);
+            t.position = cam.transform.position + dir * distance + Vector3.down * (pitch > 5f ? 0f : _belowEyes);
+            t.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(t.position - cam.transform.position, Vector3.up), Vector3.up);
         }
 
         private void Clear()
@@ -261,14 +279,29 @@ namespace ProCommVR.Hospital.AiTalk
             // Kop: titel, score en einde
             var ending = d.end_reason switch
             {
-                "resolved" => "Afspraak gemaakt",
-                "time_up" => "Tijd op: de brancard vertrok",
+                "resolved" => "Gesprek geslaagd",
+                "time_up" => "Tijd op",
+                "critical_error" => "<color=#f2594d>Kritieke fout</color>",
                 _ => "Gesprek gestopt",
             };
             Text(_content, "Nabespreking", 34, TextMain, new Vector2(40f, -24f), new Vector2(500f, 44f));
             Text(_content, $"{ending}   <b>{d.total_score}/{d.max_score}</b>", 24, TextDim, new Vector2(Width - 540f, -30f),
                 new Vector2(500f, 40f), TextAlignmentOptions.Right);
-            Text(_content, d.summary, 19, TextMain, new Vector2(40f, -74f), new Vector2(Width - 80f, 64f));
+            if (d.critical != null && d.critical.Present)
+            {
+                // De kritieke fout bovenaan: rode balk met wat er gezegd werd; de uitleg staat in de samenvatting
+                var bar = new GameObject("CriticalBar", typeof(RectTransform), typeof(Image));
+                bar.transform.SetParent(_content, false);
+                TopLeft((RectTransform)bar.transform, new Vector2(30f, -70f), new Vector2(Width - 60f, 30f));
+                bar.GetComponent<Image>().color = new Color(0.62f, 0.13f, 0.12f);
+                Text((RectTransform)bar.transform, $"<b>Kritieke fout (beurt {d.critical.turn}): {d.critical.title}</b>   \"{d.critical.quote}\"",
+                    17, TextMain, new Vector2(10f, -4f), new Vector2(Width - 80f, 24f));
+                Text(_content, d.summary, 16, TextMain, new Vector2(40f, -104f), new Vector2(Width - 80f, 42f));
+            }
+            else
+            {
+                Text(_content, d.summary, 19, TextMain, new Vector2(40f, -74f), new Vector2(Width - 80f, 64f));
+            }
 
             Graph(d, new Vector2(40f, -146f), new Vector2(Width - 80f, 150f));
 
@@ -317,7 +350,8 @@ namespace ProCommVR.Hospital.AiTalk
                 TopLeft((RectTransform)line.transform, new Vector2(0f, -(1f - limit / 100f) * size.y), new Vector2(size.x, 1f));
                 line.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.1f);
             }
-            Text(rt, "boosheid", 12, TextDim, new Vector2(6f, -4f), new Vector2(120f, 16f));
+            Text(rt, string.IsNullOrEmpty(d.tension_name_nl) ? "spanning" : d.tension_name_nl, 12, TextDim,
+                new Vector2(6f, -4f), new Vector2(200f, 16f));
 
             var curve = d.anger_curve ?? Array.Empty<int>();
             if (curve.Length == 0)

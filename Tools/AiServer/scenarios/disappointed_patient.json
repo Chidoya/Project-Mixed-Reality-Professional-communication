@@ -4,6 +4,7 @@
   "title": "A disappointed patient who wants to go home",
   "source": "Jalil: Scenario01_DisappointedPatient",
   "tension_name": "hopelessness",
+  "tension_name_nl": "moedeloosheid",
   "character_model": "Patient_Male",
   "placement": "in_bed",
   "voice": {

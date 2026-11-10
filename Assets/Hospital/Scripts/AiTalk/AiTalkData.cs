@@ -56,6 +56,7 @@ namespace ProCommVR.Hospital.AiTalk
         public string time_up_line;
         public string rest_animation;
         public string tension_name;
+        public string character_name;
 
         // Alleen in Unity, niet van de server
         [NonSerialized] public bool localFallback;
@@ -105,6 +106,19 @@ namespace ProCommVR.Hospital.AiTalk
         public int[] runs_ms;
     }
 
+    /// <summary>De kritieke fout die het scenario beëindigde (leeg als er geen was).</summary>
+    [Serializable]
+    public class AiCritical
+    {
+        public string label;
+        public int turn;
+        public string quote;
+        public string title;
+        public string feedback;
+
+        public bool Present => !string.IsNullOrEmpty(label);
+    }
+
     [Serializable]
     public class AiDebrief
     {
@@ -118,6 +132,8 @@ namespace ProCommVR.Hospital.AiTalk
         public int[] anger_curve;
         public int[] trust_curve;
         public AiDebriefTimings timings_ms;
+        public string tension_name_nl;
+        public AiCritical critical;
 
         // Alleen in Unity
         [NonSerialized] public string error;

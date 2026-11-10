@@ -90,6 +90,8 @@ on the GPU, about 1.9 s on the CPU.
 | POST | `/turn/audio` | multipart: `session_id`, `audio` (wav, 16 kHz mono) | one turn + `transcript` + `audio_wav_base64`, or `{"retry": true}` |
 | POST | `/session/{id}/end` | optional `{reason}` (e.g. `time_up`) | saves `sessions/<id>.json`, returns `{saved, end_reason, turns}`. The session stays in memory for `/debrief` |
 | POST | `/session/{id}/debrief` | (`?force=true` to redo) | rubric scores, key moments, anger/trust curve; also saved in `sessions/<id>.json` |
+| POST | `/session/{id}/event` | `{event}` (e.g. `curtain_closed`) | effect of a non-verbal action from the scenario's `events`, logged like a turn |
+| GET | `/scenarios` | | id, title, number, character model and tension name of every scenario |
 
 ### Debrief (`debrief.py`)
 
@@ -133,13 +135,29 @@ Errors: `400` the upload is not a readable wav, `404` unknown session or scenari
 
 ## Scenarios
 
-Everything about a scenario is in `scenarios/<id>.json`: persona, opening, facts and when they
-unlock, phases and their conditions, labels with their anger/trust effect, bands with acting
-instructions and allowed emotions, rules (caps, thresholds), fallback lines and the debrief rubric.
-A new scenario is a new JSON file; no code change is needed.
+Every scenario is a JSON file in `scenarios/` (1 `disappointed_patient`, 2 `angry_daughter`,
+3 `doctor_and_family`, 4 `poor_prognosis`, 5 `aggressive_patient`); `GET /scenarios` lists them. Everything
+about a scenario is in that file, no code change is needed for a new one:
 
-Phase conditions (all given keys must hold): `anger_lt`, `trust_gte`, `labels_ever_all`,
-`labels_ever_any`, `labels_this_turn_any`. A phase with `"terminal": true` ends the conversation.
+- `persona`, `student_role`, `opening` (`tension`, `trust`, emotion, animation, `rest_animation` such as
+  `Laying` or `Sitting`), `facts` and `fact_tiers`, `facts_instruction`, `fallback_lines`;
+- `tension_name` (anger, hopelessness, impatience, distress...) and `tension_name_nl`: the general state of the
+  character. Towards Unity the field stays `anger`;
+- `bands` (`min_tension`, acting `instruction`, `allowed_emotions`, `animations`): the code corrects the actor's
+  emotion and animation to the band (a patient in bed only has `Laying`);
+- `voice`: Piper voice and speaking speed per band (downloaded at server start);
+- `phases` with conditions (`tension_lt`, `trust_gte`, `labels_ever_any/all`, `labels_this_turn_any`); a
+  phase with `terminal: true` ends the conversation as `resolved`;
+- `labels`: common labels from `labels_common.json` (only name and effect `tension`/`trust` needed; description,
+  example or `moment_nl` may be overridden) and the scenario's own labels (with description);
+- `critical: true` on a label: the scenario ends at once (`critical_error`), the character says
+  `critical_reaction.reply`, and the debrief shows `critical_title` and `critical_feedback` on top. The label
+  only counts if one of `critical_requires_any` is really in the sentence (whole words);
+- `events`: non-verbal actions for `POST /session/{id}/event` (effect and optional label);
+- `rubric` (`scoring`, Dutch `feedback` per score, English `better_phrase`) and `debrief` settings.
+
+The scenarios 1, 3, 4 and 5 are drafts based on Jalil's scenario texts; a nursing teacher should review them.
+`chat.py <scenario_id> --debrief` plays a scenario in the terminal and prints the debrief.
 
 ## Other model providers
 

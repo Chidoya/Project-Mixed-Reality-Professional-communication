@@ -25,6 +25,8 @@ namespace ProCommVR.Hospital.AiTalk
         [SerializeField] private PushToTalk _pushToTalk;
         [Tooltip("Start het gesprek (en de openingszin) zelf bij Start.")]
         [SerializeField] private bool _autoStart = true;
+        [Tooltip("Scenario van dit personage (bestandsnaam in Tools/AiServer/scenarios). Leeg = settings.scenarioId.")]
+        [SerializeField] private string _scenarioId = "";
 
         [Header("Personage (leeg = zelf zoeken)")]
         [SerializeField] private FaceController _face;
@@ -100,7 +102,7 @@ namespace ProCommVR.Hospital.AiTalk
                 enabled = false;
                 return;
             }
-            _client = new AiTalkClient(_settings);
+            _client = new AiTalkClient(_settings, _scenarioId);
 #if UNITY_EDITOR
             if (_settings.editorTargetFrameRate > 0)
             {
@@ -112,6 +114,8 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void OnEnable()
         {
+            Active = this;
+            ActiveChanged?.Invoke(this);
             if (_pushToTalk == null)
                 return;
             _pushToTalk.CanStart = CanRecord;
@@ -120,8 +124,27 @@ namespace ProCommVR.Hospital.AiTalk
             _pushToTalk.RecordingDiscarded += OnRecordingDiscarded;
         }
 
+        /// <summary>Het personage waarmee nu gepraat wordt (het laatst ingeschakelde AiNpc).</summary>
+        public static AiNpc Active { get; private set; }
+        /// <summary>Een ander personage werd actief (bv. via de scenariokiezer).</summary>
+        public static event Action<AiNpc> ActiveChanged;
+        /// <summary>Einde van een gesprek met eender welk personage (voor de nabespreking).</summary>
+        public static event Action<AiNpc, string> AnyConversationEnded;
+
+        public string ScenarioId => string.IsNullOrEmpty(_scenarioId) && _settings != null ? _settings.scenarioId : _scenarioId;
+
         private void OnDisable()
         {
+            // Wisselen van scenario: lopend gesprek netjes afsluiten
+            if (_voice != null)
+                _voice.Stop();
+            if (_client != null && _client.HasSession && !_client.IsEnded)
+                _ = _client.EndSession("stopped");
+            if (Active == this)
+            {
+                Active = null;
+                ActiveChanged?.Invoke(null);
+            }
             if (_pushToTalk == null)
                 return;
             _pushToTalk.CanStart = null;
@@ -394,6 +417,7 @@ namespace ProCommVR.Hospital.AiTalk
             Debug.Log($"{LogPrefix}Gesprek afgelopen: {_pendingEnd}");
             _ = _client.EndSession(_pendingEnd);
             OnConversationEnded.Invoke(_pendingEnd);
+            AnyConversationEnded?.Invoke(this, _pendingEnd);
         }
 
         private void SetStatus(string status) => StatusChanged?.Invoke(status);

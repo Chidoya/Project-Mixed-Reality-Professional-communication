@@ -3,6 +3,7 @@
   "number": 2,
   "title": "Angry daughter in the waiting area",
   "tension_name": "anger",
+  "tension_name_nl": "boosheid",
   "character_model": "Visitor_Daughter",
   "placement": "corridor",
   "voice": {

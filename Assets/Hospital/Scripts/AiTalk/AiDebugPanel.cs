@@ -20,34 +20,63 @@ namespace ProCommVR.Hospital.AiTalk
         private TextMeshPro _text;
         private string _status = "";
         private AiTurn _turn;
+        private string _name = "Character";
+        private string _tension = "Tension";
+        private Transform _head;
         private AiDebriefPanel _debrief;
 
         private void Start()
         {
-            if (_npc == null)
-                _npc = GetComponentInParent<AiNpc>() ?? FindAnyObjectByType<AiNpc>();
-            if (_npc == null || _npc.Settings == null || !_npc.Settings.showDebugPanel)
+            // Volgt het actieve personage (scenariokiezer); _npc is enkel de startwaarde
+            var npc = AiNpc.Active != null ? AiNpc.Active : _npc != null ? _npc : FindAnyObjectByType<AiNpc>();
+            if (npc == null || npc.Settings == null || !npc.Settings.showDebugPanel)
             {
                 enabled = false;
                 return;
             }
             Build();
-            _npc.TurnApplied += OnTurn;
-            _npc.StatusChanged += OnStatus;
-            Refresh();
+            Bind(npc);
+            AiNpc.ActiveChanged += Bind;
         }
 
         private void OnDestroy()
         {
-            if (_npc == null)
-                return;
-            _npc.TurnApplied -= OnTurn;
-            _npc.StatusChanged -= OnStatus;
+            AiNpc.ActiveChanged -= Bind;
+            Bind(null);
         }
+
+        private void Bind(AiNpc npc)
+        {
+            if (npc == _npc && npc != null && _bound)
+                return;
+            if (_npc != null && _bound)
+            {
+                _npc.TurnApplied -= OnTurn;
+                _npc.StatusChanged -= OnStatus;
+            }
+            _bound = false;
+            if (npc == null)
+                return;
+            _npc = npc;
+            _npc.TurnApplied += OnTurn;
+            _npc.StatusChanged += OnStatus;
+            _bound = true;
+            _turn = null;
+            _head = null;
+            _name = "Character";
+            _status = "";
+            Refresh();
+        }
+
+        private bool _bound;
 
         private void OnTurn(AiTurn turn)
         {
             _turn = turn;
+            if (!string.IsNullOrEmpty(turn.character_name))
+                _name = turn.character_name;
+            if (!string.IsNullOrEmpty(turn.tension_name))
+                _tension = char.ToUpper(turn.tension_name[0]) + turn.tension_name.Substring(1);
             Refresh();
         }
 
@@ -59,7 +88,7 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void LateUpdate()
         {
-            if (_panel == null)
+            if (_panel == null || _npc == null)
                 return;
             // Verborgen zolang de nabespreking open is
             if (_debrief == null)
@@ -68,9 +97,17 @@ namespace ProCommVR.Hospital.AiTalk
             if (_panel.gameObject.activeSelf != show)
                 _panel.gameObject.SetActive(show);
             var cam = Camera.main;
+            // Naast het hoofd (ook bij een liggende of zittende patiënt), iets lager dan de ogen
+            if (_head == null || !_head.IsChildOf(_npc.transform))
+            {
+                var animator = _npc.GetComponentInChildren<Animator>();
+                _head = animator != null && animator.isHuman ? animator.GetBoneTransform(HumanBodyBones.Head) : null;
+            }
             var npc = _npc.transform;
             var side = cam != null ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized : npc.right;
-            _panel.position = npc.position + side * _offset.x + Vector3.up * _offset.y;
+            _panel.position = _head != null
+                ? _head.position + side * (_offset.x - 0.15f) + Vector3.down * 0.15f
+                : npc.position + side * _offset.x + Vector3.up * _offset.y;
             if (cam != null)
                 _panel.rotation = Quaternion.LookRotation(_panel.position - cam.transform.position, Vector3.up);
         }
@@ -118,7 +155,7 @@ namespace ProCommVR.Hospital.AiTalk
             }
             if (!string.IsNullOrEmpty(t.transcript))
                 sb.Append("<color=#c8c8c8>You:</color> ").AppendLine(t.transcript);
-            sb.Append("<color=#c8c8c8>Sarah:</color> ").AppendLine(t.reply);
+            sb.Append("<color=#c8c8c8>").Append(_name).Append(":</color> ").AppendLine(t.reply);
             if (t.localFallback)
             {
                 sb.Append("<color=#ffb347>").Append(t.retry ? "not understood (retry)" : t.error).AppendLine("</color>");
@@ -130,7 +167,7 @@ namespace ProCommVR.Hospital.AiTalk
                 if (!string.IsNullOrEmpty(t.evidence_quote))
                     sb.Append("<color=#c8c8c8>Quote:</color> \"").Append(t.evidence_quote).AppendLine("\"");
                 var before = t.before;
-                sb.Append("Anger ").Append(before != null ? before.anger + " > " : "").Append(t.anger)
+                sb.Append(_tension).Append(' ').Append(before != null ? before.anger + " > " : "").Append(t.anger)
                   .Append("   Trust ").Append(before != null ? before.trust + " > " : "").Append(t.trust).AppendLine();
                 sb.Append("Band ").Append(t.band).Append("   Phase ").Append(t.phase);
                 if (t.HasEnded)

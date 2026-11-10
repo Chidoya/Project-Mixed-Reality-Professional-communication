@@ -64,3 +64,27 @@ speelt dat niet; met Quest Link of in de Editor wel.
 speelt wav-bestanden af als studentbeurten (zelfde weg als PushToTalk na het loslaten, enkel zonder microfoon)
 en neemt een screenshot terwijl Sarah antwoordt. Screenshots: `docs/Screenshots/ai_gesprek_goed.png` en
 `ai_gesprek_slecht.png`.
+
+## Alle 5 scenario's
+
+De testscene bevat de vijf scenario's van Jalil als vrij gesprek. Kies met de toetsen **1 t.e.m. 5** (Editor) of de
+**linker joystick** naar links/rechts (Quest). Elk scenario heeft zijn eigen personage (zelfde als in Jalils
+`ShiftHospitalSceneBuilder`), plek en stem:
+
+| # | Scenario (`Tools/AiServer/scenarios/`) | Personage | Plek | Spanning | Kritieke fout |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `disappointed_patient` | Patient_Male | in bed (eenpersoonskamer) | moedeloosheid | vals ontslag beloven |
+| 2 | `angry_daughter` | Visitor_Daughter | gang met brancard | boosheid | - |
+| 3 | `doctor_and_family` | Doctor_Male (de zoon wacht verderop) | gang | ongeduld | - (verwijten en bevelen wegen zwaar) |
+| 4 | `poor_prognosis` | Patient_Female_Old naast Patient_Male_Old in bed | stoel naast het bed | onrust | valse hoop, prognose meedelen |
+| 5 | `aggressive_patient` | Patient_Male, Patient_Male_Old in het tweede bed | stoel in een gedeelde kamer | boosheid | diagnose hardop noemen |
+
+Een kritieke fout beëindigt het scenario meteen: het personage reageert nog één keer met een vaste zin en de
+nabespreking toont de fout bovenaan in een rode balk. Een kritiek label telt alleen als een van zijn sleutelwoorden
+echt gezegd werd (`critical_requires_any` in de JSON), zodat een fout label het gesprek niet onterecht stopt.
+
+De scenario's 1, 3, 4 en 5 zijn **concepten** op basis van Jalils teksten (feiten, kritieke fouten, feedback):
+laat de rollen, labels en feedbackteksten nalezen door de inhoudsexpert of een docent verpleegkunde.
+
+Voor Jalil: niet-verbale acties (gordijn dicht, afstand nemen) kunnen naar `POST /session/{id}/event`
+(`{"event": "curtain_closed"}` of `"stepped_back"`), met het effect uit `aggressive_patient.json` (`events`).

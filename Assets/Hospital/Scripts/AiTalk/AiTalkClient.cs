@@ -21,9 +21,13 @@ namespace ProCommVR.Hospital.AiTalk
         public string SessionId { get; private set; }
         public bool HasSession => !string.IsNullOrEmpty(SessionId);
 
-        public AiTalkClient(AiTalkSettings settings)
+        private readonly string _scenarioId;
+
+        /// <summary>scenarioId leeg = settings.scenarioId.</summary>
+        public AiTalkClient(AiTalkSettings settings, string scenarioId = null)
         {
             _settings = settings;
+            _scenarioId = string.IsNullOrEmpty(scenarioId) ? settings.scenarioId : scenarioId;
         }
 
         private string Url(string path) => _settings.serverUrl.TrimEnd('/') + path;
@@ -32,7 +36,7 @@ namespace ProCommVR.Hospital.AiTalk
         /// <summary>Start een sessie. Geeft de openingszin terug, of een lokaal antwoord bij een fout.</summary>
         public async Awaitable<AiTurn> StartSession()
         {
-            var body = JsonUtility.ToJson(new AiStartRequest { scenario_id = _settings.scenarioId });
+            var body = JsonUtility.ToJson(new AiStartRequest { scenario_id = _scenarioId });
             using var request = new UnityWebRequest(Url("/session/start"), UnityWebRequest.kHttpVerbPOST)
             {
                 uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
@@ -51,7 +55,7 @@ namespace ProCommVR.Hospital.AiTalk
                 SessionId = response.session_id;
                 IsEnded = false;
                 response.opening.roundTripMs = ms;
-                Debug.Log($"{LogPrefix}Sessie {SessionId} gestart ({_settings.scenarioId}) in {ms} ms.");
+                Debug.Log($"{LogPrefix}Sessie {SessionId} gestart ({_scenarioId}) in {ms} ms.");
                 return response.opening;
             }
             catch (Exception e)

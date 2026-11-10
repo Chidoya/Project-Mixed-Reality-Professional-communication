@@ -4,6 +4,7 @@
   "title": "Family of a patient with a poor prognosis",
   "source": "Jalil: Scenario04_PoorPrognosis",
   "tension_name": "distress",
+  "tension_name_nl": "onrust",
   "character_model": "Patient_Female_Old",
   "placement": "bedside_chair",
   "voice": {

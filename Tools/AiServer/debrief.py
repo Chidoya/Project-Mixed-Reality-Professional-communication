@@ -267,6 +267,7 @@ def _result(session, sc, log, items, moments, total, summary, source, notes, t_s
         "scenario_id": sc.id,
         "end_reason": session.ended or "stopped",
         "tension_name": sc.tension_name,
+        "tension_name_nl": sc.data.get("tension_name_nl", sc.tension_name),
         "critical": session.critical,
         "summary": summary,
         "summary_source": source,

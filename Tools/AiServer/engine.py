@@ -560,6 +560,7 @@ class Engine:
         result["trust"] = session.trust
         result["ended"] = session.ended
         result["tension_name"] = sc.tension_name
+        result["character_name"] = sc.data["persona"]["name"]
         result["timings_ms"] = timings
         session.turns.append(result)
         log.info("turn %d %s labels=%s anger %d->%d trust %d->%d phase=%s %dms",

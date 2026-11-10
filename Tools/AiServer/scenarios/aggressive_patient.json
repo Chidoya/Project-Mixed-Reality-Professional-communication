@@ -4,6 +4,7 @@
   "title": "Verbally aggressive patient and privacy in a shared room",
   "source": "Jalil: Scenario05_AggressivePatient",
   "tension_name": "anger",
+  "tension_name_nl": "boosheid",
   "character_model": "Patient_Male",
   "placement": "shared_room_chair",
   "voice": {

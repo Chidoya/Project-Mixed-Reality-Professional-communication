@@ -21,6 +21,8 @@ namespace ProCommVR.Hospital.AiTalk.Testing
         public string LogPath;
         [Tooltip("Leeg = geen nabespreking. Anders: gesprek beëindigen (zoals de toets E), wachten op de nabespreking en een screenshot.")]
         public string DebriefShotPath;
+        [Tooltip("0 = het scenario dat de scene zelf start; anders eerst dit scenario kiezen (AiTalkScenarioSelector).")]
+        public int ScenarioNumber;
         public float PauseBetweenTurns = 1f;
         public Action<bool> Finished;
 
@@ -47,7 +49,16 @@ namespace ProCommVR.Hospital.AiTalk.Testing
 
         private async Awaitable<bool> Run()
         {
-            var npc = FindAnyObjectByType<AiNpc>();
+            // Eerst het gevraagde scenario kiezen, dan praten met het actieve personage
+            await Awaitable.NextFrameAsync();
+            var selector = FindAnyObjectByType<AiTalkScenarioSelector>();
+            if (ScenarioNumber > 0 && selector != null && selector.Current != ScenarioNumber)
+            {
+                selector.Select(ScenarioNumber);
+                await Awaitable.NextFrameAsync();
+            }
+            var npc = AiNpc.Active != null ? AiNpc.Active : FindAnyObjectByType<AiNpc>();
+            Line($"SCENARIO {(selector != null ? selector.Current : 0)}: {npc?.ScenarioId} ({npc?.name})");
             if (npc == null)
             {
                 Line("Geen AiNpc in de scene.");
@@ -60,7 +71,7 @@ namespace ProCommVR.Hospital.AiTalk.Testing
                 return false;
             }
             var opening = npc.LastTurn;
-            Line($"OPENING  [{opening.emotion}/{opening.animation}] {opening.reply}  (anger {opening.anger}, trust {opening.trust}, band {opening.band}, {opening.roundTripMs} ms)");
+            Line($"OPENING  [{opening.emotion}/{opening.animation}] {opening.reply}  ({opening.tension_name} {opening.anger}, trust {opening.trust}, band {opening.band}, {opening.roundTripMs} ms)");
             if (opening.localFallback)
                 return false;
             await WaitUntil(() => !npc.IsSpeaking, 20f);
