@@ -1,0 +1,46 @@
+{
+    "version": 1,
+    "name": "AiTalkInput",
+    "maps": [
+        {
+            "name": "AiTalk",
+            "id": "037a63c3-b7a1-4900-a8e2-ea227ccc0907",
+            "actions": [
+                {
+                    "name": "PushToTalk",
+                    "type": "Button",
+                    "id": "5f9bac29-7797-43b5-b697-5ebb01fa9cc3",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "c62510ac-1850-4fbf-afd9-644930bd7de6",
+                    "path": "<Keyboard>/space",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "PushToTalk",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "2634794e-45b6-4804-b690-ab55dbba56e5",
+                    "path": "<XRController>{RightHand}/{TriggerButton}",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "PushToTalk",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}
