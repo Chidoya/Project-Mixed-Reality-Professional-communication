@@ -5,7 +5,7 @@ using UnityEngine;
 namespace ProCommVR.Editor
 {
     /// <summary>
-    /// Alle maten van de U-afdeling (docs/Plattegrond/maten.md, versie 7) in plancoördinaten:
+    /// Alle maten van de U-afdeling (docs/Plattegrond/maten.md, versie 8) in plancoördinaten:
     /// x van links naar rechts (0..42), y van boven naar onder (0..28), in meter.
     /// Omrekenen naar Unity: X = x - 21, Z = 14 - y (de bovenkant van het plan is +Z).
     /// </summary>
@@ -269,6 +269,8 @@ namespace ProCommVR.Editor
         // --- Kern ---------------------------------------------------------------------
         public static readonly PlanRect Core = new PlanRect(8.4f, 0f, 33.6f, 19.6f);
         public const float ToiletSplitY = 4.6f;
+        // Versie 8: de oude briefingruimte (y 8,0..19,6) is gesplitst in de gesprekskamer (boven) en de briefingruimte (onder)
+        public const float FamilyRoomSplitY = 12.6f;
         public static readonly CoreRoomSpec[] CoreRooms =
         {
             new CoreRoomSpec("Stairwell", "Core", new PlanRect(8.4f, 0f, 17.0f, 7.0f)),
@@ -278,7 +280,8 @@ namespace ProCommVR.Editor
             // Afwijking van maten.md (scheiding op y 4,0): op y 4,6, zodat de herendeur vrij van de voormuur van de liften ligt
             new CoreRoomSpec("Toilet_Men", "Core", new PlanRect(25.0f, 0f, 33.6f, ToiletSplitY)),
             new CoreRoomSpec("Toilet_Women", "Core", new PlanRect(25.0f, ToiletSplitY, 33.6f, 8.0f)),
-            new CoreRoomSpec("BriefingRoom", "Core", new PlanRect(25.0f, 8.0f, 33.6f, 19.6f)),
+            new CoreRoomSpec("FamilyRoom", "Core", new PlanRect(25.0f, 8.0f, 33.6f, FamilyRoomSplitY)),
+            new CoreRoomSpec("BriefingRoom", "Core", new PlanRect(25.0f, FamilyRoomSplitY, 33.6f, 19.6f)),
         };
 
         // Hal: liften (fase 4), balie (fase 3)
@@ -337,6 +340,7 @@ namespace ProCommVR.Editor
             yield return new WallSpec("Wall_RestRoom_South", "Core", Segment.H(13.3f, 8.4f, 17.0f), InnerWall);
             yield return new WallSpec("Wall_ToiletMen_South", "Core", Segment.H(ToiletSplitY, 25.0f, 33.6f), InnerWall);
             yield return new WallSpec("Wall_ToiletWomen_South", "Core", Segment.H(8.0f, 25.0f, 33.6f), InnerWall);
+            yield return new WallSpec("Wall_FamilyRoom_South", "Core", Segment.H(FamilyRoomSplitY, 25.0f, 33.6f), InnerWall);
         }
 
         /// <summary>Accentstreep in de kleur van de zone, aan de gangkant van de kamermuren (onderbroken door de deuren).</summary>
@@ -359,6 +363,8 @@ namespace ProCommVR.Editor
         /// Deuren van de kern (1,0 m, de trap 1,2 m, de toiletten 0,8 m), vrij gekozen waar maten.md enkel "deur naar de hal"
         /// zegt. Alle deuren draaien de ruimte in. De toiletdeuren zitten in een vlakke muur: de herendeur 45 cm onder de
         /// voormuur van de liften (die loopt tot y 3,05), de damesdeur op het midden uit Liams plan (y 7,05).
+        /// Versie 8: de gesprekskamer krijgt de oude halldeur van de briefingruimte (y 9..10) en een deur naar de gang rechts;
+        /// de halldeur van de briefingruimte schuift naar y 14..15.
         /// </summary>
         public static readonly OpeningSpec[] CoreDoors =
         {
@@ -367,7 +373,9 @@ namespace ProCommVR.Editor
             new OpeningSpec("Door_MedicationRoom", OpeningKind.Door, Segment.V(17.0f, 14.0f, 15.0f), 0f, DoorHeight, IntoWest),
             new OpeningSpec("Door_Toilet_Men", OpeningKind.Door, Segment.V(25.0f, 3.5f, 4.3f), 0f, DoorHeight, IntoEast),
             new OpeningSpec("Door_Toilet_Women", OpeningKind.Door, Segment.V(25.0f, 6.65f, 7.45f), 0f, DoorHeight, IntoEast),
-            new OpeningSpec("Door_Briefing_Hall", OpeningKind.Door, Segment.V(25.0f, 9.0f, 10.0f), 0f, DoorHeight, IntoEast),
+            new OpeningSpec("Door_FamilyRoom_Hall", OpeningKind.Door, Segment.V(25.0f, 9.0f, 10.0f), 0f, DoorHeight, IntoEast),
+            new OpeningSpec("Door_FamilyRoom_Corridor", OpeningKind.Door, Segment.V(33.6f, 9.5f, 10.5f), 0f, DoorHeight, IntoWest),
+            new OpeningSpec("Door_Briefing_Hall", OpeningKind.Door, Segment.V(25.0f, 14.0f, 15.0f), 0f, DoorHeight, IntoEast),
             new OpeningSpec("Door_Briefing_Corridor", OpeningKind.Door, Segment.H(19.6f, 30.5f, 31.5f), 0f, DoorHeight, IntoNorth),
         };
 
@@ -435,5 +443,94 @@ namespace ProCommVR.Editor
         }
 
         public static readonly Vector2[] HallLights = { new Vector2(21f, 6.5f), new Vector2(21f, 13f) };
+
+        // --- Scenario 2 (de boze dochter) ----------------------------------------------------------
+
+        /// <summary>
+        /// Leeg anker voor scenario 2: plaats in het plan (x, y, hoogte) en richting. De forward wijst naar Facing (plan) of
+        /// naar het anker LookAt (op dezelfde hoogte). Name mag een pad zijn (Path_ToFamilyRoom/WP_1).
+        /// </summary>
+        public readonly struct ScenarioAnchorSpec
+        {
+            public readonly string Name, LookAt;
+            public readonly float X, Y, Height;
+            public readonly Vector2 Facing;
+            public ScenarioAnchorSpec(string name, float x, float y, float height, Vector2 facing = default, string lookAt = null)
+            {
+                Name = name; X = x; Y = y; Height = height; Facing = facing; LookAt = lookAt;
+            }
+            public Vector2 Plan => new Vector2(X, Y);
+        }
+
+        private static readonly Vector2 FaceNorth = new Vector2(0f, -1f);
+        private static readonly Vector2 FaceSouth = new Vector2(0f, 1f);
+        private static readonly Vector2 FaceEast = new Vector2(1f, 0f);
+
+        /// <summary>
+        /// Plekken van scenario 2 (Hospital/Scenarios/Scenario2_AngryDaughter/Anchors). "Kijkt naar" = forward. Voor een canvas van
+        /// Jalil (CreateCanvas, forward = leesrichting) is de rotatie dus LookRotation(-forward).
+        /// Afwijking van het stappenplan: de dochter staat op x 35,3 (niet 35,4), zodat haar collider (r 0,3) 0,3 m van de
+        /// kamermuur blijft. Of ze daar blijft staan, beslist Liam na het zien in de scene.
+        /// </summary>
+        public static readonly ScenarioAnchorSpec[] Scenario2Anchors =
+        {
+            new ScenarioAnchorSpec("Anchor_Player_Corridor", 34.8f, 3.3f, 0f, FaceSouth),
+            new ScenarioAnchorSpec("Anchor_Daughter_Corridor", 35.3f, 5.0f, 0f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Panel_Corridor", 34.3f, 4.2f, 1.45f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Countdown", 34.8f, 7.2f, 2.45f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Sign", 33.7f, 6.0f, 1.6f, FaceEast),
+            new ScenarioAnchorSpec("Path_ToFamilyRoom/WP_1", 34.8f, 8.5f, 0f, lookAt: "Path_ToFamilyRoom/WP_2"),
+            new ScenarioAnchorSpec("Path_ToFamilyRoom/WP_2", 34.6f, 10.0f, 0f, lookAt: "Path_ToFamilyRoom/WP_3"),
+            new ScenarioAnchorSpec("Path_ToFamilyRoom/WP_3", 32.6f, 10.0f, 0f, lookAt: "Anchor_Daughter_Room"),
+            new ScenarioAnchorSpec("Anchor_Daughter_Room", 29.5f, 10.6f, 0f, lookAt: "Anchor_Player_Room"),
+            new ScenarioAnchorSpec("Anchor_Player_Room", 31.2f, 10.2f, 0f, lookAt: "Anchor_Daughter_Room"),
+            new ScenarioAnchorSpec("Anchor_Panel_Room", 30.4f, 9.4f, 1.45f, lookAt: "Anchor_Player_Room"),
+            new ScenarioAnchorSpec("Anchor_Speaker_Corridor", 35.0f, 5.0f, 2.8f, FaceNorth),
+            new ScenarioAnchorSpec("Anchor_Speaker_Room", 29.3f, 10.3f, 2.8f, lookAt: "Anchor_Player_Room"),
+            // Brancard (beeld 6): onderste gang naar het oosten, een boog van straal GurneyTurnRadius om de hoek (Jalils PathMover
+            // draait bij elk waypoint ter plaatse naar het volgende stuk), dan de rechtergang naar het noorden tot achter de dochter.
+            // Afwijking van het stappenplan: y 20,6 in plaats van 20,8 en een boog in plaats van één draaipunt op (34,3 / 20,8);
+            // ter plaatse draaien raakt met brancard en portier (2,4 m) de zuidmuur van de gang.
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Start", 29.0f, GurneyLaneY, 0f, FaceEast),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Corner_1", GurneyLaneX - GurneyTurnRadius, GurneyLaneY, 0f, lookAt: "Path_Gurney/Gurney_Corner_2"),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Corner_2", GurneyArc(30f).x, GurneyArc(30f).y, 0f, lookAt: "Path_Gurney/Gurney_Corner_3"),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Corner_3", GurneyArc(60f).x, GurneyArc(60f).y, 0f, lookAt: "Path_Gurney/Gurney_Turn"),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_Turn", GurneyLaneX, GurneyLaneY - GurneyTurnRadius, 0f, FaceNorth),
+            new ScenarioAnchorSpec("Path_Gurney/Gurney_End", GurneyLaneX, 6.6f, 0f, FaceNorth),
+        };
+
+        /// <summary>Volgorde van de waypoints van de brancard (namen onder Anchors).</summary>
+        public static readonly string[] GurneyRoute =
+        {
+            "Path_Gurney/Gurney_Start", "Path_Gurney/Gurney_Corner_1", "Path_Gurney/Gurney_Corner_2",
+            "Path_Gurney/Gurney_Corner_3", "Path_Gurney/Gurney_Turn", "Path_Gurney/Gurney_End",
+        };
+
+        public static ScenarioAnchorSpec Scenario2Anchor(string name) => Scenario2Anchors.First(a => a.Name == name);
+
+        /// <summary>Forward van een anker in het plan (genormaliseerd).</summary>
+        public static Vector2 Scenario2Facing(ScenarioAnchorSpec spec) =>
+            spec.LookAt == null ? spec.Facing.normalized : (Scenario2Anchor(spec.LookAt).Plan - spec.Plan).normalized;
+
+        // Brancard: rijlijn in de onderste gang (y) en in de rechtergang (x, aan de kant van de kernmuur), straal van de bocht
+        public const float GurneyLaneY = 20.6f;
+        public const float GurneyLaneX = 34.3f;
+        public const float GurneyTurnRadius = 1.0f;
+
+        /// <summary>Punt op de boog van de bocht: phi 0 = begin (rijdt oost), 90 = einde (rijdt noord).</summary>
+        public static Vector2 GurneyArc(float phi)
+        {
+            var center = new Vector2(GurneyLaneX - GurneyTurnRadius, GurneyLaneY - GurneyTurnRadius);
+            var r = phi * Mathf.Deg2Rad;
+            return center + GurneyTurnRadius * new Vector2(Mathf.Sin(r), Mathf.Cos(r));
+        }
+
+        // Klokpaneel (leeg scherm aan twee staafjes aan het plafond) en de onzichtbare versperring van de gang
+        public static readonly Vector2 CountdownPanelSize = new Vector2(0.7f, 0.26f);
+        public const float CountdownPanelDepth = 0.03f;
+        public const float BlockerDepth = 0.3f;
+        public const float BlockerHeight = 2.0f;
+        public const float DaughterColliderRadius = 0.3f;
+        public const float DaughterColliderHeight = 1.7f;
     }
 }

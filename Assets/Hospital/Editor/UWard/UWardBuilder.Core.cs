@@ -11,8 +11,8 @@ namespace ProCommVR.Editor
 {
     /// <summary>
     /// Fase 3: de kern. Balie en StaffStation in de hal (kopie van liam_test_scene, met dezelfde namen en ankers),
-    /// wachtstoelen, Floor2/NurseStation (leeg, voor Jalils scenario 3), briefingruimte, toiletten, rustruimte en
-    /// medicatiekamer. Het trappenhuis en de liften volgen in fase 4.
+    /// wachtstoelen, Floor2/NurseStation (leeg, voor Jalils scenario 3), briefingruimte, gesprekskamer (versie 8,
+    /// UWardBuilder.FamilyRoom.cs), toiletten, rustruimte en medicatiekamer. Het trappenhuis en de liften volgen in fase 4.
     /// </summary>
     public static partial class UWardBuilder
     {
@@ -65,6 +65,7 @@ namespace ProCommVR.Editor
                     Lock(door, spec.Segment.Length, StairsClosedReason);
             }
 
+            BuildFamilyRoom(Child(core, "FamilyRoom"));
             BuildBriefingRoom(Child(core, "BriefingRoom"));
             BuildToilet(Child(core, "Toilet_Men"), CoreRoom("Toilet_Men"), core.Find("Door_Toilet_Men"), "Men", false);
             BuildToilet(Child(core, "Toilet_Women"), CoreRoom("Toilet_Women"), core.Find("Door_Toilet_Women"), "Women", true);
@@ -223,7 +224,8 @@ namespace ProCommVR.Editor
                 }
             }
             AgainstWall("pottedPlant", furniture, "Plant_1", new Vector2(hall.X1, 12.5f), PlanEast);
-            AgainstWall("pottedPlant", furniture, "Plant_2", new Vector2(hall.X1, 14.6f), PlanEast);
+            // Versie 8: de halldeur van de briefingruimte ligt op y 14..15, dus deze plant staat er ten zuiden van
+            AgainstWall("pottedPlant", furniture, "Plant_2", new Vector2(hall.X1, 15.9f), PlanEast);
         }
 
         /// <summary>Vrije stukken (plan-y) langs de muur op x tussen from en to, met DoorClearance rond elke deur in die muur.</summary>
@@ -245,12 +247,15 @@ namespace ProCommVR.Editor
 
         // --- Briefingruimte -----------------------------------------------------------------
 
-        /// <summary>Tafel van 4,6 x 1,8 m met 8 stoelen, scherm aan de oostmuur, whiteboard aan de noordmuur, twee lampen.</summary>
+        /// <summary>
+        /// Tafel van 4,6 x 1,8 m met 8 stoelen, scherm aan de oostmuur, whiteboard aan de noordmuur (sinds versie 8 de muur met
+        /// de gesprekskamer), twee lampen. De tafel staat in het midden van de ruimte (plan 29,3 / 16,1).
+        /// </summary>
         private static void BuildBriefingRoom(Transform room)
         {
             var r = Inner(CoreRoom("BriefingRoom"));
             var furniture = Child(room, "Furniture");
-            var center = new Vector2(r.CenterX - 0.3f, r.CenterY);
+            var center = new Vector2(r.CenterX, r.CenterY);
             const float length = 4.6f, width = 1.8f, height = 0.74f, legInset = 0.15f;
 
             var table = Child(furniture, "Table");

@@ -86,6 +86,8 @@ Goed om te weten bij het plaatsen:
 | `WallClock` | Wijzers op de echte tijd; `SetTime(DateTime)` voor een vaste tijd |
 | `FloorGuideLight` | Kleur en puls van een lichtstrook in de gang |
 | `ItemSpots`, `RoomTint`, `EarGrow`, `MonitorScreen`, `PassingCart` | Losse stukken voor de 360°-afleidingen, zie hieronder |
+| `ScenarioAnchor` | Markeert een leeg anker van een scenario; tekent in de Scene-view een bol en een pijl (forward) |
+| `AlarmLamp` | Rode alarmlamp: `SetOn(bool)`, `Blink(float)`. In rust uit (lens Off, licht disabled) |
 
 ## Losse stukken voor de 360°-afleidingen
 
@@ -145,3 +147,23 @@ maar 4 extra lichten (Mobile_Renderer, Forward), daarom zijn vloer, plafond en l
 T-pose; in Play mode neemt de Animator het over. Controles op de opgeslagen scene (deuren in hun opening en naar binnen
 draaiend, sanitair en nachtkastjes juist gedraaid, personeel 0,8 m van de muren, houding van de patiënten in Play mode):
 **Window > General > Test Runner > EditMode > ProCommVR.Editor.Tests.UWardSceneTests** (`Editor/UWard/Tests/`).
+
+### Scenario 2 in de U-afdeling (de boze dochter)
+
+Alles wat het storyboard van scenario 2 nodig heeft, klaar voor als Jalils shift overstapt. Enkel plekken, props,
+personages en lichten; de spellogica (aftelklok, keuzes, paneel, tikgeluid, alarm, opnieuw spelen) blijft van Jalil.
+Welke constante van Jalil bij welk anker hoort: tabel **Scenario 2 in de U-afdeling** in `docs/Plattegrond/namen.md`.
+
+| Waar | Wat |
+| --- | --- |
+| `Core/FamilyRoom` | gesprekskamer (plattegrond v8, x 25..33,6, y 8..12,6), warm `Light`, deuren naar de hal en de rechtergang, bord met pictogram |
+| `Floor3/Room_3C` | pre-op kamer: `Props/Gown` (schort op het voeteneinde), klembord, gordijn half dicht, `Furniture/Bed/Anchor_BedEdge` |
+| `Characters/Patient_3C` | de vader op de bedrand: `Body_Pyjama` (aan) en `Body_Gown` (uit, `Materials/Patient_Gown_Top.mat`) |
+| `Scenarios/Scenario2_AngryDaughter/Anchors` | lege ankers (speler, dochter, panelen, klok, bord, luidsprekers, `Path_ToFamilyRoom`, `Path_Gurney`); waarden in `UWardLayout.Scenario2Anchors` |
+| `Scenarios/Scenario2_AngryDaughter/Actors` | `Daughter` (Visitor_Daughter, Angry), `Blocker_Corridor`, `Countdown_Mount` (leeg paneel), `Gurney` met `Porter` (INACTIEF) |
+| `Floor3/AlarmLights`, `Core/FamilyRoom/AlarmLight` | 4 rode alarmlampen, uit in rust. Test: **ProCommVR > Hospital > Test Alarm** |
+
+De toiletten zijn sinds versie 7 niet veranderd: `ToiletsUnchanged` vergelijkt ze met `Editor/UWard/Tests/UWardToiletReference.txt`.
+`Editor/UWard/Tests/UWardScenario2Report.cs` schrijft een tabel van alle paden van scenario 2 (plan- en Unity-coördinaten).
+Nog niet gedaan: een loop-animatie voor de dochter en de portier (ze schuiven nu); dat vraagt een nieuwe state in
+`Assets/Character` en eerst overleg met Jalil.

@@ -210,12 +210,13 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Statisch voor batching en later baked lighting, behalve deuren, liftdeuren, knoppen en de klok (die bewegen of reageren).
+        /// Statisch voor batching en later baked lighting, behalve deuren, liftdeuren, knoppen, de klok en de alarmlampen (die
+        /// bewegen, reageren of van materiaal wisselen).
         /// </summary>
         private static void MarkStatic(Transform t)
         {
             if (t.name.StartsWith("Door_") || t.name.StartsWith("LiftDoor") || t.name.StartsWith("LiftButton") ||
-                t.GetComponent<WallClock>() != null)
+                t.GetComponent<WallClock>() != null || t.GetComponent<AlarmLamp>() != null)
                 return;
             if (t.GetComponent<Light>() == null)
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject,

@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a993e0d9b74b1b4883d3367638bbc25, type: 3}
+  m_Name: FacePresets
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Face.FacePresets
+  _presets:
+  - Expression: 0
+    Weights: []
+  - Expression: 1
+    Weights:
+    - Shape: Smile
+      Weight: 100
+    - Shape: BrowsRaise
+      Weight: 25
+    - Shape: EyesNarrow
+      Weight: 15
+  - Expression: 2
+    Weights:
+    - Shape: BrowsSad
+      Weight: 100
+    - Shape: Frown
+      Weight: 60
+    - Shape: EyesNarrow
+      Weight: 25
+    - Shape: LookDown
+      Weight: 80
+  - Expression: 3
+    Weights:
+    - Shape: BrowsAngry
+      Weight: 100
+    - Shape: EyesNarrow
+      Weight: 60
+    - Shape: MouthTight
+      Weight: 60
+    - Shape: Frown
+      Weight: 45
+  - Expression: 4
+    Weights:
+    - Shape: BrowsSad
+      Weight: 70
+    - Shape: BrowsRaise
+      Weight: 50
+    - Shape: EyesWide
+      Weight: 40
+    - Shape: MouthTight
+      Weight: 30
+  - Expression: 5
+    Weights:
+    - Shape: BrowsRaise
+      Weight: 100
+    - Shape: EyesWide
+      Weight: 80
+    - Shape: MouthOpen
+      Weight: 55
+  - Expression: 6
+    Weights:
+    - Shape: EyesSqueeze
+      Weight: 100
+    - Shape: Grimace
+      Weight: 100
+    - Shape: BrowsSad
+      Weight: 100
+  - Expression: 7
+    Weights:
+    - Shape: BrowsSad
+      Weight: 100
+    - Shape: Blink
+      Weight: 60
+    - Shape: Frown
+      Weight: 80
+    - Shape: MouthOpen
+      Weight: 30
+    - Shape: Tears
+      Weight: 100
