@@ -577,7 +577,7 @@
   "debrief": {
     "moment_off_topic": "Je praatte over iets anders",
     "moment_no_label": "Je antwoord raakte haar niet",
-    "summary_mode": "model",
+    "summary_mode": "template",
     "summary_fallback": [
       {
         "min_score": 16,

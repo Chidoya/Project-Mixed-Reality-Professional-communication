@@ -42,7 +42,7 @@ Op de Quest: A en B op de rechtercontroller (geen XR-ray nodig). In de Editor: R
 De scores komen niet van een taalmodel maar uit de labels per beurt (regels per item in
 `Tools/AiServer/scenarios/angry_daughter.json`, `rubric[].scoring`), net als de feedback en de betere zinnen
 (`rubric[].feedback`, `rubric[].better_phrase`). Die teksten moeten nog nagelezen worden door een
-verpleegkundige. Alleen de samenvatting van 2 zinnen komt van het model. De nabespreking duurt 1 tot 2,5 s.
+verpleegkundige. De samenvatting van 2 zinnen wordt standaard gemaakt uit dezelfde vaste teksten (`summary_mode: "template"`); met `"model"` schrijft het taalmodel ze. De nabespreking duurt dan minder dan een seconde (met het model 1 tot 2,5 s).
 Screenshots: `docs/Screenshots/ai_debrief_goed.png`, `ai_debrief_slecht.png`
 en `ai_debrief_wachten.png`.
 

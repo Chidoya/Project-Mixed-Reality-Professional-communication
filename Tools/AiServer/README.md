@@ -107,11 +107,11 @@ labels). If that turn used the quote fallback, the item is `uncertain` (grey in 
 0, 1 and 2 and the better phrase are fixed texts in the scenario (`feedback`, `better_phrase`), to be checked
 by a nurse. Key moments: the 3 turns with the biggest change in anger, described with `moment_nl` per label.
 
-Only the 2-sentence summary comes from the model (`model_actor`, `summary_num_predict` 150, temperature 0.3).
+With `summary_mode: "model"` only the 2-sentence summary comes from the model (`model_actor`, `summary_num_predict` 150, temperature 0.3).
 Python picks the strength (first item with 2 that was really done) and the point to work on (first 0), the
 model only phrases them. Not Dutch, not 'je', not 2 sentences: one retry; failed or slower than
 `summary_timeout_seconds` (8): a fixed sentence from `summary_fallback`. No strength at all: the fixed
-sentence directly. `summary_mode: "template"` builds the summary from the fixed feedback, without a model.
+sentence directly. `summary_mode` is `"template"` by default: the summary is built from the fixed feedback of the strength and the point to work on, without a model (instant). Set it to `"model"` to let the actor model phrase it.
 
 Response: `{summary, summary_source (model | fallback | template), items: [{id, criterion_nl, score,
 uncertain, evidence_quote, evidence_turn, feedback, better_phrase, why}], total_score, max_score,

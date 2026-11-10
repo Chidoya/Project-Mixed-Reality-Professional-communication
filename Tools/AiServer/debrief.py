@@ -220,7 +220,7 @@ def run_debrief(llm: LlmClient, session) -> dict[str, Any]:
     cfg = sc.data.get("debrief", {})
     notes: list[str] = []
     t = time.perf_counter()
-    if cfg.get("summary_mode", "model") == "template":
+    if cfg.get("summary_mode", "template") == "template":
         # No model: the fixed feedback of the strongest and the weakest item
         strength, weakness = strength_and_weakness(items)
         if strength is None:
