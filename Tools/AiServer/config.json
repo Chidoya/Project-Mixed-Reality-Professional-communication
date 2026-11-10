@@ -8,5 +8,19 @@
   "temperature_judge": 0,
   "keep_alive": "30m",
   "request_timeout_seconds": 120,
-  "port": 8765
+  "port": 8765,
+  "stt_model": "small.en",
+  "stt_language": "en",
+  "stt_try_gpu": true,
+  "stt_min_words": 2,
+  "stt_beam_size": 5,
+  "stt_cpu_threads": 8,
+  "tts_voice": "en_US-amy-medium",
+  "tts_length_scale_by_band": {
+    "VERY_HIGH": 0.85,
+    "HIGH": 0.9,
+    "MID": 1.0,
+    "LOW": 1.1
+  },
+  "models_dir": "models"
 }

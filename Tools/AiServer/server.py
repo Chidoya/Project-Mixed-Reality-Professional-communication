@@ -4,33 +4,41 @@ Start:  .venv\\Scripts\\python server.py      (see README.md)
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from engine import Engine, Session, SessionEndedError
 from llm_client import LlmClient, LlmUnavailableError
+from speech import SpeechToText, TextToSpeech, timed
 
 HERE = Path(__file__).resolve().parent
 CONFIG = json.loads((HERE / "config.json").read_text(encoding="utf-8"))
 SESSIONS_DIR = HERE / "sessions"
+MODELS_DIR = HERE / CONFIG.get("models_dir", "models")
+MAX_AUDIO_BYTES = 10 * 1024 * 1024  # about 5 minutes of 16 kHz mono 16-bit
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)
 log = logging.getLogger("aiserver")
 
 llm = LlmClient(CONFIG)
 engine = Engine(llm, HERE / "scenarios")
 sessions: dict[str, Session] = {}
+stt: Optional[SpeechToText] = None
+tts: Optional[TextToSpeech] = None
 
 
-def warm_up() -> None:
+def warm_up_llm() -> None:
     """Load the model(s) into memory with a tiny request, so the first turn is fast."""
     schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
     warmed: set[str] = set()
@@ -45,8 +53,13 @@ def warm_up() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global stt, tts
+    stt = SpeechToText(CONFIG, MODELS_DIR)  # loaded once
+    tts = TextToSpeech(CONFIG, MODELS_DIR)
+    _, ms = timed(tts.synthesize, "Hello.")
+    log.info("warm-up text to speech done in %d ms", ms)
     try:
-        warm_up()
+        warm_up_llm()
     except LlmUnavailableError as exc:
         log.error("WARM-UP FAILED: %s", exc)
         log.error("The server keeps running, but every turn will fail until Ollama is available.")
@@ -78,9 +91,21 @@ def get_session(session_id: str) -> Session:
     return session
 
 
+def speak(text: str, band: str) -> tuple[str, int]:
+    wav, ms = timed(tts.synthesize, text, band)
+    return base64.b64encode(wav).decode("ascii"), ms
+
+
 @app.get("/health")
 def health():
-    return {"ok": True, "models": llm.models, "sessions": len(sessions)}
+    return {
+        "ok": True,
+        "models": llm.models,
+        "stt": {"model": stt.model_name, "device": stt.device, "compute_type": stt.compute_type,
+                "fallback_reason": stt.fallback_reason},
+        "tts": {"voice": tts.voice_name},
+        "sessions": len(sessions),
+    }
 
 
 @app.post("/session/start")
@@ -89,6 +114,7 @@ def session_start(req: StartRequest):
         session, opening = engine.start_session(req.scenario_id)
     except FileNotFoundError:
         raise HTTPException(404, f"unknown scenario {req.scenario_id}")
+    opening["audio_wav_base64"], opening["tts_ms"] = speak(opening["reply"], opening["band"])
     sessions[session.id] = session
     log.info("session %s started (%s)", session.id, req.scenario_id)
     return {"session_id": session.id, "opening": opening}
@@ -99,9 +125,54 @@ def turn_text(req: TurnRequest):
     session = get_session(req.session_id)
     with session.lock:
         try:
-            return engine.run_turn(session, req.text)
+            result = engine.run_turn(session, req.text)
         except SessionEndedError as exc:
             raise HTTPException(409, str(exc))
+    result["input"] = "text"
+    return result
+
+
+@app.post("/turn/audio")
+def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
+    """wav -> text -> the same turn as /turn/text -> reply as wav.
+
+    The uploaded wav is only kept in memory and dropped at the end of this request.
+    """
+    t_start = time.perf_counter()
+    session = get_session(session_id)
+    wav_bytes = audio.file.read(MAX_AUDIO_BYTES + 1)
+    if len(wav_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(413, "audio too long")
+    try:
+        transcript, stt_ms = timed(stt.transcribe, wav_bytes)
+    except Exception as exc:  # noqa: BLE001 - bad or non-wav upload
+        raise HTTPException(400, f"could not read the wav: {exc}")
+    finally:
+        del wav_bytes  # never stored
+        audio.file.close()
+
+    if len(transcript.split()) < CONFIG.get("stt_min_words", 2):
+        log.info("audio turn %s: transcript too short (%r), asking for retry", session_id, transcript)
+        return {"retry": True, "transcript": transcript, "timings_ms": {"stt_ms": stt_ms}}
+
+    with session.lock:
+        try:
+            result = engine.run_turn(session, transcript)
+        except SessionEndedError as exc:
+            raise HTTPException(409, str(exc))
+        result["input"] = "audio"
+        result["transcript"] = transcript
+        audio_b64, tts_ms = speak(result["reply"], result["band"])
+        # result is the same dict that is stored in the session log, so the log gets these too
+        timings = result["timings_ms"]
+        timings["stt_ms"] = stt_ms
+        timings["tts_ms"] = tts_ms
+        timings["request_total_ms"] = int((time.perf_counter() - t_start) * 1000)
+    log.info("audio turn %d %s: stt %d ms, turn %d ms, tts %d ms, total %d ms", result["turn"],
+             session_id, stt_ms, timings["total_ms"], tts_ms, timings["request_total_ms"])
+    response = dict(result)  # audio only in the response, not in the session log
+    response["audio_wav_base64"] = audio_b64
+    return response
 
 
 @app.post("/session/{session_id}/end")
@@ -112,8 +183,8 @@ def session_end(session_id: str):
             session.ended = "stopped"
         SESSIONS_DIR.mkdir(exist_ok=True)
         path = SESSIONS_DIR / f"{session.id}.json"
-        path.write_text(json.dumps(engine.transcript(session), indent=2, ensure_ascii=False),
-                        encoding="utf-8")
+        transcript = engine.transcript(session)
+        path.write_text(json.dumps(transcript, indent=2, ensure_ascii=False), encoding="utf-8")
     sessions.pop(session_id, None)
     log.info("session %s saved to %s", session_id, path)
     return {"saved": str(path), "end_reason": session.ended, "turns": len(session.turns)}

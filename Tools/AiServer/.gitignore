@@ -2,3 +2,4 @@ sessions/
 .venv/
 __pycache__/
 *.pyc
+models/
