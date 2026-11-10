@@ -1,6 +1,18 @@
 {
   "id": "angry_daughter",
   "title": "Angry daughter in the waiting area",
+  "tension_name": "anger",
+  "character_model": "Visitor_Daughter",
+  "voice": {
+    "piper": "en_US-amy-medium",
+    "length_scale_by_band": {
+      "VERY_HIGH": 0.85,
+      "HIGH": 0.9,
+      "MID": 1.0,
+      "LOW": 1.1
+    }
+  },
+  "facts_instruction": "do not mention anything else about your family or your father's health",
   "language": "en",
   "student_role": "a nurse on the surgical ward who walks up to her in the waiting area",
   "persona": {
@@ -18,7 +30,7 @@
   },
   "opening": {
     "reply": "You don't care about your patients at all!",
-    "anger": 72,
+    "tension": 72,
     "trust": 20,
     "emotion": "Angry",
     "animation": "Angry",
@@ -67,10 +79,10 @@
       "actor_goal": "You need to vent. You are not ready for information yet; you want to be heard first.",
       "next": "B2_information",
       "condition": {
-        "anger_lt": 60,
         "labels_ever_all": [
           "named_emotion"
-        ]
+        ],
+        "tension_lt": 60
       }
     },
     {
@@ -78,11 +90,11 @@
       "actor_goal": "You feel a little heard. Now you want concrete, honest information about your father and what happens next.",
       "next": "B3_agreement",
       "condition": {
-        "anger_lt": 45,
         "labels_ever_any": [
           "gave_concrete_timeline",
           "offered_concrete_next_step"
-        ]
+        ],
+        "tension_lt": 45
       }
     },
     {
@@ -90,12 +102,12 @@
       "actor_goal": "You are willing to make an agreement. Check that the plan is real and say what you need.",
       "next": "END",
       "condition": {
-        "anger_lt": 30,
         "labels_this_turn_any": [
           "summarized",
           "offered_concrete_next_step",
           "gave_concrete_timeline"
-        ]
+        ],
+        "tension_lt": 30
       }
     },
     {
@@ -108,38 +120,38 @@
   "bands": [
     {
       "name": "VERY_HIGH",
-      "min_anger": 80,
       "instruction": "raises voice, very short sentences, interrupts, demands the surgeon",
       "allowed_emotions": [
         "Angry"
-      ]
+      ],
+      "min_tension": 80
     },
     {
       "name": "HIGH",
-      "min_anger": 55,
       "instruction": "sharp and accusing, short sentences",
       "allowed_emotions": [
         "Angry"
-      ]
+      ],
+      "min_tension": 55
     },
     {
       "name": "MID",
-      "min_anger": 30,
       "instruction": "still upset but listens, asks pointed questions",
       "allowed_emotions": [
         "Angry",
         "Worried"
-      ]
+      ],
+      "min_tension": 30
     },
     {
       "name": "LOW",
-      "min_anger": 0,
       "instruction": "tired and worried, softer, may show fear for her father",
       "allowed_emotions": [
         "Worried",
         "Sad",
         "Neutral"
-      ]
+      ],
+      "min_tension": 0
     }
   ],
   "emotion_to_animation": {
@@ -157,72 +169,63 @@
     "max_increase_per_turn": 20,
     "thresholds": [
       {
-        "stat": "anger",
+        "stat": "tension",
         "floor": 40,
         "until_label_ever": "explained_delay"
       }
     ],
     "off_topic_or_unsafe_effect": {
-      "anger": 5,
+      "tension": 5,
       "trust": 0
     }
   },
   "labels": [
     {
       "name": "introduced_self",
-      "anger": -3,
+      "tension": -3,
       "trust": 5,
-      "description": "Says their own name and/or role.",
-      "moment_nl": "Je stelde je voor"
+      "example": ""
     },
     {
       "name": "named_emotion",
-      "anger": -8,
+      "tension": -8,
       "trust": 8,
-      "description": "Names her feeling with a feeling word: angry, scared, worried, frustrated, afraid.",
-      "example": "I can see you're really angry, and probably scared for your father.",
-      "moment_nl": "Je benoemde haar emotie"
+      "example": "I can see you're really angry, and probably scared for your father."
     },
     {
       "name": "named_emotion_partial",
-      "anger": -3,
+      "tension": -3,
       "trust": 3,
-      "description": "Hints at her state WITHOUT a feeling word ('this must be a lot').",
-      "example": "This must be a lot for you.",
-      "moment_nl": "Je verwees naar haar gevoel"
+      "example": "This must be a lot for you."
     },
     {
       "name": "acknowledged_wait",
-      "anger": -6,
+      "tension": -6,
       "trust": 6,
       "description": "Acknowledges she waited long without information.",
       "moment_nl": "Je erkende het lange wachten"
     },
     {
       "name": "apologized_sincerely",
-      "anger": -6,
+      "tension": -6,
       "trust": 6,
-      "description": "A specific, sincere apology without 'but' and an excuse.",
-      "moment_nl": "Je bood oprecht je excuses aan"
+      "example": ""
     },
     {
       "name": "summarized",
-      "anger": -6,
+      "tension": -6,
       "trust": 6,
-      "description": "Repeats back what SHE said (the facts) and/or checks if they understood it.",
-      "example": "So if I understand you correctly, nobody told you anything and you don't know where he is, is that right?",
-      "moment_nl": "Je vatte samen wat ze zei"
+      "example": "So if I understand you correctly, nobody told you anything and you don't know where he is, is that right?"
     },
     {
       "name": "asked_open_question",
-      "anger": -4,
+      "tension": -4,
       "trust": 5,
-      "description": "Open question (what/how/why) about her, her worry or her father.",
-      "moment_nl": "Je stelde een open vraag"
+      "example": ""
     },
     {
       "name": "explained_delay",
-      "anger": -8,
+      "tension": -8,
       "trust": 6,
       "description": "Gives a reason why it is taking long (e.g. an earlier operation ran late).",
       "example": "The operation before your father's took longer than planned, that's why everything is running late.",
@@ -230,91 +233,76 @@
     },
     {
       "name": "gave_concrete_timeline",
-      "anger": -10,
+      "tension": -10,
       "trust": 10,
-      "description": "A concrete time or number of minutes.",
-      "example": "He's scheduled to go to the operating room in about twenty minutes.",
-      "moment_nl": "Je gaf een concreet tijdstip"
+      "example": "He's scheduled to go to the operating room in about twenty minutes."
     },
     {
       "name": "offered_concrete_next_step",
-      "anger": -10,
+      "tension": -10,
       "trust": 10,
-      "description": "A concrete action the student will take, ideally with when.",
-      "example": "I'll call the OR now and I'll come back to you within ten minutes with an answer.",
-      "moment_nl": "Je beloofde een concrete volgende stap"
+      "example": "I'll call the OR now and I'll come back to you within ten minutes with an answer."
     },
     {
       "name": "offered_support",
-      "anger": -5,
+      "tension": -5,
       "trust": 5,
-      "description": "Offers comfort: a seat, water, someone to call, a visit.",
-      "moment_nl": "Je bood steun aan"
+      "example": ""
     },
     {
       "name": "set_boundary_respectfully",
-      "anger": -2,
+      "tension": -2,
       "trust": 2,
-      "description": "Calmly and kindly limits her behaviour (shouting).",
-      "moment_nl": "Je stelde rustig een grens"
+      "example": ""
     },
     {
       "name": "said_calm_down",
-      "anger": 10,
+      "tension": 10,
       "trust": -8,
-      "description": "Tells her to calm down or relax.",
-      "moment_nl": "Je zei dat ze moest kalmeren"
+      "example": ""
     },
     {
       "name": "dismissive",
-      "anger": 8,
+      "tension": 8,
       "trust": -8,
-      "description": "Minimizes her feelings or problem, brushes her off.",
-      "moment_nl": "Je minimaliseerde haar zorgen"
+      "example": ""
     },
     {
       "name": "blamed_others_or_system",
-      "anger": 6,
+      "tension": 6,
       "trust": -5,
       "description": "Blames colleagues, doctors, the hospital, or 'not my fault'.",
       "moment_nl": "Je schoof de schuld door"
     },
     {
       "name": "jargon",
-      "anger": 4,
+      "tension": 4,
       "trust": -3,
-      "description": "Medical terms or abbreviations (pre-op, ASA, NPO); everyday words are not jargon.",
-      "example": "He's pre-op, waiting for the anesthesiologist to clear his ASA status.",
-      "moment_nl": "Je gebruikte vakjargon"
+      "example": "He's pre-op, waiting for the anesthesiologist to clear his ASA status."
     },
     {
       "name": "false_promise",
-      "anger": 3,
+      "tension": 3,
       "trust": -10,
-      "description": "Promises something they cannot know or guarantee.",
-      "moment_nl": "Je deed een belofte die je niet kunt waarmaken"
+      "example": ""
     },
     {
       "name": "interrupted",
-      "anger": 5,
+      "tension": 5,
       "trust": -4,
-      "description": "Cuts her off or talks over her ('yes yes, but').",
-      "moment_nl": "Je onderbrak haar"
+      "example": ""
     },
     {
       "name": "defensive",
-      "anger": 7,
+      "tension": 7,
       "trust": -6,
-      "description": "Defends self or ward instead of listening ('we do our best').",
-      "example": "That's not true, we do care, we work very hard here.",
-      "moment_nl": "Je ging in de verdediging"
+      "example": "That's not true, we do care, we work very hard here."
     },
     {
       "name": "no_response",
-      "anger": 6,
+      "tension": 6,
       "trust": -4,
-      "description": "Says nothing meaningful ('uh', 'okay').",
-      "moment_nl": "Je zei niets"
+      "example": ""
     }
   ],
   "fallback_lines": [
@@ -540,7 +528,7 @@
         "positive": [
           "set_boundary_respectfully"
         ],
-        "two_if_anger_never_above": 85
+        "two_if_tension_never_above": 85
       },
       "feedback": {
         "0": "Ze werd heel boos en je stelde geen grens. Zeg rustig wat je wel en niet aanvaardt.",

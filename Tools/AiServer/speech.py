@@ -125,30 +125,46 @@ class SpeechToText:
 
 
 class TextToSpeech:
+    """Piper voices, one per character. The default voice comes from config.json; a scenario can name its own
+    ("voice": {"piper": ..., "length_scale_by_band": {...}}). Missing voices are downloaded once."""
+
     def __init__(self, config: dict[str, Any], models_dir: Path):
+        self.voice_name = config.get("tts_voice", "en_US-amy-medium")
+        self.length_scale_by_band: dict[str, float] = config.get("tts_length_scale_by_band", {})
+        self.voices_dir = models_dir / "piper"
+        self.voices_dir.mkdir(parents=True, exist_ok=True)
+        self._voices: dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self.voice = self.load(self.voice_name)
+
+    def load(self, name: str):
+        """Load (and if needed download) a Piper voice; cached."""
         from piper import PiperVoice
         from piper.download_voices import download_voice
 
-        self.voice_name = config.get("tts_voice", "en_US-amy-medium")
-        self.length_scale_by_band: dict[str, float] = config.get("tts_length_scale_by_band", {})
-        voices_dir = models_dir / "piper"
-        voices_dir.mkdir(parents=True, exist_ok=True)
-        model_path = voices_dir / f"{self.voice_name}.onnx"
-        if not model_path.exists() or not (voices_dir / f"{self.voice_name}.onnx.json").exists():
-            log.info("Downloading Piper voice %s ...", self.voice_name)
-            download_voice(self.voice_name, voices_dir)
-        self.voice = PiperVoice.load(model_path)
-        self._lock = threading.Lock()
-        log.info("Text to speech ready: Piper %s (%d Hz)", self.voice_name, self.voice.config.sample_rate)
+        if name in self._voices:
+            return self._voices[name]
+        model_path = self.voices_dir / f"{name}.onnx"
+        if not model_path.exists() or not (self.voices_dir / f"{name}.onnx.json").exists():
+            log.info("Downloading Piper voice %s ...", name)
+            download_voice(name, self.voices_dir)
+        voice = PiperVoice.load(model_path)
+        self._voices[name] = voice
+        log.info("Text to speech ready: Piper %s (%d Hz)", name, voice.config.sample_rate)
+        return voice
 
-    def synthesize(self, text: str, band: str | None = None) -> bytes:
+    def synthesize(self, text: str, band: str | None = None, voice: str | None = None,
+                   length_scale_by_band: dict[str, float] | None = None) -> bytes:
         """Return the spoken text as wav bytes (mono, 16-bit, the voice's sample rate)."""
         from piper import SynthesisConfig
 
-        length_scale = self.length_scale_by_band.get(band or "", 1.0)
+        scales = length_scale_by_band if length_scale_by_band is not None else self.length_scale_by_band
+        length_scale = scales.get(band or "", 1.0)
         buf = io.BytesIO()
-        with self._lock, wave.open(buf, "wb") as w:
-            self.voice.synthesize_wav(text, w, syn_config=SynthesisConfig(length_scale=length_scale))
+        with self._lock:
+            piper_voice = self.load(voice or self.voice_name)
+            with wave.open(buf, "wb") as w:
+                piper_voice.synthesize_wav(text, w, syn_config=SynthesisConfig(length_scale=length_scale))
         return buf.getvalue()
 
 

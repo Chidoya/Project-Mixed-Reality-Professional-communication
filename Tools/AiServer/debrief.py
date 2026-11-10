@@ -5,7 +5,10 @@ Per rubric item the scenario says how to score it ("scoring"):
   partial   labels: 1 if only those fell
   avoid     labels: 2 if they NEVER fell, 0 if they fell (the quote of that turn is the evidence)
   score_if_neither: score when an item has both positive and avoid labels and neither fell
-  two_if_anger_never_above: 2 if anger never went above this value (e.g. a boundary was not needed)
+  two_if_tension_never_above: 2 if the tension never went above this value (e.g. a boundary was not
+                              needed); the old name two_if_anger_never_above also works
+A critical error (a label with "critical": true that ended the scenario) is put at the top of the debrief
+and replaces the summary.
   two_if_phase_reached:     2 if the conversation reached this phase
   one_if_positive_earlier:  1 if a positive label fell, but not in the last N turns
 The quote is the classifier's evidence_quote of the turn where the label fell; if that turn used the
@@ -79,6 +82,7 @@ def score_item(item: dict, log: list[dict], phases: list[str], opening_anger: in
     rule = item["scoring"]
     positive, partial, avoid = rule.get("positive", []), rule.get("partial", []), rule.get("avoid", [])
     last_n = rule.get("positive_in_last_turns")
+    limit = rule.get("two_if_tension_never_above", rule.get("two_if_anger_never_above"))
     score, hit, why = 0, None, ""
 
     avoid_hit = _first_hit(log, avoid) if avoid else None
@@ -95,8 +99,8 @@ def score_item(item: dict, log: list[dict], phases: list[str], opening_anger: in
     elif partial_hit:
         score, hit = 1, partial_hit
         why = "partial label " + ", ".join(sorted(set(partial) & set(partial_hit["labels"])))
-    elif "two_if_anger_never_above" in rule and max([opening_anger] + [r["anger"][1] for r in log]) <= rule["two_if_anger_never_above"]:
-        score, why = 2, f"anger never above {rule['two_if_anger_never_above']} (not needed)"
+    elif limit is not None and max([opening_anger] + [r["anger"][1] for r in log]) <= limit:
+        score, why = 2, f"tension never above {limit} (not needed)"
     elif "two_if_phase_reached" in rule and rule["two_if_phase_reached"] in phases and any(
             r["phase"] in phases and phases.index(r["phase"]) >= phases.index(rule["two_if_phase_reached"]) for r in log):
         score, why = 2, f"phase {rule['two_if_phase_reached']} reached"
@@ -220,6 +224,10 @@ def run_debrief(llm: LlmClient, session) -> dict[str, Any]:
     cfg = sc.data.get("debrief", {})
     notes: list[str] = []
     t = time.perf_counter()
+    if session.critical:
+        # A critical error ended the scenario: that is the message, at the top and as the summary
+        summary = session.critical.get("feedback") or _fallback_summary(sc, total)
+        return _result(session, sc, log, items, moments, total, summary, "critical", notes, t_start, t_scores, t)
     if cfg.get("summary_mode", "template") == "template":
         # No model: the fixed feedback of the strongest and the weakest item
         strength, weakness = strength_and_weakness(items)
@@ -258,6 +266,8 @@ def _result(session, sc, log, items, moments, total, summary, source, notes, t_s
         "session_id": session.id,
         "scenario_id": sc.id,
         "end_reason": session.ended or "stopped",
+        "tension_name": sc.tension_name,
+        "critical": session.critical,
         "summary": summary,
         "summary_source": source,
         "items": items,

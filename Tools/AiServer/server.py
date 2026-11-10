@@ -46,6 +46,10 @@ async def lifespan(app: FastAPI):
     tts = TextToSpeech(CONFIG, MODELS_DIR)
     _, ms = timed(tts.synthesize, "Hello.")
     log.info("warm-up text to speech done in %d ms", ms)
+    for path in sorted((HERE / "scenarios").glob("*.json")):  # every character's voice, downloaded once
+        voice = engine.scenario(path.stem).voice().get("piper")
+        if voice:
+            tts.load(voice)
     try:
         for line in engine.warm_up():
             log.info(line)
@@ -80,8 +84,10 @@ def get_session(session_id: str) -> Session:
     return session
 
 
-def speak(text: str, band: str) -> tuple[str, int]:
-    wav, ms = timed(tts.synthesize, text, band)
+def speak(text: str, band: str, session: Session) -> tuple[str, int]:
+    """Speak with the voice of the session's character (scenario "voice"), or the default voice."""
+    voice = session.scenario.voice()
+    wav, ms = timed(tts.synthesize, text, band, voice.get("piper"), voice.get("length_scale_by_band"))
     return base64.b64encode(wav).decode("ascii"), ms
 
 
@@ -103,7 +109,7 @@ def session_start(req: StartRequest):
         session, opening = engine.start_session(req.scenario_id)
     except FileNotFoundError:
         raise HTTPException(404, f"unknown scenario {req.scenario_id}")
-    opening["audio_wav_base64"], opening["tts_ms"] = speak(opening["reply"], opening["band"])
+    opening["audio_wav_base64"], opening["tts_ms"] = speak(opening["reply"], opening["band"], session)
     opening["time_limit_seconds"] = session.scenario.data.get("time_limit_seconds", 0)
     opening["time_up_line"] = session.scenario.data.get("time_up_line", "")
     sessions[session.id] = session
@@ -153,7 +159,7 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
             raise HTTPException(409, str(exc))
         result["input"] = "audio"
         result["transcript"] = transcript
-        audio_b64, tts_ms = speak(result["reply"], result["band"])
+        audio_b64, tts_ms = speak(result["reply"], result["band"], session)
         # result is the same dict that is stored in the session log, so the log gets these too
         timings = result["timings_ms"]
         timings["stt_ms"] = stt_ms
@@ -164,6 +170,34 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
     response = dict(result)  # audio only in the response, not in the session log
     response["audio_wav_base64"] = audio_b64
     return response
+
+
+class EventRequest(BaseModel):
+    event: str  # e.g. "curtain_closed", "stepped_back" (see the scenario's "events")
+
+
+@app.get("/scenarios")
+def list_scenarios():
+    """The scenarios the server knows (id, title, character model in Assets/Character, tension name)."""
+    out = []
+    for path in sorted((HERE / "scenarios").glob("*.json")):
+        sc = engine.scenario(path.stem)
+        out.append({"id": sc.id, "title": sc.data.get("title", sc.id), "number": sc.data.get("number"),
+                    "character_model": sc.data.get("character_model"), "tension_name": sc.tension_name})
+    return out
+
+
+@app.post("/session/{session_id}/event")
+def session_event(session_id: str, req: EventRequest):
+    """A non-verbal action from Unity (no speech, no reply): only the effect from the scenario's "events"."""
+    session = get_session(session_id)
+    with session.lock:
+        try:
+            return engine.apply_event(session, req.event)
+        except KeyError:
+            raise HTTPException(404, f"unknown event {req.event} for scenario {session.scenario.id}")
+        except SessionEndedError as exc:
+            raise HTTPException(409, str(exc))
 
 
 class EndRequest(BaseModel):
