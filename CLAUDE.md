@@ -151,6 +151,23 @@ Code (C#)
   op `main`; `Jalil` en `Liam` zijn op 2026-10-12 bijgewerkt naar `main`. Nog geen `.gitattributes`/LFS,
   geen XR packages, geen README, geen branch protection gecontroleerd.
   Scenario, rollen en data nog niet beslist.
+- 2026-11-10/11 (Liam): vrij gesprek met AI, als variant naast Jalils keuzeknoppen.
+  - `Tools/AiServer` (Python, buiten `Assets/`): lokale server met FastAPI, Ollama (`qwen3.5:4b`),
+    faster-whisper (spraak naar tekst, GPU) en Piper (stem per personage). Per beurt: labels
+    classificeren, spanning en vertrouwen in Python, antwoord van het personage, checks in Python
+    (geen herhaling, geen verzonnen tijden of namen), stem. Alles loopt lokaal op de laptop.
+  - Alle 5 scenario's van Jalil als JSON in `Tools/AiServer/scenarios/` (1, 3, 4 en 5 zijn concepten
+    die nog nagelezen moeten worden door een docent verpleegkunde). Kritieke fouten (vals ontslag,
+    valse hoop, diagnose hardop) beëindigen het scenario meteen.
+  - Nabespreking: scores in Python uit de labels per beurt, vaste Nederlandse feedback per rubric-item,
+    3 belangrijke momenten, samenvatting uit vaste teksten. Duurt minder dan een seconde.
+  - Unity (`Assets/Hospital/Scripts/AiTalk/`): push-to-talk (spatie, rechtertrigger), `AiNpc` stuurt gezicht,
+    animatie, kijkrichting, mond en stem; nabesprekingspaneel (A/B, R/Enter); testscene
+    `Assets/Scenes/liam_ai_gesprek_test.unity` met scenariokiezer (toetsen 1-5, linker joystick).
+  - Branches `feature/liam/ai-gesprek` en `feature/liam/ai-gesprek-unity` staan als back-up op origin,
+    nog geen PR naar `Liam`. Uitleg: `docs/ai_gesprek.md` en `Tools/AiServer/README.md`.
+  - Nog niet getest: echte microfoon, Quest (knoppen, joystick, headset). De Unity Editor maakt de server
+    ongeveer 2x trager (gedeelde GPU); op een losse Quest speelt dat niet.
 
 ## Beslissingen
 
@@ -159,11 +176,20 @@ Code (C#)
 | 2026-10-12 | Unity 6000.3.9f1 + URP | Zelfde versie voor beide developers, URP geschikt voor Quest |
 | 2026-10-12 | Git workflow volgens `instructie.md` (feature, persoonlijke branch, main) | Veilig werken met een agent, `main` blijft stabiel |
 | 2026-10-12 | Notion voor planning, GitHub voor code | Gekoppeld via het veld "GitHub Issue" |
+| 2026-11-10 | Vrij gesprek via een lokale AI-server (`Tools/AiServer`), niet in de cloud | Gratis, geen patiëntgesprekken naar externe diensten, werkt zonder internet |
+| 2026-11-10 | Ollama met `qwen3.5:4b`, faster-whisper `small.en` (GPU) en Piper | Snel genoeg op de laptop (ongeveer 3 s per beurt), alles lokaal |
+| 2026-11-10 | Ollama via `127.0.0.1`, niet `localhost` | Op Windows kost `localhost` (IPv6 eerst) 2 s per nieuwe verbinding |
+| 2026-11-10 | Alle scenario-inhoud in JSON (`Tools/AiServer/scenarios/`), geen scenario-code in C# | Niet-IT teamleden kunnen scenario's aanpassen; één `AiNpc` voor alle personages |
+| 2026-11-10 | Nabespreking: scores in Python uit de labels, vaste feedbackteksten, samenvatting uit sjabloon (`summary_mode: template`) | Het 4B-model beoordeelde onbetrouwbaar en traag (25-75 s); nu juist en direct |
+| 2026-11-11 | Kritieke labels tellen alleen met een sleutelwoord (`critical_requires_any`) | Een fout label mag een scenario niet onterecht beëindigen |
+| 2026-11-11 | Acteur-checks in Python: geen herhaalde zinnen, tijden en namen alleen uit de feiten of van de student | Het 4B-model herhaalde zinnen en verzon tijden en namen |
 
 ## Open vragen
 
 - Welk scenario kiezen we?
-- Hoe "praat" de student: keuzemenu, spraak naar tekst, of een combinatie?
+- Hoe "praat" de student: keuzemenu, spraak naar tekst, of een combinatie? Beide bestaan nu (Jalils knoppen,
+  Liams vrij gesprek); Liam en Jalil spreken af hoe de shift per scenario kiest.
+- Wie leest de AI-scenario's en feedbackteksten na (inhoudsexpert of docent verpleegkunde)?
 - Welke XR-aanpak: XR Interaction Toolkit + OpenXR of Meta XR SDK?
 - Branches hernoemen naar `jalil` en `liam` (kleine letters), zodat ze overeenkomen met `instructie.md`?
 - Git LFS instellen, en voor welke bestandstypes?
