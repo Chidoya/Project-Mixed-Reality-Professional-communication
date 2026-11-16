@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc7112960f03dda47bbcce43da3415aa, type: 3}
+  m_Name: EmotionWorld_Joy
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Emotions.EmotionWorldProfile
+  _emotion: 0
+  _colorFilter: {r: 0.97, g: 1, b: 0.92, a: 1}
+  _saturation: 25
+  _postExposure: 0.45
+  _vignetteIntensity: 0.1
+  _vignetteColor: {r: 0, g: 0, b: 0, a: 1}
+  _vignettePulseRate: 0
+  _vignettePulseAmount: 0
+  _lightTint: {r: 1, g: 0.95, b: 0.82, a: 1}
+  _lightIntensity: 1.6
+  _ambientTint: {r: 1.05, g: 1.05, b: 0.9, a: 1}
+  _ambientIntensity: 1.5
+  _fog: 0
+  _fogColor: {r: 0, g: 0, b: 0, a: 0}
+  _fogDensity: 0
+  _effects: 0000000001000000
+  _sound: {fileID: 8300000, guid: 4ff4fc480785c53409a5571dc3e3573d, type: 3}
+  _soundVolume: 0.25

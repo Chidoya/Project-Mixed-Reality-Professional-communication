@@ -73,6 +73,7 @@ namespace ProCommVR.Editor.Testing
                 case "avatar": return PlayerAvatarTest();
                 case "pov": return PovSwitch();
                 case "hud": return EmotionHudTest();
+                case "world": return EmotionWorldTest();
                 case "shift": return ShiftLoop(false);
                 case "shift-timeout": return ShiftLoop(true);
                 case "s2-good": return Scenario02("consultation-room", Answer.Best);
