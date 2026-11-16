@@ -110,7 +110,10 @@ namespace ProCommVR.Editor
             eyes.SetParent(patient, false);
             eyes.localPosition = new Vector3(0f, 0.6f, 0.45f);
             eyes.localRotation = Quaternion.identity;
-            PovSetup.AddToScene(presenter, patient, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>(), eyes);
+            var pov = PovSetup.AddToScene(presenter, patient, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>(), eyes);
+
+            // The patient's emotions, only in the patient view.
+            EmotionHudSetup.AddToScene(emotions, pov);
 
             Debug.Log($"[ProCommVR] Patient room built, wall height {wallHeight:F2} m.");
             ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);

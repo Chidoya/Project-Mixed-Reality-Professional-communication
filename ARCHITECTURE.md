@@ -68,9 +68,11 @@ Assets/
     Editor/Testing/         Play mode-tests (batchmode), zie sectie 13
     Materials/              materialen
     Materials/PatientRoom/  URP-materialen voor de patiëntenkamer (scenario 1), zie sectie 11
+    Materials/UI/           HUD-materialen die altijd bovenop tekenen (HudOverlay, HudOverlay_Text), zie sectie 17
     Materials/Characters/   kopieën van kledingmaterialen van Liam's personages in andere kleuren (bezoekers: de dochter van scenario 2, de zoon van scenario 3, de vrouw van scenario 4)
     Prefabs/                prefabs, o.a. de XR rig variant
     Prefabs/UI/             UI-prefabs, o.a. DialogueBubble
+    Shaders/                eigen shaders: ProCommVR/UI Overlay (UI altijd bovenop, voor de emotie-HUD), zie sectie 17
     Prefabs/Player/         de avatar van de speler (prefab variant van Liam's Nurse_Female_Scrubs), zie sectie 15
     Scenes/                 scenes
     Scripts/                runtime-code, namespace ProCommVR
@@ -751,6 +753,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunEmotionModel` | `Scenario01_PatientRoom` met een kopie van Scenario 1 met testwaarden (het echte asset blijft ongewijzigd): `ScenarioStarted` zet Initial Emotion meteen (één `EmotionChanged`, dominant Sadness), 4 opties binnen bereik, laser + trigger kiest een optie, het target is initial + delta (geclampt), Current springt niet maar vloeit in ongeveer 1,5 s naar het target en geeft onderweg `EmotionChanged`; daarna met de hand: `Apply` clampt op 1 en op 0, alles 0 geeft geen dominante emotie, `SetImmediate` springt meteen; de Mood blijft Somber |
 | `RunPlayerAvatar` | `Scenario01_PatientRoom`: precies één avatar (uit de rig), los van de rig, standaard onzichtbaar, hoogstens 3k driehoeken, geen lichten of schaduwen; `SetVisible(true)` toont hem en geeft het event; met de gesimuleerde HMD staat het lichaam onder het hoofd, rechtop, voeten op de vloer, gedraaid met de yaw van het hoofd, ook na lopen en draaien, en het eigen hoofd is weggeklapt; met `FollowHead` uit blijft hij staan en is zijn hoofd van op 2 m zichtbaar (screenshot `avatar-from-outside`); `SetVisible(false)` verbergt hem weer |
 | `RunPovSwitch` | `Scenario01_PatientRoom`, met de **Y-knop van een gesimuleerde linkercontroller** (via de echte action `SwitchPov`): binnen bereik 4 opties; Y: de camera staat op de ogen van de patiënt (1,25 m, zijn kijkrichting), de avatar staat waar de speler stond, het lichaam van de patiënt en alle ballonnen zijn weg, lasers, locomotion en de CharacterController staan uit, de hint "Press Y to return" staat er; een snelle tweede druk wordt genegeerd; Y na de wachttijd: de rig staat **exact** op de oude pose, alles is terug, dezelfde 4 opties in dezelfde volgorde, geen keuze gemaakt; drie keer, de vierde wissel wordt geweigerd; een nieuw gesprek zet de teller op 0; `PovChanged` 6 keer, afwisselend. Screenshots: nurse view, patient view, de verpleegkundige door de ogen van de patiënt |
+| `RunEmotionHud` | `Scenario01_PatientRoom`: precies één HUD, uit in de nurse view (ook als de emoties veranderen), alle 19 graphics tekenen bovenop (overlay-shaders); na Y (gesimuleerde linkercontroller): getoond (alpha 1) met de hint "Press Y to return", 1,60 m ver, 22° links van het midden, naar de camera gedraaid; de 4 getallen en balken komen overeen met de `EmotionHolder`, de dominante rij (Anger) is vet en fel, de andere gedimd; hoofdletters van de rijen 27 mm = 0,98°, kleinste tekst 0,68°; na `Apply` beweegt de balk mee tijdens het overvloeien en wordt Sadness dominant; bij een snelle draai van 60° naar links blijft de HUD minstens 12° links van het midden en komt hij terug op 22°; Y terug: uit. Screenshots: patient view met HUD |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
@@ -902,3 +905,41 @@ je uit het raam; draai je hoofd om de verpleegkundige te zien.
 - Een andere NPC: `PovSetup.AddToScene(presenter, body, origin)`; met een Humanoid-rig is geen *Eyes* nodig.
 - Iets dat enkel in de patient view mag gebeuren (HUD, kamer-effecten): luister naar `PovChanged`.
 - Andere limieten: enkel in `PovSwitchSettings.asset`.
+
+## 17. Emotion HUD
+
+**Wat:** een klein paneel met de vier emoties van de patiënt, **enkel in de patient view** (sectie 16). Header
+"PATIENT VIEW", vier rijen (label, balk, getal 0 tot 100) in de kleuren Joy `#5FD0A4`, Anger `#F2784B`, Fear `#B79CF2`,
+Sadness `#6FA8E8`, en onderaan de hint "Press Y to return" (dezelfde tekst als `PovSetup.HintText`). Het losse
+hint-pilletje uit stap 3 is weg: de HUD toont de hint.
+
+**`EmotionHud`** (`Assets/_Project/Scripts/Emotions/`):
+- **Waarden:** abonneert zich op `EmotionHolder.EmotionChanged`. Dat event gaat elke frame af terwijl de emoties
+  overvloeien (sectie 14), dus de balken bewegen vloeiend mee zonder polling. Getallen via `TMP_Text.SetText("{0}", ...)`,
+  balken via de breedte van een `RectTransform`: geen allocaties per frame.
+- **Dominant:** de rij van `EmotionHolder.Dominant` heeft een volle balk en een vet label; de andere rijen zijn gedimd
+  (*Dimmed Alpha* 0,55). Geen dominante emotie (alles onder de drempel): alle rijen gedimd.
+- **Tonen:** `PovChanged(Patient)` toont, `PovChanged(Nurse)` verbergt, met een fade van 0,2 s (`CanvasGroup`). Verborgen
+  staat de Canvas uit.
+- **Zacht volgen** (`LateUpdate`): 1,6 m voor de camera, 22° naar links, 0,1 m onder ooghoogte, rechtop en naar de camera
+  gedraaid; de yaw ijlt na (`SmoothDampAngle`, 0,25 s). **Nooit in het midden:** het paneel blijft altijd tussen 12° en
+  40° links van het midden, ook bij een snelle draai. Het volgt de pitch van het hoofd niet (het blijft op ooghoogte).
+- **Altijd bovenop:** een paneel op 1,6 m kan achter een muur vallen (de patiënt zit vlak bij de muur). Daarom tekent de
+  HUD met ZTest Always: het paneel en de balken met de eigen shader `ProCommVR/UI Overlay` (`Assets/_Project/Shaders/`,
+  een kopie van UI/Default), de tekst met TextMeshPro's `Mobile/Distance Field Overlay`. Materialen:
+  `Materials/UI/HudOverlay.mat` en `HudOverlay_Text.mat`.
+
+**Leesbaarheid:** hoofdletters van de rijen 27 mm op 1,6 m (ongeveer 1°), header en hint 19 mm (ongeveer 0,7°).
+Berekend, en bekeken op screenshots; in de headset zelf nog na te kijken.
+
+**Prefab en scene:** `Editor/EmotionHudSetup.cs` bouwt `Assets/_Project/Prefabs/UI/EmotionHud.prefab` in code (zoals de
+ballonnen: world-space Canvas, 1 eenheid = 1 mm, de afgeronde `UISprite`), menu **ProCommVR > Setup > 10. Build Emotion
+HUD Prefab**. `Scenario01SceneBuilder` zet hem in de scene, gekoppeld aan de `EmotionHolder` en de `PovController`.
+
+**Met de hand testen:** start `Scenario01_PatientRoom`, druk Y bij de patiënt en sleep de Target-sliders van de
+`EmotionHolder`: de balken volgen, de dominante rij licht op.
+
+**Uitbreiden:**
+- Kleuren, maten of lettergrootte: in `EmotionHudSetup` en de prefab opnieuw bouwen.
+- Plaats en gedrag (afstand, hoek, naijlen, grenzen): in de inspector van `EmotionHud`.
+- Een vijfde emotie: een rij in `EmotionHudSetup.Rows` (na de uitbreiding van `EmotionState`, sectie 14).
