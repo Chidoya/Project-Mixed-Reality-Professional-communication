@@ -5,7 +5,12 @@ boosheid en vertrouwen, het antwoord van Sarah en haar stem. Alles draait op de 
 
 ## Testen in de Editor
 
-1. Start Ollama en de server: `cd Tools/AiServer` en `.venv\Scripts\python server.py` (GPU: zie de README).
+1. Niets apart opstarten: bij Play start `AiServerLauncher` (Editor) Ollama en `Tools/AiServer/server.py` als ze nog
+   niet draaien. De server draait in een geminimaliseerd consolevenster (de serverlog), blijft draaien tussen
+   Play-sessies en stopt als Unity sluit. De eerste sessie wacht tot de server klaar is met opwarmen (`/health`).
+   Uitzetten: `autoStartServerInEditor` in `AiTalkSettings.asset`; dan zelf `cd Tools/AiServer` en
+   `.venv\Scripts\python server.py`. Handmatig: **ProCommVR > AI Talk > Start AI Server / Stop AI Server**.
+   Eenmalige installatie (venv, Ollama-model): zie de README.
 2. Open `Assets/Scenes/liam_ai_gesprek_test.unity` (opnieuw bouwen: **ProCommVR > AI Talk > Build Test Scene**).
 3. Play. Sarah zegt de openingszin. Houd **spatie** ingedrukt, praat Engels, laat los.
    Op de Quest: de **trigger van de rechtercontroller**.

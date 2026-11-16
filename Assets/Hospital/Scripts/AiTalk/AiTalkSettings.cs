@@ -36,5 +36,12 @@ namespace ProCommVR.Hospital.AiTalk
         [Tooltip("Alleen in de Editor: maximum fps in Play mode (0 = geen limiet). Zonder limiet neemt de Editor de GPU in " +
                  "en wordt de AI-server (Ollama, Whisper) op dezelfde laptop tot 2x trager.")]
         public int editorTargetFrameRate = 72;
+
+        [Tooltip("Alleen in de Editor: start Ollama en Tools/AiServer/server.py automatisch bij Play als ze nog niet draaien. " +
+                 "De server blijft draaien tussen Play-sessies en stopt als Unity sluit.")]
+        public bool autoStartServerInEditor = true;
+
+        [Tooltip("Alleen in de Editor: hoe lang de eerste sessie wacht tot de server klaar is met opwarmen.")]
+        [Range(10f, 300f)] public float serverStartWaitSeconds = 120f;
     }
 }

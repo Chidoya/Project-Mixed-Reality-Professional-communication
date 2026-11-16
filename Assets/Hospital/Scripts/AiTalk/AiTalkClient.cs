@@ -36,6 +36,10 @@ namespace ProCommVR.Hospital.AiTalk
         /// <summary>Start een sessie. Geeft de openingszin terug, of een lokaal antwoord bij een fout.</summary>
         public async Awaitable<AiTurn> StartSession()
         {
+#if UNITY_EDITOR
+            if (_settings.autoStartServerInEditor)
+                await WaitForServer(_settings.serverStartWaitSeconds);
+#endif
             var body = JsonUtility.ToJson(new AiStartRequest { scenario_id = _scenarioId });
             using var request = new UnityWebRequest(Url("/session/start"), UnityWebRequest.kHttpVerbPOST)
             {
@@ -158,6 +162,38 @@ namespace ProCommVR.Hospital.AiTalk
             {
                 return new AiDebrief { error = "JSON van /debrief onleesbaar: " + e.Message };
             }
+        }
+
+        /// <summary>
+        /// Wacht tot /health antwoordt (de server luistert pas na het opwarmen). Gebruikt in de Editor als
+        /// AiServerLauncher de server net gestart heeft. Geeft false na maxSeconds.
+        /// </summary>
+        public async Awaitable<bool> WaitForServer(float maxSeconds)
+        {
+            var watch = Stopwatch.StartNew();
+            var logged = false;
+            while (watch.Elapsed.TotalSeconds < maxSeconds)
+            {
+                using (var request = UnityWebRequest.Get(Url("/health")))
+                {
+                    request.timeout = 2;
+                    var (ok, _) = await Send(request);
+                    if (ok)
+                    {
+                        if (logged)
+                            Debug.Log($"{LogPrefix}AI-server klaar na {watch.Elapsed.TotalSeconds:F1} s.");
+                        return true;
+                    }
+                }
+                if (!logged)
+                {
+                    Debug.Log($"{LogPrefix}Wachten op de AI-server ({_settings.serverUrl})...");
+                    logged = true;
+                }
+                await Awaitable.WaitForSecondsAsync(0.5f);
+            }
+            Debug.LogWarning($"{LogPrefix}AI-server na {maxSeconds:F0} s nog niet klaar.");
+            return false;
         }
 
         private static async Awaitable<(bool ok, int ms)> Send(UnityWebRequest request)
