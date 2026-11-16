@@ -80,6 +80,10 @@ namespace ProCommVR.Editor.Testing
             EditorApplication.update += UpdateDevices;
             try
             {
+                // The real Scenario 1 already starts at the same values as TestInitial: start from zero, so the
+                // ScenarioStarted below is a real change.
+                holder.SetImmediate(EmotionState.Zero);
+                changes = 0;
                 presenter.Play(scenario);
                 Check(holder.Current == TestInitial && holder.Target == TestInitial,
                     $"ScenarioStarted sets Initial Emotion at once ({holder.Current})");
