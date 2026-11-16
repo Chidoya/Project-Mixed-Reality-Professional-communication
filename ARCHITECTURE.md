@@ -71,11 +71,13 @@ Assets/
     Materials/Characters/   kopieën van kledingmaterialen van Liam's personages in andere kleuren (bezoekers: de dochter van scenario 2, de zoon van scenario 3, de vrouw van scenario 4)
     Prefabs/                prefabs, o.a. de XR rig variant
     Prefabs/UI/             UI-prefabs, o.a. DialogueBubble
+    Prefabs/Player/         de avatar van de speler (prefab variant van Liam's Nurse_Female_Scrubs), zie sectie 15
     Scenes/                 scenes
     Scripts/                runtime-code, namespace ProCommVR
     Scripts/Scenarios/      scenario-systeem, namespace ProCommVR.Scenarios
     Scripts/Atmosphere/     mood-systeem, namespace ProCommVR.Atmosphere
     Scripts/Emotions/       emoties van de patiënt (patient view), namespace ProCommVR.Emotions, zie sectie 14
+    Scripts/Player/         de speler: avatar (patient view), namespace ProCommVR.Player, zie sectie 15
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
     Scripts/Navigation/     verplaatsen: lift en objecten langs een pad (brancard, NPC), namespace ProCommVR.Navigation
     Settings/Input/         input actions
@@ -745,6 +747,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunScenario05Fail` | Scenario 5, **open kamer en de diagnose hardop**: Patient X loopt naar de deur (`Angry`), de buurman staat overstuur op (`Sad`) met zijn zin, mood `Alarm` (rood knipperlicht en waarschuwingsgeluid); "Finish": uitkomst `FailedAnswer`, geen score, bordje "Not resolved", bord "Failed: not resolved" en "Failed: 1", de shift loopt verder; eindscherm "failed: not resolved" met de feedback |
 | `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel, en het Somber-geluid speelt |
 | `RunEmotionModel` | `Scenario01_PatientRoom` met een kopie van Scenario 1 met testwaarden (het echte asset blijft ongewijzigd): `ScenarioStarted` zet Initial Emotion meteen (één `EmotionChanged`, dominant Sadness), 4 opties binnen bereik, laser + trigger kiest een optie, het target is initial + delta (geclampt), Current springt niet maar vloeit in ongeveer 1,5 s naar het target en geeft onderweg `EmotionChanged`; daarna met de hand: `Apply` clampt op 1 en op 0, alles 0 geeft geen dominante emotie, `SetImmediate` springt meteen; de Mood blijft Somber |
+| `RunPlayerAvatar` | `Scenario01_PatientRoom`: precies één avatar (uit de rig), los van de rig, standaard onzichtbaar, hoogstens 3k driehoeken, geen lichten of schaduwen; `SetVisible(true)` toont hem en geeft het event; met de gesimuleerde HMD staat het lichaam onder het hoofd, rechtop, voeten op de vloer, gedraaid met de yaw van het hoofd, ook na lopen en draaien, en het eigen hoofd is weggeklapt; met `FollowHead` uit blijft hij staan en is zijn hoofd van op 2 m zichtbaar (screenshot `avatar-from-outside`); `SetVisible(false)` verbergt hem weer |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
@@ -811,3 +814,45 @@ van de `EmotionHolder`; **Current** (grijs) volgt. Zo kan elk effect van de late
 - Een vijfde emotie: een waarde in de enum, een veld in `EmotionState` (ook in `Get`, `With`, `Add`, `Lerp`,
   `Approximately` en de lus in `GetDominant`), en een slider in de drawer. Bestaande assets krijgen de nieuwe waarde op 0.
 - Waarden per scenario aanpassen: enkel in het `Scenario`-asset, in de inspector.
+
+## 15. Player avatar
+
+**Wat:** het lichaam van de speler, een verpleegkundige, enkel bedoeld om van buitenaf gezien te worden (in de patient
+view, sectie 14). Vanuit het eigen hoofd zie je je eigen hoofd nooit.
+
+**Model:** Liam's `Nurse_Female_Scrubs` (470 driehoeken, Humanoid-rig, Animator in Idle). Wij gebruiken een **prefab
+variant**, `Assets/_Project/Prefabs/Player/PlayerAvatar_Nurse.prefab`, met de component `PlayerAvatar`, zonder schaduwen
+en zonder root motion. Liam's prefab blijft ongewijzigd.
+
+**In de rig:** de avatar zit als kind `Player Avatar (Nurse)` in `XR Origin (ProCommVR).prefab`. Elke scene met de rig
+heeft hem dus één keer, zonder iets per scene. Bij de start van de scene **koppelt hij zich los** van de rig (naar de
+root van de scene), zodat hij kan blijven staan als de rig verhuist (de POV-switch).
+
+**`PlayerAvatar`** (`Assets/_Project/Scripts/Player/`, namespace `ProCommVR.Player`):
+- `SetVisible(bool)`, `IsVisible` en het event `VisibilityChanged(bool)`. Standaard onzichtbaar (nurse view). Onzichtbaar
+  zet de renderers en de Animator uit, dus het kost dan niets. Het vinkje *Visible* in de inspector werkt in Play mode
+  hetzelfde.
+- `FollowHead` (standaard aan): elke frame (`LateUpdate`) staat het lichaam onder de XR-camera, 0,1 m achter de ogen,
+  enkel gedraaid met de yaw van het hoofd, rechtop, met de voeten op de vloer van de XR Origin. Uit: de avatar blijft
+  staan waar hij is.
+- **Eigen hoofd verborgen:** het personage is één skinned mesh (hoofd, haar en lichaam in één renderer), dus een aparte
+  layer voor het hoofd kan niet. Daarom wordt het `Head`-bot naar schaal 0 gezet zolang de camera binnen *Hide Head
+  Distance* (0,6 m) van het hoofd is: hoofd en haar klappen weg. Verder weg is het hoofd gewoon zichtbaar. Dit geldt
+  voor alle camera's tegelijk; op de Quest is er maar één.
+
+**Opnieuw opbouwen:** **ProCommVR > Setup > 8. Add Player Avatar to Rig** (of in batchmode
+`-executeMethod ProCommVR.Editor.PlayerAvatarSetup.Run`) maakt de variant opnieuw en vervangt de avatar in de rig.
+Meermaals draaien geeft geen dubbele avatar. Ook **2. Build XR Test Scene**, die de rig variant opnieuw maakt, zet de
+avatar er weer in.
+
+**Met de hand testen:** start een scene in Play mode, selecteer `Player Avatar (Nurse)` en vink *Visible* aan; loop rond
+en kijk naar beneden: je ziet je lichaam, maar nooit je eigen hoofd. Vink *Follow Head* uit en loop weg: de
+verpleegkundige blijft staan.
+
+**Beperkingen:** vaste lengte van het model (niet geschaald naar de speler), geen armen die de controllers volgen,
+geen loopanimatie.
+
+**Uitbreiden:**
+- Een ander model: verander `SourceCharacterPath` in `Editor/PlayerAvatarSetup.cs` (bv. `Nurse_Male_Scrubs`) en draai de
+  setup opnieuw. Het model moet een Humanoid-rig hebben (voor het `Head`-bot).
+- Armen of handen die de controllers volgen: later met IK (Animator IK of Animation Rigging), in een aparte stap.
