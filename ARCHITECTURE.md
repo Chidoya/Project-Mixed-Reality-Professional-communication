@@ -534,7 +534,8 @@ De speler werkt een shift af: briefing, een aantal patiënten verzorgen, eindsch
 dochter in de gang van verdieping 3, `Tense`), taak 3 is **Scenario 3** (de zoon aan de verpleegpost en de drukke arts op
 verdieping 2, `Neutral`), taak 4 is **Scenario 4** (de vrouw van een patiënt met een slechte prognose in kamer 1B,
 `Distressed`) en taak 5 is **Scenario 5** (de agressieve patiënt in de gedeelde kamer 1C, `Tense`). Taak 1 speelt
-Scenario 1 (`Happy`). Alle vijf taken uit de bron zitten dus in de shift.
+Scenario 1 (`Happy`). Alle vijf taken uit de bron zitten dus in de shift. Taak 1 (kamer 1A) heeft ook de **patient view** (Y, zie "Taak 1"
+hieronder).
 
 ### Verloop
 
@@ -609,6 +610,36 @@ Scenario 1 (`Happy`). Alle vijf taken uit de bron zitten dus in de shift.
    kamer gaat op `Alarm` (rood knipperlicht, waarschuwingsgeluid), na "Finish" is de taak **mislukt** (`FailedAnswer`):
    bordje "Not resolved", op de borden "Failed: not resolved", op het eindscherm "failed: not resolved" met de feedback.
    Bij het hardop noemen van de diagnose staat de buurman overstuur op en zegt zijn zin.
+
+### Taak 1: de patient view (kamer 1A)
+
+Scenario 1 heeft in kamer 1A dezelfde patient view als in `Scenario01_PatientRoom` (sectie 14 tot 18). De builder
+(`ShiftHospitalSceneBuilder.BuildPatientView`, enkel voor de kamer in `PatientViewRoom` = `"1A"`) zet:
+
+1. een `EmotionHolder` op de patiënt (`Patient_Male`, zittend op de stoel), gekoppeld aan de presenter van 1A: bij de start
+   van de shift (`ScenarioStarted`) de Initial Emotion van Scenario 1 (vooral verdrietig), na de keuze de Emotion Delta;
+2. `PovSetup.AddToScene` (een `PovAnchor` op de patiënt, Liam's Humanoid-rig: de ogen volgen het `Head`-bot), de fade op de
+   camera en de `POV Controller (Room 1A)`; de emotie-HUD (`EmotionHudSetup`) en de `Patient World (Room 1A)`
+   (`EmotionWorldSetup`);
+3. de lichten die de patient view kleurt: de zon, het plafondlicht van 1A en elk punt- of spotlicht op verdieping 1 waarvan
+   het bereik tot in de kamer komt (zonder schaduwen schijnen ze door de muren). Enkel in de patient view, daarna exact terug;
+4. de effect-anchors van de kamer (`BuildPatientViewEffects`, berekend uit Liam's meubels en raam, niet uit vaste
+   coördinaten): planten op de vensterbank, naast het raam en bij de deur, een zonnestraal door het raam; vuur op de
+   vensterbank, op het nachtkastje en aan het voeteneinde van het bed (1A heeft geen gordijn, en de stoel is die van de
+   patiënt) met één flikkerend licht; de zaklamp op het hoofd; regen **buiten** het raam (Liam's raam heeft helder glas)
+   en druppels van het plafond.
+
+Wanneer kan de speler wisselen? Alle kamers starten hun gesprek bij de start van de shift, dus "het gesprek loopt" is
+niet genoeg. Y werkt enkel als het gesprek van 1A **open** is (`ScenarioPresenter.IsPlaying`: na "Finish" niet meer) **en**
+de speler binnen `Max Distance To Patient` (3,5 m, `PovSwitchSettings`) van de patiënt staat, op dezelfde verdieping.
+Sluit het gesprek terwijl de speler door de ogen van de patiënt kijkt (de shift loopt af), dan keert hij vanzelf terug.
+De score verandert niet: de emotie is enkel visuele feedback.
+
+**Sectoren:** de builder gebruikt `Assets/Scenes/liam_test_scene.unity` (verdiepingen boven elkaar, 3,5 m per verdieping,
+lift). Liam's U-afdeling met sectoren (`liam_u_afdeling.unity`, op `origin/Liam`, commit `347617d`) zit nog niet in
+`jalil` en raakt deze builder nu niet. Bij een overstap moeten de verdiepingshoogte, de lift, de vaste plekken van taak 2
+en 3 en de shift-borden mee; de patient view van 1A rekent vanuit de kamer zelf (`Room_1A`, `Furniture/Chair`, `Bed`,
+`Nightstand`, `Window/Glass` en `Window/Frame_Bottom`, raam in de rechtermuur) en schuift mee zolang die er zijn.
 
 ### Klassen (`Assets/_Project/Scripts/Shift/`)
 
@@ -756,6 +787,8 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunPlayerAvatar` | `Scenario01_PatientRoom`: precies één avatar (uit de rig), los van de rig, standaard onzichtbaar, hoogstens 3k driehoeken, geen lichten of schaduwen; `SetVisible(true)` toont hem en geeft het event; met de gesimuleerde HMD staat het lichaam onder het hoofd, rechtop, voeten op de vloer, gedraaid met de yaw van het hoofd, ook na lopen en draaien, en het eigen hoofd is weggeklapt; met `FollowHead` uit blijft hij staan en is zijn hoofd van op 2 m zichtbaar (screenshot `avatar-from-outside`); `SetVisible(false)` verbergt hem weer |
 | `RunPovSwitch` | `Scenario01_PatientRoom`, met de **Y-knop van een gesimuleerde linkercontroller** (via de echte action `SwitchPov`): binnen bereik 4 opties; Y: de camera staat op de ogen van de patiënt (1,25 m, zijn kijkrichting), de avatar staat waar de speler stond, het lichaam van de patiënt en alle ballonnen zijn weg, lasers, locomotion en de CharacterController staan uit, de hint "Press Y to return" staat er; een snelle tweede druk wordt genegeerd; Y na de wachttijd: de rig staat **exact** op de oude pose, alles is terug, dezelfde 4 opties in dezelfde volgorde, geen keuze gemaakt; drie keer, de vierde wissel wordt geweigerd; een nieuw gesprek zet de teller op 0; `PovChanged` 6 keer, afwisselend. Screenshots: nurse view, patient view, de verpleegkundige door de ogen van de patiënt |
 | `RunEmotionHud` | `Scenario01_PatientRoom`: precies één HUD, uit in de nurse view (ook als de emoties veranderen), alle 19 graphics tekenen bovenop (overlay-shaders); na Y (gesimuleerde linkercontroller): getoond (alpha 1) met de hint "Press Y to return", 1,60 m ver, 22° links van het midden, naar de camera gedraaid; de 4 getallen en balken komen overeen met de `EmotionHolder`, de dominante rij (Anger) is vet en fel, de andere gedimd; hoofdletters van de rijen 27 mm = 0,98°, kleinste tekst 0,68°; na `Apply` beweegt de balk mee tijdens het overvloeien en wordt Sadness dominant; bij een snelle draai van 60° naar links blijft de HUD minstens 12° links van het midden en komt hij terug op 22°; Y terug: uit. Screenshots: patient view met HUD |
+| `RunScenario01PatientPov` | `Scenario01_PatientRoom` met de echte Scenario 1-data: Initial Emotion (vooral verdrietig), de scores ongewijzigd, en naar welke emotie elke optie leidt (beste: Joy, afwijzend: Anger, de andere twee: Sadness); de patiënt start op de Initial Emotion; beste optie met laser + trigger: emoties = initial + delta, Sadness daalt van 0,70 naar 0,35, Joy dominant, in de nurse view verandert de kamer niet; Y (gesimuleerde linkercontroller): de HUD toont Joy als dominant en de 4 getallen van de holder, de kamer toont Joy op volle sterkte met precies de Joy-effecten; Y terug: de kamer is exact zoals ervoor (alle getinte lichten, ambient, fog, post-processing), geen effecten, geen HUD, het gesprek staat nog open, de score is 3; daarna opnieuw met de afwijzende optie: Anger, het vuur brandt. Screenshots: patient view en een effect, per antwoord |
+| `RunScenario01PatientPovShift` | `ShiftHospital`, taak 1 in kamer 1A: één POV controller; vanuit de lobby (gesprek al open) weigert Y ("too far from the patient"); met de lift naar 1A, beste optie, dezelfde checks als hierboven (HUD, Joy in de kamer, de zon en de lichten die tot in 1A schijnen exact terug); "Finish" sluit het gesprek en Y doet niets meer ("no conversation"); eindscherm "3 / 3" |
 | `RunEmotionWorld` | `Scenario01_PatientRoom`: budget (volume met Color Adjustments en Vignette, geen Bloom; per emotie een profiel, effect-anchors en hoogstens 1 extra licht; deeltjessystemen hoogstens 200 deeltjes; geen schaduwen); **nurse view**: elke emotie dominant maken verandert niets (licht, ambient, fog, post-processing, volume, anchors); na Y (gesimuleerde linkercontroller), **patient view**, per emotie (Joy, Anger, Fear, Sadness via `SetImmediate`): volle sterkte, volume en post-processing aan, saturatie en kleurfilter van het profiel, kamerlicht maal het profiel, precies de eigen effecten aan, deeltjes spelen, eigen geluid speelt; wissel Sadness naar Joy: via neutraal, nooit twee emoties of twee extra lichten tegelijk, geen sprongen; een mood-verandering van het kamerlicht tijdens de patient view blijft behouden; Y terug: de kamer is exact zoals ervoor. Screenshots per emotie (naar het raam en de kamer) |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
@@ -813,7 +846,20 @@ Emotion, en telt hij bij `OptionChosen` de Emotion Delta op. Dat zijn dezelfde e
 signatuur is niet veranderd.
 
 **Scenes:** `Scenario01SceneBuilder` zet een `EmotionHolder` op de root van de patiënt (naast de `NpcReactor`). In
-`ShiftHospital` zit hij nog niet, dat komt bij het samenvoegen voor Scenario 1 (kamer 1A).
+`ShiftHospital` zit hij op de patiënt van kamer 1A (sectie 12, "Taak 1"). De waarden van Scenario 1 (een eerste gok, nog
+te laten nakijken door iemand met zorgkennis):
+
+| | Joy | Anger | Fear | Sadness | Dominant daarna |
+| --- | --- | --- | --- | --- | --- |
+| Initial Emotion | 0,05 | 0,25 | 0,20 | 0,70 | Sadness |
+| Beste optie (3): erkent de teleurstelling | +0,55 | -0,10 | 0 | -0,35 | **Joy** (zon, planten) |
+| Afwijzend (0): "There will be other birthdays" | -0,05 | +0,60 | 0 | +0,10 | **Anger** (vuur) |
+| Valse hoop (-2) | +0,15 | +0,10 | +0,10 | 0 | Sadness (regen) |
+| Passief (1): geeft het door | 0 | +0,15 | 0 | +0,15 | Sadness (regen) |
+
+De beste en de afwijzende optie wijken af van het eerste voorstel (Joy +0,2, Sadness -0,25; Anger +0,3): daarmee bleef
+Sadness na elke keuze dominant, en zou de speler nooit de zon of het vuur zien. Het korte opflakkeren van Joy bij valse
+hoop is niet gebouwd (een delta is blijvend).
 
 **Met de hand testen:** start `Scenario01_PatientRoom` in Play mode, selecteer de patiënt en sleep de **Target**-sliders
 van de `EmotionHolder`; **Current** (grijs) volgt. Zo kan elk effect van de latere stappen apart getest worden.
@@ -881,8 +927,8 @@ Action**, ook aangeroepen als `XRTestSceneBuilder` de input actions opnieuw maak
 
 | Klasse | Wat |
 | --- | --- |
-| `PovSwitchSettings` | ScriptableObject (`Settings/Pov/PovSwitchSettings.asset`): `MaxSwitchesPerConversation` (3), `MinSecondsBetweenSwitches` (2), `FadeSeconds` (0,25). Tunen in het asset. |
-| `PovController` | `PovMode { Nurse, Patient }`, `Mode`, event `PovChanged(PovMode)` (na de verplaatsing, terwijl het beeld nog zwart is), `TrySwitch()` en `WhyNot()` (waarom een wissel nu niet kan). Enkel de wissel **naar** de patiënt telt mee; terugkeren mag altijd. De wachttijd geldt in beide richtingen, dus een snelle dubbele druk wordt genegeerd. `ScenarioStarted` zet de teller op 0. Wisselen kan enkel als de presenter een scenario toont. |
+| `PovSwitchSettings` | ScriptableObject (`Settings/Pov/PovSwitchSettings.asset`): `MaxSwitchesPerConversation` (3), `MinSecondsBetweenSwitches` (2), `FadeSeconds` (0,25), `MaxDistanceToPatient` (3,5 m). Tunen in het asset. |
+| `PovController` | `PovMode { Nurse, Patient }`, `Mode`, event `PovChanged(PovMode)` (na de verplaatsing, terwijl het beeld nog zwart is), `TrySwitch()` en `WhyNot()` (waarom een wissel nu niet kan). Enkel de wissel **naar** de patiënt telt mee; terugkeren mag altijd. De wachttijd geldt in beide richtingen, dus een snelle dubbele druk wordt genegeerd. `ScenarioStarted` zet de teller op 0. Naar de patiënt kan enkel als het gesprek open is (`ScenarioPresenter.IsPlaying`, dus niet meer na "Finish" of het eindscherm) en de speler binnen `MaxDistanceToPatient` van de patiënt staat, op dezelfde verdieping (`ScenarioPresenter.IsPlayerNear`). Sluit het gesprek in de patient view, dan gaat hij vanzelf terug. |
 | `PovAnchor` | op de NPC: `GetEyes(out position, out forward)`. Met een Humanoid-rig: het `Head`-bot (plus een kleine offset) en de kijkrichting van het lichaam, op het moment van de wissel (zittend, liggend of staand). Zonder rig (de placeholder in Scenario 1): het veld *Eyes*, een kind van het lichaam, dus het volgt de houding (`NpcReactor`). `SetBodyHidden(bool)` verbergt de renderers van het lichaam, en zet enkel terug aan wat aan stond. |
 | `ScreenFade` | zwart vlak op 0,15 m voor de camera (eigen URP Unlit-materiaal `Materials/Pov/ScreenFade.mat`, transparant, overlay, geen collider); de renderer staat enkel aan tijdens een fade. |
 
@@ -898,7 +944,8 @@ dezelfde volgorde, geen keuze, geen score.
 houdt de keuzes tegen; daarna komen ze terug zoals ze waren. Events en hun signaturen zijn niet veranderd.
 
 **Scenes:** `Scenario01SceneBuilder` zet via `PovSetup.AddToScene` het anker op de patiënt (met een punt "POV Eyes" ter
-hoogte van het vizier), de fade op de camera van de rig, de hint en de `POV Controller`. `ShiftHospital` heeft het nog niet.
+hoogte van het vizier), de fade op de camera van de rig, de hint en de `POV Controller`. In `ShiftHospital` heeft enkel
+kamer 1A het (sectie 12, "Taak 1").
 
 **Met de hand testen:** start `Scenario01_PatientRoom`, stap naar de patiënt en druk Y (in de editor ook
 `PovController.TrySwitch()` via een debug-knop of de XR Interaction Simulator). Met de patiënt in zijn beginhouding kijk
@@ -1002,7 +1049,8 @@ zet de controller in een scene (`AddToScene(holder, pov, roomLights)`). De effec
 `AddPlant`, `AddSunBeam`, `AddFire`, `AddFireLight`, `AddFlashlight` (een kind van de XR-camera), `AddRain` en `AddDrips`,
 nooit met de hand. In `Scenario01_PatientRoom` doet `Scenario01SceneBuilder.BuildEmotionEffects` dat rond het raam waar
 de patiënt naar kijkt. Het raam van de kit heeft een gesloten rolgordijn in het model zelf; de regen valt daarom net voor
-het raam, van boven tot op de vensterbank. Kamer 1A in de shift volgt in stap 6.
+het raam, van boven tot op de vensterbank. Kamer 1A in de shift: `ShiftHospitalSceneBuilder.BuildPatientViewEffects`
+(sectie 12, "Taak 1").
 
 **Met de hand testen:** start `Scenario01_PatientRoom`, druk Y bij de patiënt en sleep de Target-sliders van de
 `EmotionHolder`: de kamer volgt de dominante emotie; druk Y terug: de kamer is weer gewoon.
