@@ -16,6 +16,6 @@ MonoBehaviour:
   scenarioId: angry_daughter
   maxRecordSeconds: 15
   minRecordSeconds: 0.4
-  requestTimeoutSeconds: 20
+  requestTimeoutSeconds: 60
   fallbackReply: Sorry, what did you say?
   showDebugPanel: 1

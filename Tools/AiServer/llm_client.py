@@ -107,5 +107,22 @@ class LlmClient:
             raise LlmOutputError(f"model returned JSON that is not an object: {content[:200]!r}")
         return data
 
+    def gpu_report(self) -> list[str]:
+        """How much of each loaded model sits in GPU memory (Ollama /api/ps).
+        A model that does not fit in VRAM runs partly on the CPU and gets many times slower."""
+        lines = []
+        try:
+            for m in self._client.ps().models:
+                size, vram = m.size or 0, m.size_vram or 0
+                pct = int(100 * vram / size) if size else 0
+                line = f"model {m.model}: {pct}% on GPU ({vram / 2**30:.1f} of {size / 2**30:.1f} GB)"
+                if pct < 100:
+                    line += (" -- NOT fully on the GPU, turns will be slow. Close other GPU programs "
+                             "(Unity Play mode / Quest Link also use VRAM) or lower num_ctx in config.json.")
+                lines.append(line)
+        except Exception as exc:  # only a diagnostic, never fatal
+            lines.append(f"could not read Ollama GPU usage: {exc}")
+        return lines
+
     def last_usage(self) -> dict[str, int]:
         return getattr(self._usage, "value", {"in": 0, "out": 0, "model_ms": 0})

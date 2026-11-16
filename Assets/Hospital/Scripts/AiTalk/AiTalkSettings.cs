@@ -21,8 +21,9 @@ namespace ProCommVR.Hospital.AiTalk
         [Tooltip("Kortere opnames worden genegeerd (per ongeluk op de knop gedrukt).")]
         [Range(0.1f, 2f)] public float minRecordSeconds = 0.4f;
 
-        [Tooltip("Timeout per serveroproep.")]
-        [Range(5f, 60f)] public float requestTimeoutSeconds = 20f;
+        [Tooltip("Timeout per serveroproep. Een beurt duurt normaal 2-5 s, maar met Unity Play mode / Quest Link " +
+                 "op dezelfde GPU soms 20 s of meer.")]
+        [Range(5f, 120f)] public float requestTimeoutSeconds = 60f;
 
         [Tooltip("Timeout voor de nabespreking (de beoordelaar draait 2 keer, 20 tot 40 s).")]
         [Range(30f, 600f)] public float debriefTimeoutSeconds = 180f;

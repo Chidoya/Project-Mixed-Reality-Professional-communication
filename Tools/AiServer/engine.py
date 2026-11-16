@@ -686,10 +686,13 @@ class Engine:
         result["character_name"] = sc.data["persona"]["name"]
         result["timings_ms"] = timings
         session.turns.append(result)
-        log.info("turn %d %s labels=%s anger %d->%d trust %d->%d phase=%s %dms",
+        calls = " ".join(f"{k} {v['calls']}x" for k, v in result["tokens"].items())
+        log.info("turn %d %s labels=%s anger %d->%d trust %d->%d phase=%s %dms "
+                 "(classify %d ms, actor %d ms, llm calls: %s)",
                  result["turn"], session.id, result["labels"], result["before"]["anger"],
                  session.anger, result["before"]["trust"], session.trust, session.phase,
-                 timings["total_ms"])
+                 timings["total_ms"], timings.get("classify_ms", 0), timings.get("actor_ms", 0),
+                 calls or "none")
         return result
 
     # -- non-verbal events

@@ -53,6 +53,8 @@ async def lifespan(app: FastAPI):
     try:
         for line in engine.warm_up():
             log.info(line)
+        for line in engine.llm.gpu_report():
+            (log.warning if "NOT fully" in line else log.info)(line)
     except LlmUnavailableError as exc:
         log.error("WARM-UP FAILED: %s", exc)
         log.error("The server keeps running, but every turn will fail until Ollama is available.")
@@ -167,6 +169,9 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
         timings["request_total_ms"] = int((time.perf_counter() - t_start) * 1000)
     log.info("audio turn %d %s: stt %d ms, turn %d ms, tts %d ms, total %d ms", result["turn"],
              session_id, stt_ms, timings["total_ms"], tts_ms, timings["request_total_ms"])
+    if timings["request_total_ms"] > 10000:  # slow turn: show whether the model still fits on the GPU
+        for line in engine.llm.gpu_report():
+            log.warning("slow turn: %s", line)
     response = dict(result)  # audio only in the response, not in the session log
     response["audio_wav_base64"] = audio_b64
     return response

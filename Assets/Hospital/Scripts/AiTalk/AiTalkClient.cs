@@ -207,6 +207,9 @@ namespace ProCommVR.Hospital.AiTalk
 
         private string Describe(UnityWebRequest request)
         {
+            if (request.result == UnityWebRequest.Result.ConnectionError && request.error == "Request timeout")
+                return $"AI-server antwoordde niet binnen {Timeout} s (te traag, niet onbereikbaar). " +
+                       "Kijk in het serverconsole naar 'slow turn' / 'NOT fully on the GPU', of verhoog requestTimeoutSeconds.";
             if (request.result == UnityWebRequest.Result.ConnectionError)
                 return $"AI-server niet bereikbaar op {_settings.serverUrl} ({request.error}). Start Tools/AiServer/server.py.";
             var text = request.downloadHandler?.text;
