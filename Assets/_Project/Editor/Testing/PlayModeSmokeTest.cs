@@ -168,15 +168,19 @@ namespace ProCommVR.Editor.Testing
 
         /// <summary>
         /// Scenario 1 is Somber: after the fade, the main light and ambient light match the Somber profile.
-        /// Logs the values right after the start too: the fade happens once, in the first 1.5 s of the scene.
+        /// Logs the values right after the start too: the fade happens once, in the first 1.5 s (game time) of the scene.
         /// </summary>
         private static IEnumerator Scenario01Mood()
         {
             var light = UnityEngine.Object.FindAnyObjectByType<Light>();
             var mood = UnityEngine.Object.FindAnyObjectByType<Atmosphere.MoodController>();
             Log($"frame 1: light {Describe(light)}; ambient {DescribeAmbient()}");
-            yield return 2.5f;
-            Log($"t=2.5s: light {Describe(light)}; ambient {DescribeAmbient()}");
+            // Wait 2.5 s of game time (the fade runs on Time.deltaTime), not of real time: slow first frames (e.g. while
+            // a shader compiles) make game time lag behind, and the fade would not be done yet. At most 30 real seconds.
+            var waitUntil = EditorApplication.timeSinceStartup + 30.0;
+            while (Time.timeSinceLevelLoad < 2.5f && EditorApplication.timeSinceStartup < waitUntil)
+                yield return null;
+            Log($"t={Time.timeSinceLevelLoad:F1}s game time: light {Describe(light)}; ambient {DescribeAmbient()}");
 
             var profile = mood.CurrentProfile;
             Check(mood.CurrentMood == Scenarios.Mood.Somber, $"Scenario 1 sets the mood to Somber (got {mood.CurrentMood})");
