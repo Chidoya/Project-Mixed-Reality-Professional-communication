@@ -78,10 +78,12 @@ Assets/
     Scripts/Atmosphere/     mood-systeem, namespace ProCommVR.Atmosphere
     Scripts/Emotions/       emoties van de patiënt (patient view), namespace ProCommVR.Emotions, zie sectie 14
     Scripts/Player/         de speler: avatar (patient view), namespace ProCommVR.Player, zie sectie 15
+    Scripts/Pov/            POV-switch naar de patiënt, namespace ProCommVR.Pov, zie sectie 16
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
     Scripts/Navigation/     verplaatsen: lift en objecten langs een pad (brancard, NPC), namespace ProCommVR.Navigation
     Settings/Input/         input actions
     Settings/Moods/         mood-profielen (kleur, licht, ambient, muziek per mood), zie sectie 10
+    Settings/Pov/           PovSwitchSettings (limieten van de POV-switch), zie sectie 16
   Samples/                  geïmporteerde package-samples, niet aanpassen
   TextMesh Pro/             TMP Essential Resources (fonts, shaders), niet aanpassen
   XR/                       XR Plug-in Management en OpenXR settings (door Unity beheerd)
@@ -748,6 +750,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel, en het Somber-geluid speelt |
 | `RunEmotionModel` | `Scenario01_PatientRoom` met een kopie van Scenario 1 met testwaarden (het echte asset blijft ongewijzigd): `ScenarioStarted` zet Initial Emotion meteen (één `EmotionChanged`, dominant Sadness), 4 opties binnen bereik, laser + trigger kiest een optie, het target is initial + delta (geclampt), Current springt niet maar vloeit in ongeveer 1,5 s naar het target en geeft onderweg `EmotionChanged`; daarna met de hand: `Apply` clampt op 1 en op 0, alles 0 geeft geen dominante emotie, `SetImmediate` springt meteen; de Mood blijft Somber |
 | `RunPlayerAvatar` | `Scenario01_PatientRoom`: precies één avatar (uit de rig), los van de rig, standaard onzichtbaar, hoogstens 3k driehoeken, geen lichten of schaduwen; `SetVisible(true)` toont hem en geeft het event; met de gesimuleerde HMD staat het lichaam onder het hoofd, rechtop, voeten op de vloer, gedraaid met de yaw van het hoofd, ook na lopen en draaien, en het eigen hoofd is weggeklapt; met `FollowHead` uit blijft hij staan en is zijn hoofd van op 2 m zichtbaar (screenshot `avatar-from-outside`); `SetVisible(false)` verbergt hem weer |
+| `RunPovSwitch` | `Scenario01_PatientRoom`, met de **Y-knop van een gesimuleerde linkercontroller** (via de echte action `SwitchPov`): binnen bereik 4 opties; Y: de camera staat op de ogen van de patiënt (1,25 m, zijn kijkrichting), de avatar staat waar de speler stond, het lichaam van de patiënt en alle ballonnen zijn weg, lasers, locomotion en de CharacterController staan uit, de hint "Press Y to return" staat er; een snelle tweede druk wordt genegeerd; Y na de wachttijd: de rig staat **exact** op de oude pose, alles is terug, dezelfde 4 opties in dezelfde volgorde, geen keuze gemaakt; drie keer, de vierde wissel wordt geweigerd; een nieuw gesprek zet de teller op 0; `PovChanged` 6 keer, afwisselend. Screenshots: nurse view, patient view, de verpleegkundige door de ogen van de patiënt |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
@@ -856,3 +859,46 @@ geen loopanimatie.
 - Een ander model: verander `SourceCharacterPath` in `Editor/PlayerAvatarSetup.cs` (bv. `Nurse_Male_Scrubs`) en draai de
   setup opnieuw. Het model moet een Humanoid-rig hebben (voor het `Head`-bot).
 - Armen of handen die de controllers volgen: later met IK (Animator IK of Animation Rigging), in een aparte stap.
+
+## 16. POV switch
+
+**Wat:** tijdens een gesprek wisselt de speler met **Y** (linkercontroller) tussen de nurse view en de patient view:
+de camera springt naar de ogen van de patiënt, en de speler ziet de verpleegkundige (zijn eigen avatar, sectie 15) staan
+waar hij stond. Nog zonder emotie-effecten (HUD en kamer komen in latere stappen).
+
+**Input:** de action `SwitchPov` in de map *XRI Left Interaction* van onze kopie van de input actions, gebonden aan
+`<XRController>{LeftHand}/{SecondaryButton}` (Y op de Quest-controller). De package-actions blijven ongewijzigd, trigger =
+Select en grip = Activate ook. Toegevoegd door `Editor/PovSetup.cs` (**ProCommVR > Setup > 9. Add Switch POV Input
+Action**, ook aangeroepen als `XRTestSceneBuilder` de input actions opnieuw maakt; meermaals draaien voegt hem één keer toe).
+
+**Klassen** (`Assets/_Project/Scripts/Pov/`, namespace `ProCommVR.Pov`):
+
+| Klasse | Wat |
+| --- | --- |
+| `PovSwitchSettings` | ScriptableObject (`Settings/Pov/PovSwitchSettings.asset`): `MaxSwitchesPerConversation` (3), `MinSecondsBetweenSwitches` (2), `FadeSeconds` (0,25). Tunen in het asset. |
+| `PovController` | `PovMode { Nurse, Patient }`, `Mode`, event `PovChanged(PovMode)` (na de verplaatsing, terwijl het beeld nog zwart is), `TrySwitch()` en `WhyNot()` (waarom een wissel nu niet kan). Enkel de wissel **naar** de patiënt telt mee; terugkeren mag altijd. De wachttijd geldt in beide richtingen, dus een snelle dubbele druk wordt genegeerd. `ScenarioStarted` zet de teller op 0. Wisselen kan enkel als de presenter een scenario toont. |
+| `PovAnchor` | op de NPC: `GetEyes(out position, out forward)`. Met een Humanoid-rig: het `Head`-bot (plus een kleine offset) en de kijkrichting van het lichaam, op het moment van de wissel (zittend, liggend of staand). Zonder rig (de placeholder in Scenario 1): het veld *Eyes*, een kind van het lichaam, dus het volgt de houding (`NpcReactor`). `SetBodyHidden(bool)` verbergt de renderers van het lichaam, en zet enkel terug aan wat aan stond. |
+| `ScreenFade` | zwart vlak op 0,15 m voor de camera (eigen URP Unlit-materiaal `Materials/Pov/ScreenFade.mat`, transparant, overlay, geen collider); de renderer staat enkel aan tijdens een fade. |
+
+**Naar de patiënt:** fade naar zwart, de avatar komt onder het hoofd en blijft staan (`FollowHead` uit,
+`PlaceAtHead`, `SetVisible(true)`), de pose van de XR Origin wordt bewaard, locomotion providers, interactors (lasers) en
+de CharacterController gaan uit, de rig draait en verschuift met `MatchOriginUpCameraForward` en
+`MoveCameraToWorldLocation`, het lichaam van de patiënt en alle ballonnen (`ScenarioPresenter.BubblesHidden`) worden
+verborgen, de hint "Press Y to return" (een niet-klikbare `DialogueBubble`) verschijnt voor de ogen, fade terug.
+**Terug:** alles omgekeerd; de XR Origin komt exact op de bewaarde pose. Het gesprek verandert niet: dezelfde opties in
+dezelfde volgorde, geen keuze, geen score.
+
+**`ScenarioPresenter.BubblesHidden`** (nieuw): verbergt alle ballonnen (zin van de NPC, keuzes, "Finish"/"Try again") en
+houdt de keuzes tegen; daarna komen ze terug zoals ze waren. Events en hun signaturen zijn niet veranderd.
+
+**Scenes:** `Scenario01SceneBuilder` zet via `PovSetup.AddToScene` het anker op de patiënt (met een punt "POV Eyes" ter
+hoogte van het vizier), de fade op de camera van de rig, de hint en de `POV Controller`. `ShiftHospital` heeft het nog niet.
+
+**Met de hand testen:** start `Scenario01_PatientRoom`, stap naar de patiënt en druk Y (in de editor ook
+`PovController.TrySwitch()` via een debug-knop of de XR Interaction Simulator). Met de patiënt in zijn beginhouding kijk
+je uit het raam; draai je hoofd om de verpleegkundige te zien.
+
+**Uitbreiden:**
+- Een andere NPC: `PovSetup.AddToScene(presenter, body, origin)`; met een Humanoid-rig is geen *Eyes* nodig.
+- Iets dat enkel in de patient view mag gebeuren (HUD, kamer-effecten): luister naar `PovChanged`.
+- Andere limieten: enkel in `PovSwitchSettings.asset`.

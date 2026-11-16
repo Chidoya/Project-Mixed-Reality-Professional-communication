@@ -104,6 +104,14 @@ namespace ProCommVR.Editor
             serializedEmotions.FindProperty("_presenter").objectReferenceValue = presenter;
             serializedEmotions.ApplyModifiedPropertiesWithoutUndo();
 
+            // The patient view: Y switches the camera to the patient's eyes (and back).
+            // The placeholder has no Head bone: its eyes are at the face direction marker, and turn with the body.
+            var eyes = new GameObject("POV Eyes").transform;
+            eyes.SetParent(patient, false);
+            eyes.localPosition = new Vector3(0f, 0.6f, 0.45f);
+            eyes.localRotation = Quaternion.identity;
+            PovSetup.AddToScene(presenter, patient, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>(), eyes);
+
             Debug.Log($"[ProCommVR] Patient room built, wall height {wallHeight:F2} m.");
             ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);
         }

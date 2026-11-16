@@ -70,6 +70,7 @@ namespace ProCommVR.Scenarios
         private DialogueBubble _npcBubble;
         private Stage _stage;
         private bool _optionsVisible;
+        private bool _bubblesHidden;
 
         private enum Stage
         {
@@ -104,6 +105,32 @@ namespace ProCommVR.Scenarios
         /// While true, no choices appear, also within range: e.g. while the NPC walks to the chosen place.
         /// </summary>
         public bool HoldChoices { get; set; }
+
+        /// <summary>
+        /// While true, every bubble (the NPC line, the choices, the continue bubble) is hidden and no choices appear,
+        /// e.g. while the player looks through the patient's eyes. The conversation itself does not change: the same
+        /// options in the same order come back when it is set to false again.
+        /// </summary>
+        public bool BubblesHidden
+        {
+            get => _bubblesHidden;
+            set
+            {
+                if (_bubblesHidden == value)
+                    return;
+                _bubblesHidden = value;
+                if (value && _optionsVisible)
+                    HideOptions();
+                foreach (var bubble in _bubbles)
+                {
+                    // The choices come back through UpdateOptionsVisibility, when the player is within range.
+                    if (!_optionBubbles.Contains(bubble))
+                        bubble.gameObject.SetActive(!value);
+                }
+                if (!value && (_stage == Stage.ChoosingLocation || _stage == Stage.ChoosingOption))
+                    UpdateOptionsVisibility();
+            }
+        }
 
         /// <summary>
         /// True while the choices (places or options) are shown to the player.
@@ -192,7 +219,7 @@ namespace ProCommVR.Scenarios
         private void UpdateOptionsVisibility()
         {
             var range = _optionsVisible ? _optionsRange + _optionsHideMargin : _optionsRange;
-            var inRange = !HoldChoices && PlayerInRange(range);
+            var inRange = !HoldChoices && !_bubblesHidden && PlayerInRange(range);
             if (inRange && !_optionsVisible)
                 ShowOptions();
             else if (!inRange && _optionsVisible)
@@ -360,6 +387,8 @@ namespace ProCommVR.Scenarios
             bubble.transform.localPosition = localOffset;
             bubble.transform.localRotation = Quaternion.identity;
             bubble.SetClickable(clickable);
+            if (_bubblesHidden)
+                bubble.gameObject.SetActive(false);
             _bubbles.Add(bubble);
             return bubble;
         }
