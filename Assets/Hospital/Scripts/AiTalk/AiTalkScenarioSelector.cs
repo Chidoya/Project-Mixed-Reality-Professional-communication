@@ -110,6 +110,13 @@ namespace ProCommVR.Hospital.AiTalk
         {
             if (viewpoint == null)
                 return;
+            // XR-rig: het hoofd van de speler op het kijkpunt (met headset staat de rig op de vloer)
+            var rig = _player != null ? _player.GetComponent<XrPlayerRig>() : FindAnyObjectByType<XrPlayerRig>();
+            if (rig != null)
+            {
+                rig.MoveTo(viewpoint);
+                return;
+            }
             var player = _player != null ? _player : Camera.main != null ? Camera.main.transform : null;
             if (player == null)
                 return;

@@ -38,6 +38,17 @@
                     "action": "PushToTalk",
                     "isComposite": false,
                     "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "19642be9-b15b-476f-a5dc-16619221ca26",
+                    "path": "<XRController>{RightHand}/triggerPressed",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "PushToTalk",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         }

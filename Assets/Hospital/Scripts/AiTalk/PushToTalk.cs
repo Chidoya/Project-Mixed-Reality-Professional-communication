@@ -15,12 +15,14 @@ namespace ProCommVR.Hospital.AiTalk
     {
         public const string KeyboardBinding = "<Keyboard>/space";
         public const string RightTriggerBinding = "<XRController>{RightHand}/{TriggerButton}";
+        /// <summary>Trekker van de Quest 3 (Touch Plus) op naam, voor als de usage TriggerButton niet gevonden wordt.</summary>
+        public const string RightTriggerPressedBinding = "<XRController>{RightHand}/triggerPressed";
         private const string LogPrefix = "[AiTalk] ";
 
         [SerializeField] private AiTalkSettings _settings;
         [Tooltip("Actie 'PushToTalk' uit Assets/Hospital/Data/AiTalkInput.inputactions (spatie + rechtertrigger).")]
         [SerializeField] private InputActionReference _talkAction;
-        [Tooltip("Leeg = standaardmicrofoon.")]
+        [Tooltip("Leeg = de microfoon van de Quest-headset (Oculus).")]
         [SerializeField] private string _microphoneDevice = "";
 
         private InputAction _action;
@@ -63,11 +65,14 @@ namespace ProCommVR.Hospital.AiTalk
                 _action = new InputAction("PushToTalk", InputActionType.Button);
                 _action.AddBinding(KeyboardBinding);
                 _action.AddBinding(RightTriggerBinding);
+                _action.AddBinding(RightTriggerPressedBinding);
                 _ownsAction = true;
             }
             _action.started += OnPressed;
             _action.canceled += OnReleased;
             _action.Enable();
+            Debug.Log($"{LogPrefix}Push-to-talk klaar. Microfoons: {(Microphone.devices.Length == 0 ? "geen" : string.Join(", ", Microphone.devices))}. " +
+                      $"Knoppen: {string.Join(", ", _action.controls)}");
         }
 
         private void OnDisable()
@@ -93,20 +98,30 @@ namespace ProCommVR.Hospital.AiTalk
                 Finish();
         }
 
-        private void OnPressed(InputAction.CallbackContext _) => Begin();
-        private void OnReleased(InputAction.CallbackContext _) => Finish();
+        private void OnPressed(InputAction.CallbackContext context)
+        {
+            Debug.Log($"{LogPrefix}Praatknop ingedrukt ({context.control?.path}).");
+            Begin();
+        }
+
+        private void OnReleased(InputAction.CallbackContext context) => Finish();
 
         /// <summary>Start een opname (ook bruikbaar vanuit een UI-knop).</summary>
         public void Begin()
         {
-            if (IsRecording || (CanStart != null && !CanStart()))
+            if (IsRecording)
                 return;
+            if (CanStart != null && !CanStart())
+            {
+                Debug.Log(LogPrefix + "Opname niet gestart: het personage is nog bezig, het gesprek is afgelopen of er is geen sessie.");
+                return;
+            }
             if (Microphone.devices.Length == 0)
             {
                 Debug.LogWarning(LogPrefix + "Geen microfoon gevonden.");
                 return;
             }
-            _device = string.IsNullOrEmpty(_microphoneDevice) ? null : _microphoneDevice;
+            _device = string.IsNullOrEmpty(_microphoneDevice) ? PickDevice() : _microphoneDevice;
             Microphone.GetDeviceCaps(_device, out var min, out var max);
             _frequency = (min == 0 && max == 0) || (min <= WavUtility.ServerSampleRate && WavUtility.ServerSampleRate <= max)
                 ? WavUtility.ServerSampleRate
@@ -120,7 +135,18 @@ namespace ProCommVR.Hospital.AiTalk
             }
             _startTime = Time.unscaledTime;
             IsRecording = true;
+            Debug.Log($"{LogPrefix}Opname gestart ({_device ?? "standaardmicrofoon"}, {_frequency} Hz).");
             RecordingStarted?.Invoke();
+        }
+
+        /// <summary>Altijd de microfoon van de Quest-headset (naam bevat "Oculus"); niet gevonden: standaardmicrofoon.</summary>
+        private static string PickDevice()
+        {
+            foreach (var name in Microphone.devices)
+                if (name.IndexOf("Oculus", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return name;
+            Debug.LogWarning(LogPrefix + "Geen Quest-microfoon gevonden (is de headset via Link verbonden?), standaardmicrofoon gebruikt.");
+            return null;
         }
 
         /// <summary>Stopt de opname en verstuurt ze (via RecordingFinished) als ze lang genoeg is.</summary>
@@ -135,6 +161,7 @@ namespace ProCommVR.Hospital.AiTalk
 
             var seconds = position / (float)_clip.frequency;
             var minimum = _settings != null ? _settings.minRecordSeconds : 0.4f;
+            Debug.Log($"{LogPrefix}Opname gestopt na {seconds:F1} s.");
             if (position <= 0 || seconds < minimum)
             {
                 Destroy(_clip);
@@ -144,6 +171,14 @@ namespace ProCommVR.Hospital.AiTalk
             }
             var samples = new float[position * _clip.channels];
             _clip.GetData(samples, 0);
+            var peak = 0f;
+            foreach (var v in samples)
+                peak = Mathf.Max(peak, Mathf.Abs(v));
+            if (peak < 0.02f)
+                Debug.LogWarning($"{LogPrefix}Opname is (bijna) stil: piek {peak * 100f:F1}% op '{_device ?? "standaardmicrofoon"}'. " +
+                                 "Verkeerde microfoon, gedempt, of headset niet op (Quest-microfoon werkt alleen met de headset op).");
+            else
+                Debug.Log($"{LogPrefix}Opnamevolume: piek {peak * 100f:F0}%.");
             var wav = WavUtility.ToWav16kMono(samples, _clip.channels, _clip.frequency);
             Destroy(_clip);
             _clip = null;

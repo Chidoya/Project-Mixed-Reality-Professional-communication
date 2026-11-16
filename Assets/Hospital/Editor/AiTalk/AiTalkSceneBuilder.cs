@@ -50,13 +50,7 @@ namespace ProCommVR.Editor
             BuildCorridor();
             BuildLights();
 
-            var cam = new GameObject("Main Camera");
-            cam.tag = "MainCamera";
-            var camera = cam.AddComponent<Camera>();
-            camera.fieldOfView = 60f;
-            camera.nearClipPlane = 0.05f;
-            cam.AddComponent<AudioListener>();
-            cam.transform.SetPositionAndRotation(new Vector3(0f, EyeHeight, 0f), Quaternion.Euler(6f, 0f, 0f));
+            var cam = BuildPlayerRig();
 
             var ptt = new GameObject("PushToTalk").AddComponent<PushToTalk>();
             Set(ptt, "_settings", settings);
@@ -117,6 +111,7 @@ namespace ProCommVR.Editor
                 var action = map.AddAction("PushToTalk", InputActionType.Button);
                 action.AddBinding(PushToTalk.KeyboardBinding);
                 action.AddBinding(PushToTalk.RightTriggerBinding);
+                action.AddBinding(PushToTalk.RightTriggerPressedBinding);
                 File.WriteAllText(InputPath, asset.ToJson());
                 Object.DestroyImmediate(asset);
                 AssetDatabase.ImportAsset(InputPath);
@@ -127,6 +122,38 @@ namespace ProCommVR.Editor
             if (reference == null)
                 Debug.LogWarning($"{LogPrefix}Geen InputActionReference voor PushToTalk in {InputPath}; PushToTalk maakt dan zelf de actie.");
             return reference;
+        }
+
+        // --- Speler ---------------------------------------------------------------------------
+
+        /// <summary>
+        /// Player (vloer) > Camera Offset > Main Camera met een TrackedPoseDriver (hoofd van de headset via OpenXR).
+        /// Zonder headset staat de camera op ooghoogte, zoals vroeger. Geeft de camera terug.
+        /// </summary>
+        private static GameObject BuildPlayerRig()
+        {
+            var player = new GameObject("Player");
+            var offset = new GameObject("Camera Offset").transform;
+            offset.SetParent(player.transform, false);
+
+            var cam = new GameObject("Main Camera");
+            cam.tag = "MainCamera";
+            cam.transform.SetParent(offset, false);
+            var camera = cam.AddComponent<Camera>();
+            camera.fieldOfView = 60f;
+            camera.nearClipPlane = 0.05f;
+            cam.AddComponent<AudioListener>();
+            var driver = cam.AddComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
+            driver.positionInput = new InputActionProperty(
+                new InputAction("Head Position", InputActionType.Value, "<XRHMD>/centerEyePosition", expectedControlType: "Vector3"));
+            driver.rotationInput = new InputActionProperty(
+                new InputAction("Head Rotation", InputActionType.Value, "<XRHMD>/centerEyeRotation", expectedControlType: "Quaternion"));
+            driver.ignoreTrackingState = true;
+            // Op ooghoogte in de Editor zonder headset (de TrackedPoseDriver overschrijft dit met een headset)
+            cam.transform.SetPositionAndRotation(new Vector3(0f, EyeHeight, 0f), Quaternion.Euler(6f, 0f, 0f));
+
+            player.AddComponent<XrPlayerRig>().Setup(offset, camera, EyeHeight);
+            return cam;
         }
 
         // --- Gang -----------------------------------------------------------------------------
