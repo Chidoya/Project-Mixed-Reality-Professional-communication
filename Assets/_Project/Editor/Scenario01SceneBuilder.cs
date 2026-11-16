@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ProCommVR.Emotions;
 using ProCommVR.Scenarios;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -96,6 +97,12 @@ namespace ProCommVR.Editor
                 element.FindPropertyRelative("Target").objectReferenceValue = poses[i].Value;
             }
             serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // The patient's emotions (patient view): follow the scenario's Initial Emotion and each option's delta.
+            var emotions = patient.parent.gameObject.AddComponent<EmotionHolder>();
+            var serializedEmotions = new SerializedObject(emotions);
+            serializedEmotions.FindProperty("_presenter").objectReferenceValue = presenter;
+            serializedEmotions.ApplyModifiedPropertiesWithoutUndo();
 
             Debug.Log($"[ProCommVR] Patient room built, wall height {wallHeight:F2} m.");
             ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);

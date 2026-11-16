@@ -1,4 +1,5 @@
 using System;
+using ProCommVR.Emotions;
 using UnityEngine;
 
 namespace ProCommVR.Scenarios
@@ -6,7 +7,7 @@ namespace ProCommVR.Scenarios
     /// <summary>
     /// One answer the player can choose in a scenario, with its (hidden) score, the NPC's reaction
     /// right after the choice and the feedback shown on the results screen. Optional: the mood of the room after
-    /// the choice, and the reaction of a bystander (a second character in the scene).
+    /// the choice, the change in the patient's emotions (patient view) and the reaction of a bystander (a second character in the scene).
     /// </summary>
     [Serializable]
     public class DialogueOption
@@ -37,6 +38,11 @@ namespace ProCommVR.Scenarios
         [Tooltip("The mood after this choice (only with Changes Mood).")]
         [SerializeField] private Mood _moodAfter = Mood.Neutral;
 
+        [Header("Patient emotion after the choice (optional)")]
+        [Tooltip("Added to the patient's emotions after this choice (-1..1 each, clamped to 0..1). Visual feedback in the " +
+                 "patient view only: it does not change the score. All zero = no change.")]
+        [SerializeField, EmotionRange(-1f, 1f)] private EmotionState _emotionDelta;
+
         [Header("Outcome (optional)")]
         [Tooltip("This answer makes the task fail (e.g. the patient refuses the test and leaves): in a shift the task ends as " +
                  "\"not resolved\" instead of cared for, and the player has to try it again on another day.")]
@@ -57,6 +63,7 @@ namespace ProCommVR.Scenarios
         public AudioClip NpcVoice => _npcVoice;
         public bool ChangesMood => _changesMood;
         public Mood MoodAfter => _moodAfter;
+        public EmotionState EmotionDelta => _emotionDelta;
         public bool FailsTask => _failsTask;
         public string BystanderReaction => _bystanderReaction;
         public NpcPose BystanderPose => _bystanderPose;
