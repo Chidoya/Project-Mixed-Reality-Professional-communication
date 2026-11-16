@@ -99,8 +99,8 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Adds the patient view to a scene: the anchor on the NPC's body, the fade on the rig's camera, the hint and
-        /// the controller. Eyes: only for an NPC without a Humanoid rig (a child of its body). Returns the controller.
+        /// Adds the patient view to a scene: the anchor on the NPC's body, the fade on the rig's camera and the
+        /// controller (the hint is in the emotion HUD). Eyes: only for an NPC without a Humanoid rig (a child of its body). Returns the controller.
         /// </summary>
         internal static PovController AddToScene(ScenarioPresenter presenter, Transform npcBody, XROrigin origin, Transform eyes = null)
         {
@@ -127,18 +127,9 @@ namespace ProCommVR.Editor
             fadeRenderer.enabled = false;
             var screenFade = fade.AddComponent<ScreenFade>();
 
-            // Hint: a non-clickable dialogue bubble, so it looks like the rest of the UI.
-            var bubblePrefab = AssetDatabase.LoadAssetAtPath<DialogueBubble>(ScenarioTestSceneBuilder.BubblePrefabPath);
-            var hint = (DialogueBubble)PrefabUtility.InstantiatePrefab(bubblePrefab);
-            hint.name = "POV Hint (Press Y to return)";
-            hint.SetText(HintText);
-            hint.SetClickable(false);
-            hint.transform.localScale *= 0.8f;
-            hint.gameObject.SetActive(false);
-
+            // The "Press Y to return" hint is part of the emotion HUD (EmotionHudSetup); the controller's own hint stays empty.
             var controllerObject = new GameObject("POV Controller");
             var controller = controllerObject.AddComponent<PovController>();
-            hint.transform.SetParent(controllerObject.transform, true);
             var serialized = new SerializedObject(controller);
             serialized.FindProperty("_settings").objectReferenceValue = GetOrCreateSettings();
             serialized.FindProperty("_switchAction").objectReferenceValue = SwitchActionReference();
@@ -146,7 +137,6 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_anchor").objectReferenceValue = anchor;
             serialized.FindProperty("_origin").objectReferenceValue = origin;
             serialized.FindProperty("_fade").objectReferenceValue = screenFade;
-            serialized.FindProperty("_hint").objectReferenceValue = hint.gameObject;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return controller;
         }

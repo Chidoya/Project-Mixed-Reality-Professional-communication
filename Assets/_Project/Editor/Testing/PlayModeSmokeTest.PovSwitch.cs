@@ -150,7 +150,7 @@ namespace ProCommVR.Editor.Testing
                     Check(bodyRenderers.All(r => r.enabled), $"round {round}: the patient's body is back");
                     Check(controlsOn.All(b => b.enabled) && origin.GetComponent<CharacterController>().enabled,
                         $"round {round}: lasers, locomotion and the character controller are on again");
-                    Check(!pov.GetComponentsInChildren<DialogueBubble>(true).Any(b => b.gameObject.activeInHierarchy), $"round {round}: the hint is hidden");
+                    Check(HintText(pov) == "(no hint)", $"round {round}: the hint is hidden");
                     var optionsAfter = OptionTexts();
                     Check(optionsAfter.SequenceEqual(optionsBefore), $"round {round}: the same 4 options in the same order");
                     Check(chosen == 0, $"round {round}: no option chosen, the conversation is unchanged");
@@ -214,10 +214,13 @@ namespace ProCommVR.Editor.Testing
                 .ToList();
         }
 
+        /// <summary>
+        /// The return hint, in the emotion HUD when it is shown.
+        /// </summary>
         private static string HintText(PovController pov)
         {
-            var hint = pov.GetComponentsInChildren<DialogueBubble>(true).FirstOrDefault(b => b.gameObject.activeInHierarchy);
-            return hint != null ? hint.GetComponentInChildren<TMP_Text>().text : "(no hint)";
+            var hud = Object.FindAnyObjectByType<ProCommVR.Emotions.EmotionHud>();
+            return hud != null && hud.IsShown ? hud.HintText : "(no hint)";
         }
 
         private static IEnumerable WaitUntilAllowed(PovController pov)
