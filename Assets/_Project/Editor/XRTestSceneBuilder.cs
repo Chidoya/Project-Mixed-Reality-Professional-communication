@@ -29,7 +29,7 @@ namespace ProCommVR.Editor
         private const string SampleRigName = "XR Origin (XR Rig)";
         private const string SampleActionsName = "XRI Default Input Actions";
 
-        private const string InputActionsPath = "Assets/_Project/Settings/Input/ProCommVR XRI Input Actions.inputactions";
+        internal const string InputActionsPath = "Assets/_Project/Settings/Input/ProCommVR XRI Input Actions.inputactions";
         private const string RigVariantPath = "Assets/_Project/Prefabs/XR Origin (ProCommVR).prefab";
         private const string FloorMaterialPath = "Assets/_Project/Materials/Floor.mat";
         private const string TargetMaterialPath = "Assets/_Project/Materials/TestTarget.mat";
@@ -97,6 +97,8 @@ namespace ProCommVR.Editor
             File.WriteAllText(InputActionsPath, actions.ToJson());
             Object.DestroyImmediate(actions);
             AssetDatabase.ImportAsset(InputActionsPath, ImportAssetOptions.ForceUpdate);
+            // Y on the left controller switches to the patient view, see PovSetup.
+            PovSetup.EnsureSwitchAction();
         }
 
         private static void SwapControllerBinding(InputActionMap map, string actionName, string from, string to)

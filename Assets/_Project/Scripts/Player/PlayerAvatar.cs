@@ -102,6 +102,19 @@ namespace ProCommVR.Player
             VisibilityChanged?.Invoke(visible);
         }
 
+        /// <summary>
+        /// Puts the avatar under the player's head right now, also when it is hidden or Follow Head is off
+        /// (e.g. just before it should stay behind where the player stood).
+        /// </summary>
+        public void PlaceAtHead()
+        {
+            var camera = _origin != null ? _origin.Camera : null;
+            if (camera == null)
+                return;
+            FollowCamera(camera.transform);
+            UpdateHead(camera.transform.position);
+        }
+
         private void ApplyVisible()
         {
             _appliedVisible = _visible;
