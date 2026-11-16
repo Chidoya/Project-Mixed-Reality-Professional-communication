@@ -61,18 +61,19 @@ Dependencies zoals `com.unity.xr.core-utils` en `com.unity.inputsystem` komen au
 ```
 Assets/
   _Project/                 alles van ons
-    Audio/Placeholder/      placeholder-geluiden per mood en het tikken van de countdown (gegenereerde tonen), zie sectie 10 en 12
+    Audio/Placeholder/      placeholder-geluiden per mood en per emotie (patient view) en het tikken van de countdown (gegenereerde tonen), zie sectie 10, 12 en 18
     Dialogue/Scenarios/     scenario-data (Scenario assets), zie sectie 8
     Dialogue/Shifts/        shift-plannen (ShiftPlan assets), zie sectie 12
     Editor/                 editor-scripts (setup, tools), niet in de build
     Editor/Testing/         Play mode-tests (batchmode), zie sectie 13
     Materials/              materialen
     Materials/PatientRoom/  URP-materialen voor de patiëntenkamer (scenario 1), zie sectie 11
+    Materials/Emotions/     deeltjesmaterialen van de kamer-effecten (vuur, regen, druppels, stof) en hun textuur SoftDot.png, zie sectie 18
     Materials/UI/           HUD-materialen die altijd bovenop tekenen (HudOverlay, HudOverlay_Text), zie sectie 17
     Materials/Characters/   kopieën van kledingmaterialen van Liam's personages in andere kleuren (bezoekers: de dochter van scenario 2, de zoon van scenario 3, de vrouw van scenario 4)
     Prefabs/                prefabs, o.a. de XR rig variant
     Prefabs/UI/             UI-prefabs, o.a. DialogueBubble
-    Shaders/                eigen shaders: ProCommVR/UI Overlay (UI altijd bovenop, voor de emotie-HUD), zie sectie 17
+    Shaders/                eigen shaders: ProCommVR/UI Overlay (UI altijd bovenop, voor de emotie-HUD, sectie 17) en ProCommVR/Particle (deeltjes van de kamer-effecten, sectie 18)
     Prefabs/Player/         de avatar van de speler (prefab variant van Liam's Nurse_Female_Scrubs), zie sectie 15
     Scenes/                 scenes
     Scripts/                runtime-code, namespace ProCommVR
@@ -86,6 +87,7 @@ Assets/
     Settings/Input/         input actions
     Settings/Moods/         mood-profielen (kleur, licht, ambient, muziek per mood), zie sectie 10
     Settings/Pov/           PovSwitchSettings (limieten van de POV-switch), zie sectie 16
+    Settings/Emotions/      EmotionWorld_<emotie> (hoe de kamer reageert per emotie) en EmotionWorldVolume (URP-volume), zie sectie 18
   Samples/                  geïmporteerde package-samples, niet aanpassen
   TextMesh Pro/             TMP Essential Resources (fonts, shaders), niet aanpassen
   XR/                       XR Plug-in Management en OpenXR settings (door Unity beheerd)
@@ -754,6 +756,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunPlayerAvatar` | `Scenario01_PatientRoom`: precies één avatar (uit de rig), los van de rig, standaard onzichtbaar, hoogstens 3k driehoeken, geen lichten of schaduwen; `SetVisible(true)` toont hem en geeft het event; met de gesimuleerde HMD staat het lichaam onder het hoofd, rechtop, voeten op de vloer, gedraaid met de yaw van het hoofd, ook na lopen en draaien, en het eigen hoofd is weggeklapt; met `FollowHead` uit blijft hij staan en is zijn hoofd van op 2 m zichtbaar (screenshot `avatar-from-outside`); `SetVisible(false)` verbergt hem weer |
 | `RunPovSwitch` | `Scenario01_PatientRoom`, met de **Y-knop van een gesimuleerde linkercontroller** (via de echte action `SwitchPov`): binnen bereik 4 opties; Y: de camera staat op de ogen van de patiënt (1,25 m, zijn kijkrichting), de avatar staat waar de speler stond, het lichaam van de patiënt en alle ballonnen zijn weg, lasers, locomotion en de CharacterController staan uit, de hint "Press Y to return" staat er; een snelle tweede druk wordt genegeerd; Y na de wachttijd: de rig staat **exact** op de oude pose, alles is terug, dezelfde 4 opties in dezelfde volgorde, geen keuze gemaakt; drie keer, de vierde wissel wordt geweigerd; een nieuw gesprek zet de teller op 0; `PovChanged` 6 keer, afwisselend. Screenshots: nurse view, patient view, de verpleegkundige door de ogen van de patiënt |
 | `RunEmotionHud` | `Scenario01_PatientRoom`: precies één HUD, uit in de nurse view (ook als de emoties veranderen), alle 19 graphics tekenen bovenop (overlay-shaders); na Y (gesimuleerde linkercontroller): getoond (alpha 1) met de hint "Press Y to return", 1,60 m ver, 22° links van het midden, naar de camera gedraaid; de 4 getallen en balken komen overeen met de `EmotionHolder`, de dominante rij (Anger) is vet en fel, de andere gedimd; hoofdletters van de rijen 27 mm = 0,98°, kleinste tekst 0,68°; na `Apply` beweegt de balk mee tijdens het overvloeien en wordt Sadness dominant; bij een snelle draai van 60° naar links blijft de HUD minstens 12° links van het midden en komt hij terug op 22°; Y terug: uit. Screenshots: patient view met HUD |
+| `RunEmotionWorld` | `Scenario01_PatientRoom`: budget (volume met Color Adjustments en Vignette, geen Bloom; per emotie een profiel, effect-anchors en hoogstens 1 extra licht; deeltjessystemen hoogstens 200 deeltjes; geen schaduwen); **nurse view**: elke emotie dominant maken verandert niets (licht, ambient, fog, post-processing, volume, anchors); na Y (gesimuleerde linkercontroller), **patient view**, per emotie (Joy, Anger, Fear, Sadness via `SetImmediate`): volle sterkte, volume en post-processing aan, saturatie en kleurfilter van het profiel, kamerlicht maal het profiel, precies de eigen effecten aan, deeltjes spelen, eigen geluid speelt; wissel Sadness naar Joy: via neutraal, nooit twee emoties of twee extra lichten tegelijk, geen sprongen; een mood-verandering van het kamerlicht tijdens de patient view blijft behouden; Y terug: de kamer is exact zoals ervoor. Screenshots per emotie (naar het raam en de kamer) |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
@@ -943,3 +946,69 @@ HUD Prefab**. `Scenario01SceneBuilder` zet hem in de scene, gekoppeld aan de `Em
 - Kleuren, maten of lettergrootte: in `EmotionHudSetup` en de prefab opnieuw bouwen.
 - Plaats en gedrag (afstand, hoek, naijlen, grenzen): in de inspector van `EmotionHud`.
 - Een vijfde emotie: een rij in `EmotionHudSetup.Rows` (na de uitbreiding van `EmotionState`, sectie 14).
+
+## 18. Emotion world effects
+
+**Wat:** in de **patient view** (sectie 16) reageert de kamer op de dominante emotie van de patiënt (sectie 14). In de
+**nurse view** ziet de kamer er exact uit zoals zonder dit systeem: voor de verpleegkundige is het gewoon woensdag.
+Het verschil tussen de twee views is het punt van het spel.
+
+| Emotie | Scherm (volume) | Licht | Effecten |
+| --- | --- | --- | --- |
+| Joy | iets groener en warmer, meer kleur, iets helderder | warmer en sterker, warm ambient | planten groeien bij het raam (op de vloer, op de vensterbank), warm zonlicht door het raam met stofjes |
+| Anger | roodachtig, rode vignette die pulseert | rood-oranje | kleine vuurtjes op de stoel, de vensterbank en het nachtkastje, een flikkerend vuurlicht |
+| Fear | koud en grauw, sterke vignette, donkerder | licht en ambient bijna uit, zwarte fog | enkel een zaklamp op het hoofd (smalle kegel, zachte rand) verlicht de kamer |
+| Sadness | blauwer en grijzer | grijsblauw en zwakker, grijze fog | regen over het raam, een paar druppels van het plafond |
+
+**Klassen** (`Assets/_Project/Scripts/Emotions/`):
+
+| Klasse | Rol |
+| --- | --- |
+| `EmotionWorldProfile` | ScriptableObject per emotie (`Settings/Emotions/EmotionWorld_<emotie>.asset`): kleurfilter, saturatie, exposure, vignette (sterkte, kleur, puls), tint en sterkte van het kamerlicht en het ambient licht, fog (aan, kleur, dichtheid), welke soorten effecten aan gaan, geluid (placeholder) en volume. Neutraal is "geen verandering" en heeft geen asset. |
+| `PatientWorldController` | Luistert naar `EmotionHolder.EmotionChanged` en `PovController.PovChanged` en stuurt alles hieronder aan. |
+| `EmotionEffectAnchor` | Een plek in de kamer met een effect (emotie, soort, inhoud). Gewicht 0 tot 1: bij 0 staat de inhoud uit (kost niets). Optioneel: *Grow* (schaalt van niets tot de gebouwde grootte, met wat wiegen), deeltjessystemen (emissie maal het gewicht), een licht (sterkte maal het gewicht, optioneel flikkeren). |
+
+**Hoe het werkt:**
+- **Sterkte:** in de patient view groeit het effect met de waarde van de dominante emotie: van de drempel (0,15) tot
+  *Full Strength At* (0,6) gaat het van 0 tot vol. Het overvloeien duurt ongeveer 2 s (*Blend Seconds*, met easing).
+- **Andere emotie:** de oude emotie vloeit eerst terug naar neutraal (twee keer zo snel), dan komt de nieuwe op. Zo is er
+  nooit meer dan één emotie, en dus nooit meer dan één extra realtime licht, tegelijk actief.
+- **Terug naar de nurse view:** `PovChanged(Nurse)` komt terwijl het beeld nog zwart is (sectie 16); de controller zet
+  alles meteen terug. Er lekt dus niets in de nurse view.
+- **Volume:** één globaal URP-volume ("Patient World (emotion effects)") met enkel Color Adjustments en Vignette
+  (`Settings/Emotions/EmotionWorldVolume.asset`), **geen Bloom** (dat laat dingen gloeien, verschuift geen kleuren en is
+  duur op de Quest). In Play mode werkt de controller op een kopie van het profiel, het asset blijft ongewijzigd.
+  **Post-processing staat enkel aan op de camera zolang er een effect te zien is**: in de nurse view kost het niets.
+- **Licht bovenop de mood:** de controller vermenigvuldigt de kleur en sterkte van de kamerlichten (*Room Lights*) en het
+  ambient licht met het profiel. Het Mood-systeem (sectie 10) blijft ongewijzigd en mag die lichten blijven aanpassen:
+  ziet de controller een andere waarde dan hij zelf schreef, dan is dat de nieuwe basis (apart voor kleur en sterkte).
+  Bij het terugzetten krijgt elk licht zijn basis terug, tenzij iemand het intussen veranderde.
+- **Fog:** enkel aan zolang een profiel met fog getoond wordt; daarna komen de oorspronkelijke instellingen terug.
+- **Geluid:** één 2D-`AudioSource` op de controller speelt de loop van het profiel, met een volume maal het gewicht.
+
+**Budget voor de Quest 3** (gecontroleerd door `RunEmotionWorld`): hoogstens 1 extra realtime licht tegelijk (zon, vuurlicht
+of zaklamp; Sadness heeft er geen), geen schaduwen, deeltjessystemen met hoogstens 200 deeltjes (regen 200, vuur 60,
+stofjes 40, druppels 10), een eenvoudige unlit deeltjes-shader (`ProCommVR/Particle`, werkt met single-pass instanced
+stereo), geen schermvullende transparante lagen buiten het volume. De frame-kost op de Quest zelf is **nog niet gemeten**.
+Ogen de kleurtinten op het toestel te zwak, dan zijn de lichten en de fog in het profiel de eerste uitwijk.
+
+**Placeholder-geluiden:** `Assets/_Project/Audio/Placeholder/Emotion_<emotie>_Placeholder.wav`, gegenereerd (Joy: een
+zacht akkoord, Anger: geknetter, Fear: een lage drone met hartslag, Sadness: regen). Mono, 22 kHz, loops van 4 s. Echte
+audio komt later.
+
+**Scene:** `Editor/EmotionWorldSetup.cs` maakt de profielen (enkel als ze ontbreken: getunede assets blijven behouden;
+verwijder er een om de standaardwaarden terug te krijgen), het volume-profiel, de deeltjesmaterialen en de textuur, en
+zet de controller in een scene (`AddToScene(holder, pov, roomLights)`). De effect-anchors zet een builder met
+`AddPlant`, `AddSunBeam`, `AddFire`, `AddFireLight`, `AddFlashlight` (een kind van de XR-camera), `AddRain` en `AddDrips`,
+nooit met de hand. In `Scenario01_PatientRoom` doet `Scenario01SceneBuilder.BuildEmotionEffects` dat rond het raam waar
+de patiënt naar kijkt. Het raam van de kit heeft een gesloten rolgordijn in het model zelf; de regen valt daarom net voor
+het raam, van boven tot op de vensterbank. Kamer 1A in de shift volgt in stap 6.
+
+**Met de hand testen:** start `Scenario01_PatientRoom`, druk Y bij de patiënt en sleep de Target-sliders van de
+`EmotionHolder`: de kamer volgt de dominante emotie; druk Y terug: de kamer is weer gewoon.
+
+**Uitbreiden:**
+- Kleuren, licht, fog of geluid van een emotie: in het `EmotionWorld_<emotie>.asset`, zonder code.
+- Een nieuw effect in een kamer: een `Add*`-aanroep in de builder van die kamer; een nieuwe soort effect: een waarde in
+  `EmotionEffectKind`, een `Add*`-methode in `EmotionWorldSetup` en de soort in de lijst *Effects* van het profiel.
+- Een andere kamer: `EmotionWorldSetup.AddToScene` met de lichten van die kamer, en de anchors via de builder.

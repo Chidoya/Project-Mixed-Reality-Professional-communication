@@ -118,7 +118,7 @@ namespace ProCommVR.Editor
 
             // The room reacts to the patient's dominant emotion, only in the patient view.
             EmotionWorldSetup.AddToScene(emotions, pov, new[] { light });
-            BuildEmotionEffects(wallHeight);
+            BuildEmotionEffects(wallHeight, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>().Camera.transform);
 
             Debug.Log($"[ProCommVR] Patient room built, wall height {wallHeight:F2} m.");
             ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);
@@ -127,7 +127,7 @@ namespace ProCommVR.Editor
         /// <summary>
         /// The effect anchors of the patient view, around the window the patient looks out of (east wall, x = 2, z 2 to 4).
         /// </summary>
-        private static void BuildEmotionEffects(float wallHeight)
+        private static void BuildEmotionEffects(float wallHeight, Transform camera)
         {
             var effects = new GameObject("Emotion Effects").transform;
             var half = RoomSize * 0.5f;
@@ -144,6 +144,17 @@ namespace ProCommVR.Editor
             EmotionWorldSetup.AddFire(effects, "Fire Window", new Vector3(half - 0.07f, WindowSillHeight, 3.55f), 0.35f);
             EmotionWorldSetup.AddFire(effects, "Fire Cabinet", new Vector3(0.45f, 0.65f, 3.7f), 0.25f);
             EmotionWorldSetup.AddFireLight(effects, new Vector3(half - 0.6f, 1.3f, 2.6f));
+
+            // Fear: the room goes dark, only the flashlight on the player's head lights it.
+            EmotionWorldSetup.AddFlashlight(effects, camera);
+
+            // Sadness: rain runs down the window (the kit window has a closed blind, so the rain falls just in front of
+            // it, from the top of the window to the sill) and a few drops fall from the ceiling.
+            var windowTop = wallHeight - 0.25f;
+            EmotionWorldSetup.AddRain(effects, new Vector3(half - 0.03f, WindowSillHeight, 3f),
+                new Vector3(1.5f, windowTop - WindowSillHeight, 0.04f), -90f);
+            EmotionWorldSetup.AddDrips(effects, "Drips Window", new Vector3(half - 0.4f, wallHeight - 0.02f, 3.3f), wallHeight);
+            EmotionWorldSetup.AddDrips(effects, "Drips Chair", new Vector3(half - 0.5f, wallHeight - 0.02f, 2.1f), wallHeight);
         }
 
         /// <summary>

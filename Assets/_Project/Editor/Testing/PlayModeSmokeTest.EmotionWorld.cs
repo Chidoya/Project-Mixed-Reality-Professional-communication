@@ -23,7 +23,7 @@ namespace ProCommVR.Editor.Testing
     /// </summary>
     public static partial class PlayModeSmokeTest
     {
-        private static readonly Emotion[] WorldEmotions = { Emotion.Joy, Emotion.Anger };
+        private static readonly Emotion[] WorldEmotions = { Emotion.Joy, Emotion.Anger, Emotion.Fear, Emotion.Sadness };
 
         [MenuItem("ProCommVR/Tests/Emotion World (Scenario 01)")]
         public static void RunEmotionWorld()

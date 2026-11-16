@@ -68,6 +68,26 @@ namespace ProCommVR.Editor
                 AmbientTint = new Color(1f, 0.7f, 0.6f), AmbientIntensity = 0.9f,
                 Effects = new[] { EmotionEffectKind.Fire, EmotionEffectKind.FireLight }, SoundVolume = 0.4f,
             },
+            // Fear: the room goes dark (lights and ambient almost off, black fog), only the head flashlight lights it.
+            [Emotion.Fear] = new ProfileValues
+            {
+                ColorFilter = new Color(0.85f, 0.9f, 1f), Saturation = -35f, PostExposure = -0.5f,
+                Vignette = 0.55f, VignetteColor = Color.black,
+                LightTint = new Color(0.7f, 0.75f, 1f), LightIntensity = 0.03f,
+                AmbientTint = new Color(0.8f, 0.85f, 1f), AmbientIntensity = 0.06f,
+                Fog = true, FogColor = new Color(0.01f, 0.01f, 0.02f), FogDensity = 0.3f,
+                Effects = new[] { EmotionEffectKind.Flashlight }, SoundVolume = 0.45f,
+            },
+            // Sadness: grey-blue and less colorful, rain on the window and a few drips inside.
+            [Emotion.Sadness] = new ProfileValues
+            {
+                ColorFilter = new Color(0.8f, 0.88f, 1f), Saturation = -45f, PostExposure = -0.2f,
+                Vignette = 0.25f, VignetteColor = new Color(0.02f, 0.04f, 0.08f),
+                LightTint = new Color(0.75f, 0.82f, 1f), LightIntensity = 0.7f,
+                AmbientTint = new Color(0.8f, 0.86f, 1f), AmbientIntensity = 0.75f,
+                Fog = true, FogColor = new Color(0.42f, 0.47f, 0.55f), FogDensity = 0.08f,
+                Effects = new[] { EmotionEffectKind.Rain, EmotionEffectKind.Drips }, SoundVolume = 0.4f,
+            },
         };
 
         /// <summary>
@@ -299,6 +319,84 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_flicker").floatValue = 0.55f;
             serialized.FindProperty("_flickerSpeed").floatValue = 9f;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            return anchor;
+        }
+
+        /// <summary>
+        /// Fear: a flashlight on the player's head (a narrow spot with a soft edge, the one extra light of Fear). It is
+        /// a child of the XR camera, so it moves with the head in the patient view.
+        /// </summary>
+        internal static EmotionEffectAnchor AddFlashlight(Transform parent, Transform camera)
+        {
+            var anchor = NewAnchor(parent, "Head Flashlight", camera.position, camera.rotation, Emotion.Fear, EmotionEffectKind.Flashlight, out var content);
+            anchor.transform.SetParent(camera, false);
+            anchor.transform.localPosition = new Vector3(0.04f, -0.06f, 0.05f);
+            anchor.transform.localRotation = Quaternion.identity;
+            var light = content.AddComponent<Light>();
+            light.type = LightType.Spot;
+            light.color = new Color(1f, 0.96f, 0.86f);
+            light.intensity = 4f;
+            light.range = 8f;
+            light.spotAngle = 38f;
+            light.innerSpotAngle = 14f;
+            light.shadows = LightShadows.None;
+            light.renderMode = LightRenderMode.ForcePixel;
+            Set(anchor, "_light", light);
+            return anchor;
+        }
+
+        /// <summary>
+        /// Sadness: rain streaks falling over a window, from the top of the window down to the sill.
+        /// Sill: the middle of the window sill; size: width (x), height (y) and depth (z) in the window's own axes;
+        /// yaw: turns the window's width (x) along the wall.
+        /// </summary>
+        internal static EmotionEffectAnchor AddRain(Transform parent, Vector3 sill, Vector3 size, float yaw)
+        {
+            var anchor = NewAnchor(parent, "Rain", sill, Quaternion.Euler(0f, yaw, 0f), Emotion.Sadness, EmotionEffectKind.Rain, out var content);
+            const float speed = 5f;
+            var rain = Particles(content.transform, "Rain Streaks", new Vector3(0f, size.y, 0f), Quaternion.Euler(90f, 0f, 0f),
+                AlphaBlended(), MaxParticlesPerSystem);
+            var main = rain.main;
+            main.startLifetime = size.y / speed;
+            main.startSpeed = speed;
+            main.startSize = 0.012f;
+            main.startColor = new Color(0.62f, 0.7f, 0.82f, 0.55f);
+            var emission = rain.emission;
+            emission.rateOverTime = 260f;
+            var shape = rain.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(size.x, size.z, 0.02f);
+            var renderer = rain.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.lengthScale = 1f;
+            renderer.velocityScale = 0.05f;
+            Set(anchor, "_particles", rain);
+            return anchor;
+        }
+
+        /// <summary>
+        /// Sadness: a few drops falling from the ceiling.
+        /// </summary>
+        internal static EmotionEffectAnchor AddDrips(Transform parent, string name, Vector3 position, float fallHeight)
+        {
+            var anchor = NewAnchor(parent, name, position, Quaternion.identity, Emotion.Sadness, EmotionEffectKind.Drips, out var content);
+            var drips = Particles(content.transform, "Drops", Vector3.zero, Quaternion.identity, AlphaBlended(), 10, true);
+            var main = drips.main;
+            main.startLifetime = Mathf.Sqrt(2f * fallHeight / 9.81f);
+            main.startSpeed = 0f;
+            main.gravityModifier = 1f;
+            main.startSize = 0.025f;
+            main.startColor = new Color(0.72f, 0.8f, 0.92f, 0.85f);
+            var emission = drips.emission;
+            emission.rateOverTime = 1.2f;
+            var shape = drips.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.03f;
+            var renderer = drips.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.lengthScale = 2.5f;
+            renderer.velocityScale = 0.01f;
+            Set(anchor, "_particles", drips);
             return anchor;
         }
 
