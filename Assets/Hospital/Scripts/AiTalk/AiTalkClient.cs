@@ -89,6 +89,7 @@ namespace ProCommVR.Hospital.AiTalk
                 if (turn == null)
                     return Fallback("leeg antwoord op /turn/audio");
                 turn.roundTripMs = ms;
+                LogTiming(turn);
                 if (turn.retry)
                 {
                     var fallback = Fallback(null);
@@ -203,6 +204,21 @@ namespace ProCommVR.Hospital.AiTalk
             while (!op.isDone)
                 await Awaitable.NextFrameAsync();
             return (request.result == UnityWebRequest.Result.Success, (int)watch.ElapsedMilliseconds);
+        }
+
+        /// <summary>Eén regel per beurt in de Console; een waarschuwing als de beurt traag was (> 10 s).</summary>
+        private static void LogTiming(AiTurn turn)
+        {
+            var t = turn.timings_ms;
+            if (t == null)
+                return;
+            var line = $"{LogPrefix}Beurt: totaal {turn.roundTripMs} ms (server {t.request_total_ms}: " +
+                       $"spraak->tekst {t.stt_ms}, classifier {t.classify_ms} ms/{t.classify_calls}x, " +
+                       $"actor {t.actor_ms} ms/{t.actor_calls}x, tekst->spraak {t.tts_ms})";
+            if (turn.roundTripMs > 10000)
+                Debug.LogWarning(line + " -- TRAAG");
+            else
+                Debug.Log(line);
         }
 
         private string Describe(UnityWebRequest request)

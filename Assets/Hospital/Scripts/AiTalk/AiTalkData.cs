@@ -24,6 +24,8 @@ namespace ProCommVR.Hospital.AiTalk
         public int tts_ms;
         public int total_ms;
         public int request_total_ms;
+        public int classify_calls; // aantal AI-oproepen (2 = eerste antwoord afgekeurd en opnieuw gevraagd)
+        public int actor_calls;
     }
 
     /// <summary>Eén beurt (antwoord van /turn/audio) of de openingszin (opening van /session/start).</summary>

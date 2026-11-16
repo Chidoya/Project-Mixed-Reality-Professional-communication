@@ -686,6 +686,8 @@ class Engine:
         result["character_name"] = sc.data["persona"]["name"]
         result["timings_ms"] = timings
         session.turns.append(result)
+        timings["classify_calls"] = result["tokens"].get("classify", {}).get("calls", 0)
+        timings["actor_calls"] = result["tokens"].get("actor", {}).get("calls", 0)
         calls = " ".join(f"{k} {v['calls']}x" for k, v in result["tokens"].items())
         log.info("turn %d %s labels=%s anger %d->%d trust %d->%d phase=%s %dms "
                  "(classify %d ms, actor %d ms, llm calls: %s)",
