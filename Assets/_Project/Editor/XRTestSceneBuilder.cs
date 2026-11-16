@@ -122,7 +122,10 @@ namespace ProCommVR.Editor
                 gaze.gameObject.SetActive(false);
 
                 RetargetInputActions(rig, sampleActionsPath);
-                return PrefabUtility.SaveAsPrefabAsset(rig, RigVariantPath);
+                PrefabUtility.SaveAsPrefabAsset(rig, RigVariantPath);
+                // The nurse avatar (patient view) is part of the rig, see PlayerAvatarSetup.
+                PlayerAvatarSetup.AddToRig(RigVariantPath, PlayerAvatarSetup.CreateAvatarPrefab());
+                return AssetDatabase.LoadAssetAtPath<GameObject>(RigVariantPath);
             }
             finally
             {
