@@ -75,6 +75,7 @@ Assets/
     Scripts/                runtime-code, namespace ProCommVR
     Scripts/Scenarios/      scenario-systeem, namespace ProCommVR.Scenarios
     Scripts/Atmosphere/     mood-systeem, namespace ProCommVR.Atmosphere
+    Scripts/Emotions/       emoties van de patiënt (patient view), namespace ProCommVR.Emotions, zie sectie 14
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
     Scripts/Navigation/     verplaatsen: lift en objecten langs een pad (brancard, NPC), namespace ProCommVR.Navigation
     Settings/Input/         input actions
@@ -743,6 +744,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunScenario05Good` | Scenario 5, **gordijn en goed**: vanuit de gang niets (krant omhoog, gordijn open); in de deur komt Patient X roepend af (`Angry`, de zin uit de bron) en legt de buurman zijn krant neer, 2 keuzes; gordijn kiezen: geen opties zolang het schuift, daarna dicht; 4 opties; beste optie: Patient X rustig (`Idle`), de buurman blijft liggen en zwijgt, mood `Neutral`; "Finish", `Completed`, score 3 + 1; eindscherm "4 / 4" en "Talked in: Behind the privacy curtain" |
 | `RunScenario05Fail` | Scenario 5, **open kamer en de diagnose hardop**: Patient X loopt naar de deur (`Angry`), de buurman staat overstuur op (`Sad`) met zijn zin, mood `Alarm` (rood knipperlicht en waarschuwingsgeluid); "Finish": uitkomst `FailedAnswer`, geen score, bordje "Not resolved", bord "Failed: not resolved" en "Failed: 1", de shift loopt verder; eindscherm "failed: not resolved" met de feedback |
 | `RunScenario01Mood` | `Scenario01_PatientRoom`: na de fade hebben het hoofdlicht en het ambient licht de waarden van het Somber-profiel, en het Somber-geluid speelt |
+| `RunEmotionModel` | `Scenario01_PatientRoom` met een kopie van Scenario 1 met testwaarden (het echte asset blijft ongewijzigd): `ScenarioStarted` zet Initial Emotion meteen (één `EmotionChanged`, dominant Sadness), 4 opties binnen bereik, laser + trigger kiest een optie, het target is initial + delta (geclampt), Current springt niet maar vloeit in ongeveer 1,5 s naar het target en geeft onderweg `EmotionChanged`; daarna met de hand: `Apply` clampt op 1 en op 0, alles 0 geeft geen dominante emotie, `SetImmediate` springt meteen; de Mood blijft Somber |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
 als de XR Interaction Simulator): de "headset" kijkt rond, de rechtercontroller richt de laser op de computer en de
@@ -771,3 +773,41 @@ reactie, een overzicht van de kamer (bedden, gordijn, buurman) en het eindrappor
 Een test vervangt geen test op de Quest 3 zelf: performance, leesbaarheid in de headset en echte handbewegingen moet je
 daar nog controleren.
 
+## 14. Emotion model
+
+**Wat:** wat de patiënt vanbinnen voelt, als vier waarden van 0 tot 1: Joy, Anger, Fear en Sadness. Het is de basis
+voor de patient view (POV-switch, emotie-HUD en een kamer die op de emotie reageert, die komen in latere stappen). In de
+nurse view verandert er niets: voor de verpleegkundige is het gewoon een woensdag, en dat verschil is net de bedoeling.
+Los van het **Mood-systeem** (sectie 10): de mood is de sfeer van een kamer voor iedereen, de emotie is van de patiënt.
+Geen van beide leest of verandert de andere.
+
+**Klassen** (`Assets/_Project/Scripts/Emotions/`, namespace `ProCommVR.Emotions`):
+
+| Klasse | Wat |
+| --- | --- |
+| `Emotion` | enum `Joy`, `Anger`, `Fear`, `Sadness` |
+| `EmotionState` | serialiseerbare struct met de vier waarden. `Get(emotion)`, `With(emotion, value)`, `Add(delta)` (geclampt op 0..1), `Lerp(a, b, t)`, `Approximately`, en `Dominant` / `GetDominant(threshold)`: de sterkste emotie, of `null` als geen enkele de drempel haalt (standaard 0,15). Bij een gelijke stand wint de eerste in de enum. |
+| `EmotionRangeAttribute` | tekent een `EmotionState`-veld als vier sliders: `[EmotionRange(0, 1)]` voor een toestand, `[EmotionRange(-1, 1)]` voor een delta, met `readOnly` om enkel te tonen. De drawer staat in `Editor/EmotionStateDrawer.cs`. |
+| `EmotionHolder` | op de patiënt. **Target** is waar de emoties naartoe gaan, **Current** volgt in `Blend Seconds` (1,5 s, smoothstep), zodat effecten nooit springen. `EmotionChanged(previous, current)` gaat af telkens Current verandert, ook tijdens het overvloeien, zodat lezers niet hoeven te pollen. `Apply(delta)` telt bij het target op, `SetImmediate(state)` zet alles meteen. |
+
+**Data** (geen code nodig):
+- `Scenario` > **Initial Emotion**: wat de patiënt voelt bij de start van het gesprek.
+- Elke optie > **Emotion Delta** (-1..1 per emotie): wat er na die keuze bij komt of af gaat.
+- Alles staat standaard op 0: bestaande scenario's blijven werken zonder emotie. De emotie is enkel visuele feedback,
+  de score verandert niet.
+
+**Koppeling:** met een `ScenarioPresenter` in het veld *Presenter* zet de holder bij `ScenarioStarted` meteen de Initial
+Emotion, en telt hij bij `OptionChosen` de Emotion Delta op. Dat zijn dezelfde events als bij `MoodController`; hun
+signatuur is niet veranderd.
+
+**Scenes:** `Scenario01SceneBuilder` zet een `EmotionHolder` op de root van de patiënt (naast de `NpcReactor`). In
+`ShiftHospital` zit hij nog niet, dat komt bij het samenvoegen voor Scenario 1 (kamer 1A).
+
+**Met de hand testen:** start `Scenario01_PatientRoom` in Play mode, selecteer de patiënt en sleep de **Target**-sliders
+van de `EmotionHolder`; **Current** (grijs) volgt. Zo kan elk effect van de latere stappen apart getest worden.
+
+**Uitbreiden:**
+- Een lezer (HUD, licht, effecten) abonneert zich op `EmotionChanged` en gebruikt `Current` of `Dominant`.
+- Een vijfde emotie: een waarde in de enum, een veld in `EmotionState` (ook in `Get`, `With`, `Add`, `Lerp`,
+  `Approximately` en de lus in `GetDominant`), en een slider in de drawer. Bestaande assets krijgen de nieuwe waarde op 0.
+- Waarden per scenario aanpassen: enkel in het `Scenario`-asset, in de inspector.

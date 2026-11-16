@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ProCommVR.Emotions;
 using UnityEngine;
 
 namespace ProCommVR.Scenarios
@@ -23,6 +24,11 @@ namespace ProCommVR.Scenarios
         [SerializeField] private string _title;
 
         [SerializeField] private Mood _mood = Mood.Neutral;
+
+        [Header("Patient emotion (patient view)")]
+        [Tooltip("What the patient feels when the conversation starts (0..1 each). Separate from Mood: only the patient " +
+                 "view shows it. Each option adds its Emotion Delta. All zero = no emotion.")]
+        [SerializeField, EmotionRange(0f, 1f)] private EmotionState _initialEmotion;
 
         [Header("NPC")]
         [SerializeField] private string _npcName;
@@ -69,6 +75,7 @@ namespace ProCommVR.Scenarios
         public string Id => _id;
         public string Title => _title;
         public Mood Mood => _mood;
+        public EmotionState InitialEmotion => _initialEmotion;
         public string NpcName => _npcName;
         public string NpcLine => _npcLine;
         public string BusyLine => _busyLine;
