@@ -115,8 +115,10 @@ namespace ProCommVR.Pov
                 return "not set up";
             if (Time.time - _lastSwitchTime < _settings.MinSecondsBetweenSwitches)
                 return "too soon after the last switch";
-            if (Mode == PovMode.Nurse && (_presenter == null || _presenter.CurrentScenario == null))
+            if (Mode == PovMode.Nurse && (_presenter == null || !_presenter.IsPlaying))
                 return "no conversation";
+            if (Mode == PovMode.Nurse && !_presenter.IsPlayerNear(_settings.MaxDistanceToPatient))
+                return "too far from the patient";
             if (Mode == PovMode.Nurse && SwitchesThisConversation >= _settings.MaxSwitchesPerConversation)
                 return "no switches left in this conversation";
             return null;
@@ -138,6 +140,18 @@ namespace ProCommVR.Pov
                 SwitchesThisConversation++;
             StartCoroutine(Switch(Mode == PovMode.Nurse ? PovMode.Patient : PovMode.Nurse));
             return true;
+        }
+
+        private void Update()
+        {
+            // The conversation was closed while the player looks through the patient's eyes (e.g. the shift ended):
+            // back to the nurse, without waiting for the minimum time between switches.
+            if (Mode == PovMode.Patient && !_busy && _presenter != null && !_presenter.IsPlaying)
+            {
+                Debug.Log("[ProCommVR] Conversation closed in the patient view: back to the nurse view.", this);
+                _lastSwitchTime = Time.time;
+                StartCoroutine(Switch(PovMode.Nurse));
+            }
         }
 
         private void OnSwitchPerformed(InputAction.CallbackContext context)

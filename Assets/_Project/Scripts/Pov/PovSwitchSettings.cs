@@ -18,8 +18,13 @@ namespace ProCommVR.Pov
         [Tooltip("Seconds of the fade to black, and the same back, around the move.")]
         [SerializeField, Min(0f)] private float _fadeSeconds = 0.25f;
 
+        [Tooltip("The player can only switch to the patient from this close (meters, horizontally, same floor), e.g. not " +
+                 "from another room while that patient's conversation is open in the shift.")]
+        [SerializeField, Min(0f)] private float _maxDistanceToPatient = 3.5f;
+
         public int MaxSwitchesPerConversation => _maxSwitchesPerConversation;
         public float MinSecondsBetweenSwitches => _minSecondsBetweenSwitches;
         public float FadeSeconds => _fadeSeconds;
+        public float MaxDistanceToPatient => _maxDistanceToPatient;
     }
 }

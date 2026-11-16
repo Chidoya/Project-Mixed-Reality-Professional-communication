@@ -97,6 +97,12 @@ namespace ProCommVR.Scenarios
         public Scenario CurrentScenario => _scenario;
 
         /// <summary>
+        /// True from <see cref="Play"/> until the conversation is closed with <see cref="Clear"/> (e.g. the task is
+        /// finished or the results screen appears). <see cref="CurrentScenario"/> keeps the last scenario after that.
+        /// </summary>
+        public bool IsPlaying => _scenario != null && _stage != Stage.None;
+
+        /// <summary>
         /// Where the player chose to talk in the current scenario, or null (no choice yet, or none to make).
         /// </summary>
         public ConversationLocation ChosenLocation { get; private set; }
@@ -335,6 +341,11 @@ namespace ProCommVR.Scenarios
             else
                 Play(_scenario);
         }
+
+        /// <summary>
+        /// True when the player is within this distance of the NPC (horizontally) and on the NPC's floor.
+        /// </summary>
+        public bool IsPlayerNear(float range) => PlayerInRange(range);
 
         private bool PlayerInRange(float range)
         {
