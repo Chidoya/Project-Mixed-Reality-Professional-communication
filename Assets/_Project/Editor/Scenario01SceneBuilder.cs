@@ -21,6 +21,7 @@ namespace ProCommVR.Editor
     public static class Scenario01SceneBuilder
     {
         private const string ScenePath = "Assets/_Project/Scenes/Scenario01_PatientRoom.unity";
+        private const string TestScenePath = "Assets/_Project/Scenes/PatientViewTest.unity";
         private const string ScenarioPath = "Assets/_Project/Dialogue/Scenarios/Scenario01_DisappointedPatient.asset";
         private const string MaterialFolder = "Assets/_Project/Materials/PatientRoom";
 
@@ -41,12 +42,32 @@ namespace ProCommVR.Editor
         private static readonly Vector3 PlayerStart = new Vector3(-1f, 0f, 0.5f);
         private static readonly Vector3 PatientSeat = new Vector3(-0.15f, MattressHeight, 3f);
         private const float BedCenterX = -0.6f;
+
+        // The test panel (test scene only): on the west wall, to the left of the player's start.
+        private static readonly Vector3 TestPanelPosition = new Vector3(-1.95f, 1.4f, 0.55f);
+        private static readonly Quaternion TestPanelRotation = Quaternion.Euler(0f, -90f, 0f);
         private const float WindowSillHeight = 1.3f; // the frame under the (closed) blind of the kit window
 
         private static readonly Dictionary<string, Material> KitMaterials = new Dictionary<string, Material>();
 
         [MenuItem("ProCommVR/Setup/7. Build Scenario 01 Patient Room")]
         public static void BuildScene()
+        {
+            Build(ScenePath, false);
+        }
+
+        /// <summary>
+        /// The same room with test controls for the patient view (PatientViewTestControls): set the patient's emotion
+        /// directly and restart the conversation. Added to the Build Settings, but not first (a build starts with the shift).
+        /// Batchmode: -executeMethod ProCommVR.Editor.Scenario01SceneBuilder.BuildPatientViewTestScene
+        /// </summary>
+        [MenuItem("ProCommVR/Setup/11. Build Patient View Test Scene")]
+        public static void BuildPatientViewTestScene()
+        {
+            Build(TestScenePath, true);
+        }
+
+        private static void Build(string scenePath, bool testControls)
         {
             // Create the scene first: NewScene unloads assets that were loaded before it.
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -121,7 +142,14 @@ namespace ProCommVR.Editor
             BuildEmotionEffects(wallHeight, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>().Camera.transform);
 
             Debug.Log($"[ProCommVR] Patient room built, wall height {wallHeight:F2} m.");
-            ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, ScenePath);
+            if (!testControls)
+            {
+                ScenarioTestSceneBuilder.SaveSceneFirstInBuild(scene, scenePath);
+                return;
+            }
+            PatientViewTestPanel.AddToScene(emotions, Object.FindAnyObjectByType<ScenarioSequence>(), pov,
+                rig.GetComponent<Unity.XR.CoreUtils.XROrigin>().Camera, TestPanelPosition, TestPanelRotation);
+            ScenarioTestSceneBuilder.SaveSceneInBuild(scene, scenePath);
         }
 
         /// <summary>

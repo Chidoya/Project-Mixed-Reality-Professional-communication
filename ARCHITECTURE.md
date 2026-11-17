@@ -83,6 +83,7 @@ Assets/
     Scripts/Player/         de speler: avatar (patient view), namespace ProCommVR.Player, zie sectie 15
     Scripts/Pov/            POV-switch naar de patiënt, namespace ProCommVR.Pov, zie sectie 16
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
+    Scripts/Testing/        testbediening die enkel in testscenes zit (PatientViewTestControls), namespace ProCommVR.Testing, zie sectie 19
     Scripts/Navigation/     verplaatsen: lift en objecten langs een pad (brancard, NPC), namespace ProCommVR.Navigation
     Settings/Input/         input actions
     Settings/Moods/         mood-profielen (kleur, licht, ambient, muziek per mood), zie sectie 10
@@ -105,7 +106,8 @@ gebruikt het enkel als sjabloon (sectie 12).
 
 ## 6. Testscene
 
-`Assets/_Project/Scenes/XRTest.unity` (vierde scene in de Build Settings, na `ShiftHospital`, `Scenario01_PatientRoom` en `ScenarioTest`)
+`Assets/_Project/Scenes/XRTest.unity` (vierde scene in de Build Settings, na `ShiftHospital`, `Scenario01_PatientRoom` en `ScenarioTest`;
+daarna komen nog `SampleScene` en `PatientViewTest`)
 dient enkel om de rig te testen, het is geen content:
 
 - vloer (20 x 20 m) met een basic URP Simple Lit materiaal
@@ -146,6 +148,8 @@ De setup is volledig gescript (`Assets/_Project/Editor/`), dus reproduceerbaar:
 9. **ProCommVR > Setup > 8. Build Shift Hospital** (overschrijft `ShiftHospital`, zie sectie 12; het shift-plan blijft
    behouden als het al bestaat). Vereist Liam's ziekenhuis-scene: heeft Liam die opnieuw gebouwd (**ProCommVR > Hospital >
    Build**), draai deze stap dan ook opnieuw.
+10. **ProCommVR > Setup > 11. Build Patient View Test Scene** (overschrijft `PatientViewTest`, zie sectie 19; zet de
+    scene achteraan in de Build Settings, niet bovenaan)
 
 In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`, daarna
 `ProCommVR.Editor.XRTestSceneBuilder.ImportStarterAssets` en
@@ -153,8 +157,9 @@ In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`
 scenario-systeem: `ProCommVR.Editor.ScenarioTestSceneBuilder.ImportTmpEssentialsAndExit`
 (zonder `-quit`, want de package-import is asynchroon), daarna `BuildBubblePrefab`,
 `BuildResultsScreenPrefab` en `BuildScenarioTestScene`. Voor de patiëntenkamer:
-`ProCommVR.Editor.Scenario01SceneBuilder.BuildScene`. Voor de shift: `ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene`.
-Elke builder zet zijn scene **eerst** in de Build Settings. Bouw je ze allemaal opnieuw, doe `ShiftHospital` dan als
+`ProCommVR.Editor.Scenario01SceneBuilder.BuildScene`, voor de testscene van de patient view
+`ProCommVR.Editor.Scenario01SceneBuilder.BuildPatientViewTestScene`. Voor de shift: `ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene`.
+Elke builder zet zijn scene **eerst** in de Build Settings, behalve die van `PatientViewTest` (achteraan). Bouw je ze allemaal opnieuw, doe `ShiftHospital` dan als
 laatste, zodat een headset-build met de shift start.
 
 ## 8. Scenario's
@@ -789,6 +794,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunEmotionHud` | `Scenario01_PatientRoom`: precies één HUD, uit in de nurse view (ook als de emoties veranderen), alle 19 graphics tekenen bovenop (overlay-shaders); na Y (gesimuleerde linkercontroller): getoond (alpha 1) met de hint "Press Y to return", 1,60 m ver, 22° links van het midden, naar de camera gedraaid; de 4 getallen en balken komen overeen met de `EmotionHolder`, de dominante rij (Anger) is vet en fel, de andere gedimd; hoofdletters van de rijen 27 mm = 0,98°, kleinste tekst 0,68°; na `Apply` beweegt de balk mee tijdens het overvloeien en wordt Sadness dominant; bij een snelle draai van 60° naar links blijft de HUD minstens 12° links van het midden en komt hij terug op 22°; Y terug: uit. Screenshots: patient view met HUD |
 | `RunScenario01PatientPov` | `Scenario01_PatientRoom` met de echte Scenario 1-data: Initial Emotion (vooral verdrietig), de scores ongewijzigd, en naar welke emotie elke optie leidt (beste: Joy, afwijzend: Anger, de andere twee: Sadness); de patiënt start op de Initial Emotion; beste optie met laser + trigger: emoties = initial + delta, Sadness daalt van 0,70 naar 0,35, Joy dominant, in de nurse view verandert de kamer niet; Y (gesimuleerde linkercontroller): de HUD toont Joy als dominant en de 4 getallen van de holder, de kamer toont Joy op volle sterkte met precies de Joy-effecten; Y terug: de kamer is exact zoals ervoor (alle getinte lichten, ambient, fog, post-processing), geen effecten, geen HUD, het gesprek staat nog open, de score is 3; daarna opnieuw met de afwijzende optie: Anger, het vuur brandt. Screenshots: patient view en een effect, per antwoord |
 | `RunScenario01PatientPovShift` | `ShiftHospital`, taak 1 in kamer 1A: één POV controller; vanuit de lobby (gesprek al open) weigert Y ("too far from the patient"); met de lift naar 1A, beste optie, dezelfde checks als hierboven (HUD, Joy in de kamer, de zon en de lichten die tot in 1A schijnen exact terug); "Finish" sluit het gesprek en Y doet niets meer ("no conversation"); eindscherm "3 / 3" |
+| `RunPatientViewTest` | `PatientViewTest`: het testpaneel toont de status (emotie, view, of Y werkt); de knop Joy (laser + trigger) maakt Joy dominant; Y toont het in de patient view (HUD en kamer); de testbediening zet de patiënt daar op Anger (de kamer volgt) en op Neutral (alles 0); Y terug; de knop Restart herstart het gesprek (Initial Emotion, 0 switches) |
 | `RunEmotionWorld` | `Scenario01_PatientRoom`: budget (volume met Color Adjustments en Vignette, geen Bloom; per emotie een profiel, effect-anchors en hoogstens 1 extra licht; deeltjessystemen hoogstens 200 deeltjes; geen schaduwen); **nurse view**: elke emotie dominant maken verandert niets (licht, ambient, fog, post-processing, volume, anchors); na Y (gesimuleerde linkercontroller), **patient view**, per emotie (Joy, Anger, Fear, Sadness via `SetImmediate`): volle sterkte, volume en post-processing aan, saturatie en kleurfilter van het profiel, kamerlicht maal het profiel, precies de eigen effecten aan, deeltjes spelen, eigen geluid speelt; wissel Sadness naar Joy: via neutraal, nooit twee emoties of twee extra lichten tegelijk, geen sprongen; een mood-verandering van het kamerlicht tijdens de patient view blijft behouden; Y terug: de kamer is exact zoals ervoor. Screenshots per emotie (naar het raam en de kamer) |
 
 De shift-tests gebruiken **gesimuleerde XR-devices** (`XRSimulatedHMD` en `XRSimulatedController`, dezelfde devices
@@ -821,7 +827,8 @@ daar nog controleren.
 ## 14. Emotion model
 
 **Wat:** wat de patiënt vanbinnen voelt, als vier waarden van 0 tot 1: Joy, Anger, Fear en Sadness. Het is de basis
-voor de patient view (POV-switch, emotie-HUD en een kamer die op de emotie reageert, die komen in latere stappen). In de
+voor de patient view (POV-switch, emotie-HUD en een kamer die op de emotie reageert: sectie 16 tot 18; gekoppeld aan Scenario 1 en kamer 1A
+in de shift: sectie 12 "Taak 1"; snel testen: sectie 19). In de
 nurse view verandert er niets: voor de verpleegkundige is het gewoon een woensdag, en dat verschil is net de bedoeling.
 Los van het **Mood-systeem** (sectie 10): de mood is de sfeer van een kamer voor iedereen, de emotie is van de patiënt.
 Geen van beide leest of verandert de andere.
@@ -1054,9 +1061,36 @@ het raam, van boven tot op de vensterbank. Kamer 1A in de shift: `ShiftHospitalS
 
 **Met de hand testen:** start `Scenario01_PatientRoom`, druk Y bij de patiënt en sleep de Target-sliders van de
 `EmotionHolder`: de kamer volgt de dominante emotie; druk Y terug: de kamer is weer gewoon.
+Sneller, ook op de Quest 3: de testscene `PatientViewTest` (sectie 19).
 
 **Uitbreiden:**
 - Kleuren, licht, fog of geluid van een emotie: in het `EmotionWorld_<emotie>.asset`, zonder code.
 - Een nieuw effect in een kamer: een `Add*`-aanroep in de builder van die kamer; een nieuwe soort effect: een waarde in
   `EmotionEffectKind`, een `Add*`-methode in `EmotionWorldSetup` en de soort in de lijst *Effects* van het profiel.
 - Een andere kamer: `EmotionWorldSetup.AddToScene` met de lichten van die kamer, en de anchors via de builder.
+
+## 19. Testscene voor de patient view (`PatientViewTest`)
+
+Om alle Patient POV-features snel na elkaar te testen, in de editor, via Quest Link of op de Quest 3 zelf, zonder telkens
+het gesprek opnieuw te spelen. Het is de kamer van `Scenario01_PatientRoom` (zelfde builder, zelfde Scenario 1), met een
+testpaneel op de linkermuur naast de startplek.
+
+| Wat | Hoe |
+| --- | --- |
+| Emotie van de patiënt zetten | Knoppen Joy, Anger, Fear, Sadness, Neutral op het paneel (laser + trigger, in de nurse view); **A** (rechtercontroller) gaat naar de volgende emotie, ook in de patient view waar de lasers uit staan; toetsenbord 1 tot 4 en 0 |
+| Gesprek herstarten | Knop Restart, **B** (rechtercontroller) of R: Initial Emotion en het aantal switches komen terug op de start |
+| Status | Het paneel toont de dominante emotie met de vier waarden, de view, het aantal switches (max. 3) en of Y nu werkt (en anders waarom) |
+
+De gekozen emotie vloeit over zoals na een antwoord (`EmotionHolder.Apply`): de gekozen emotie op 0,8, de andere op 0,05;
+Neutral zet alles op 0 (geen dominante emotie, de kamer blijft gewoon). Een antwoord kiezen werkt nog gewoon en telt zijn
+delta op bij wat het paneel zette.
+
+**Code:** `Scripts/Testing/PatientViewTestControls.cs` (runtime, enkel in deze scene), `Editor/PatientViewTestPanel.cs`
+(het paneel). **Scene:** `Scenario01SceneBuilder.BuildPatientViewTestScene` (menu *ProCommVR > Setup > 11. Build Patient
+View Test Scene*); de scene komt achteraan in de Build Settings, zodat een build nog altijd met de shift start. Voor een
+headset-build met enkel de testscene: zet `PatientViewTest` tijdelijk bovenaan in de Build Settings (niet committen).
+
+**Niet in de shift:** `ShiftHospital` en `Scenario01_PatientRoom` hebben geen testpaneel.
+
+**Beperkingen:** A en B zijn met een eigen binding in de component gezet (`<XRController>{RightHand}/primaryButton` en
+`secondaryButton`), niet in de XRI-input actions; nog niet op de Quest 3 gecontroleerd.
