@@ -374,6 +374,20 @@ namespace ProCommVR.Editor
         /// <summary>
         /// Saves the scene and puts it first in the Build Settings, so a headset build starts with it.
         /// </summary>
+        /// <summary>
+        /// Saves the scene and adds it to the end of the Build Settings if it is not there yet (the order stays).
+        /// </summary>
+        internal static void SaveSceneInBuild(Scene scene, string path)
+        {
+            XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(path));
+            EditorSceneManager.SaveScene(scene, path);
+            if (EditorBuildSettings.scenes.All(s => s.path != path))
+                EditorBuildSettings.scenes = EditorBuildSettings.scenes.Concat(new[] { new EditorBuildSettingsScene(path, true) }).ToArray();
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[ProCommVR] Scene created at {path}.");
+        }
+
         internal static void SaveSceneFirstInBuild(Scene scene, string path)
         {
             XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(path));
