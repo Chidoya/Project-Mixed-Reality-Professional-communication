@@ -83,6 +83,7 @@ Assets/
     Scripts/Player/         de speler: avatar (patient view), namespace ProCommVR.Player, zie sectie 15
     Scripts/Pov/            POV-switch naar de patiënt, namespace ProCommVR.Pov, zie sectie 16
     Scripts/Shift/          gameloop van een shift, namespace ProCommVR.Shift
+    Scripts/Testing/        testbediening die enkel in testscenes zit (PatientViewTestControls), namespace ProCommVR.Testing, zie sectie 19
     Scripts/Navigation/     verplaatsen: lift en objecten langs een pad (brancard, NPC), namespace ProCommVR.Navigation
     Settings/Input/         input actions
     Settings/Moods/         mood-profielen (kleur, licht, ambient, muziek per mood), zie sectie 10
@@ -105,7 +106,8 @@ gebruikt het enkel als sjabloon (sectie 12).
 
 ## 6. Testscene
 
-`Assets/_Project/Scenes/XRTest.unity` (vierde scene in de Build Settings, na `ShiftHospital`, `Scenario01_PatientRoom` en `ScenarioTest`)
+`Assets/_Project/Scenes/XRTest.unity` (vierde scene in de Build Settings, na `ShiftHospital`, `Scenario01_PatientRoom` en `ScenarioTest`;
+daarna komen nog `SampleScene` en `PatientViewTest`)
 dient enkel om de rig te testen, het is geen content:
 
 - vloer (20 x 20 m) met een basic URP Simple Lit materiaal
@@ -146,6 +148,8 @@ De setup is volledig gescript (`Assets/_Project/Editor/`), dus reproduceerbaar:
 9. **ProCommVR > Setup > 8. Build Shift Hospital** (overschrijft `ShiftHospital`, zie sectie 12; het shift-plan blijft
    behouden als het al bestaat). Vereist Liam's ziekenhuis-scene: heeft Liam die opnieuw gebouwd (**ProCommVR > Hospital >
    Build**), draai deze stap dan ook opnieuw.
+10. **ProCommVR > Setup > 11. Build Patient View Test Scene** (overschrijft `PatientViewTest`, zie sectie 19; zet de
+    scene achteraan in de Build Settings, niet bovenaan)
 
 In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`, daarna
 `ProCommVR.Editor.XRTestSceneBuilder.ImportStarterAssets` en
@@ -153,8 +157,9 @@ In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`
 scenario-systeem: `ProCommVR.Editor.ScenarioTestSceneBuilder.ImportTmpEssentialsAndExit`
 (zonder `-quit`, want de package-import is asynchroon), daarna `BuildBubblePrefab`,
 `BuildResultsScreenPrefab` en `BuildScenarioTestScene`. Voor de patiëntenkamer:
-`ProCommVR.Editor.Scenario01SceneBuilder.BuildScene`. Voor de shift: `ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene`.
-Elke builder zet zijn scene **eerst** in de Build Settings. Bouw je ze allemaal opnieuw, doe `ShiftHospital` dan als
+`ProCommVR.Editor.Scenario01SceneBuilder.BuildScene`, voor de testscene van de patient view
+`ProCommVR.Editor.Scenario01SceneBuilder.BuildPatientViewTestScene`. Voor de shift: `ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene`.
+Elke builder zet zijn scene **eerst** in de Build Settings, behalve die van `PatientViewTest` (achteraan). Bouw je ze allemaal opnieuw, doe `ShiftHospital` dan als
 laatste, zodat een headset-build met de shift start.
 
 ## 8. Scenario's
@@ -822,7 +827,8 @@ daar nog controleren.
 ## 14. Emotion model
 
 **Wat:** wat de patiënt vanbinnen voelt, als vier waarden van 0 tot 1: Joy, Anger, Fear en Sadness. Het is de basis
-voor de patient view (POV-switch, emotie-HUD en een kamer die op de emotie reageert, die komen in latere stappen). In de
+voor de patient view (POV-switch, emotie-HUD en een kamer die op de emotie reageert: sectie 16 tot 18; gekoppeld aan Scenario 1 en kamer 1A
+in de shift: sectie 12 "Taak 1"; snel testen: sectie 19). In de
 nurse view verandert er niets: voor de verpleegkundige is het gewoon een woensdag, en dat verschil is net de bedoeling.
 Los van het **Mood-systeem** (sectie 10): de mood is de sfeer van een kamer voor iedereen, de emotie is van de patiënt.
 Geen van beide leest of verandert de andere.
