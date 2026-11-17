@@ -15,6 +15,11 @@ MonoBehaviour:
   _id: disappointed-patient
   _title: "A Disappointed Patient Who Wants to Go Home"
   _mood: 2
+  _initialEmotion:
+    _joy: 0.05
+    _anger: 0.25
+    _fear: 0.2
+    _sadness: 0.7
   _npcName: Patient X
   _npcLine: "What's the point? I just want to stay in bed and go home."
   _options:
@@ -24,21 +29,41 @@ MonoBehaviour:
     _npcReaction: "...A video call? She'd like that. All right, a short walk then."
     _npcPose: 1
     _npcVoice: {fileID: 0}
+    _emotionDelta:
+      _joy: 0.55
+      _anger: -0.1
+      _fear: 0
+      _sadness: -0.35
   - _text: "Mr. X, staying in bed won't fix anything. The doctor said you have an infection, so you simply cannot be discharged. You need to follow hospital protocol, get out of bed, and start moving. There will be other birthdays."
     _score: 0
     _feedback: "Emotionally invalidates the patient, damages therapeutic rapport, and triggers resistance. Patient turns away and refuses to communicate further."
     _npcReaction: "Other birthdays... Just leave me alone."
     _npcPose: 2
     _npcVoice: {fileID: 0}
+    _emotionDelta:
+      _joy: -0.05
+      _anger: 0.6
+      _fear: 0
+      _sadness: 0.1
   - _text: "Oh, please don't be sad! Tell you what: let me talk to the doctor and see if we can just discharge you early for the afternoon. If you promise to rest at home, I'm sure it'll be fine and you can make it to the party."
     _score: -2
     _feedback: "Breaches professional boundaries by undermining clinical safety and medical authority, providing false clinical reassurance. Leg infection risks severe complications."
     _npcReaction: "Really? You'd do that for me? Thank you, thank you!"
     _npcPose: 1
     _npcVoice: {fileID: 0}
+    _emotionDelta:
+      _joy: 0.15
+      _anger: 0.1
+      _fear: 0.1
+      _sadness: 0
   - _text: "I'm sorry to hear that. Discharge decisions are entirely up to your doctor, so there's nothing I can really do about it. If you don't feel like getting up right now, I'll just leave you alone and come back later."
     _score: 1
     _feedback: "Fails to motivate or comfort the patient. Leaves the patient isolated, risking worsening mobility and deepening depressive symptoms."
     _npcReaction: "...Right. Whatever."
     _npcPose: 3
     _npcVoice: {fileID: 0}
+    _emotionDelta:
+      _joy: 0
+      _anger: 0.15
+      _fear: 0
+      _sadness: 0.15

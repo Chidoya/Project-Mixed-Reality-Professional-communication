@@ -2,10 +2,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ProCommVR.Atmosphere;
+using ProCommVR.Emotions;
 using ProCommVR.Navigation;
 using ProCommVR.Scenarios;
 using ProCommVR.Shift;
 using TMPro;
+using Unity.XR.CoreUtils;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -69,6 +71,10 @@ namespace ProCommVR.Editor
         private const string StationTask = "Station 2";
         private static readonly string[] TaskLocations = { "1A", CorridorTask, StationTask, "1B", "1C" };
         private static readonly string[] RoomLabels = TaskLocations.Where(l => l != CorridorTask && l != StationTask).ToArray();
+
+        // Scenario 1 (task 1, room 1A) has the patient view: Y switches to the patient's eyes, the emotion HUD and the
+        // room's reaction to the patient's emotions (see BuildPatientView).
+        private const string PatientViewRoom = "1A";
 
         // One patient model per room, in the order of RoomLabels; these rooms play Scenario 1 for now.
         private static readonly string[] PatientModels = { "Patient_Male", "Patient_Female_Old", "Patient_Male_Old", "Patient_Male" };
@@ -162,6 +168,8 @@ namespace ProCommVR.Editor
 
             var rooms = new List<PatientRoom>();
             var roomIndex = 0;
+            PatientRoom patientViewRoom = null;
+            Transform patientViewPatient = null;
             foreach (var location in TaskLocations)
             {
                 if (location == CorridorTask)
@@ -173,7 +181,14 @@ namespace ProCommVR.Editor
                 else if (location == SharedRoomLabel)
                     rooms.Add(BuildSharedRoom(hospital, location));
                 else
-                    rooms.Add(BuildPatientRoom(hospital, roomIndex++, location));
+                {
+                    rooms.Add(BuildPatientRoom(hospital, roomIndex++, location, out var patient));
+                    if (location == PatientViewRoom)
+                    {
+                        patientViewRoom = rooms[rooms.Count - 1];
+                        patientViewPatient = patient;
+                    }
+                }
             }
             CloseOtherDoors(hospital);
             HideMisplacedPatients(hospital);
@@ -209,6 +224,10 @@ namespace ProCommVR.Editor
             var rig = (GameObject)PrefabUtility.InstantiatePrefab(rigVariant, scene);
             rig.transform.SetPositionAndRotation(start, Quaternion.LookRotation(Vector3.forward));
             new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
+
+            if (patientViewRoom == null)
+                throw new System.InvalidOperationException($"[ProCommVR] Room {PatientViewRoom} (patient view) is not a patient room in TaskLocations.");
+            BuildPatientView(patientViewRoom, patientViewPatient, rig.GetComponent<XROrigin>(), sun);
 
             Debug.Log($"[ProCommVR] Shift hospital built: {CountTriangles()} triangles in the scene (Quest 3 target: under about 100k).");
             // Saved under a new path: Liam's scene on disk stays as it is.
@@ -272,7 +291,7 @@ namespace ProCommVR.Editor
         /// wall. The room keeps its furniture and light; Liam's patient card and patient for this door make way
         /// for the door sign and the patient of the shift.
         /// </summary>
-        private static PatientRoom BuildPatientRoom(Transform hospital, int index, string label)
+        private static PatientRoom BuildPatientRoom(Transform hospital, int index, string label, out Transform patient)
         {
             var room = RequireChild(hospital, $"Floor{FloorOf(label)}/Room_{label}");
             var signPosition = ReplaceCardAndOpenDoor(hospital, room, label);
@@ -282,7 +301,7 @@ namespace ProCommVR.Editor
             var seat = Scenario01SceneBuilder.TightBounds(chair.gameObject).center;
             var towardDoor = Flat(room.position - seat).normalized;
             chair.RotateAround(seat, Vector3.up, Vector3.SignedAngle(RequireChild(room, "Anchor_Sitting").forward, towardDoor, Vector3.up));
-            var patient = PlaceCharacter(room, PatientModels[index % PatientModels.Length],
+            patient = PlaceCharacter(room, PatientModels[index % PatientModels.Length],
                 new Vector3(seat.x, room.position.y, seat.z), Quaternion.LookRotation(towardDoor), "Sitting");
 
             var mood = AddRoomMood(room);
@@ -306,6 +325,97 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_sign").objectReferenceValue = sign;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return patientRoom;
+        }
+
+        // ---- Patient view (Scenario 1, room 1A) ----------------------------------------------------------------
+
+        /// <summary>
+        /// The patient view of Scenario 1 in room 1A, the same as in Scenario01_PatientRoom: the patient's emotions
+        /// (follow the scenario's Initial Emotion and each option's delta), Y to look through his eyes (only while his
+        /// conversation is open), the emotion HUD and the room's reaction to his dominant emotion. The room's own
+        /// ceiling light, the sun and the lights that reach the room (no shadows, so they shine through the walls)
+        /// take the emotion's tint, only in the patient view; everything is restored on the way back.
+        /// </summary>
+        private static void BuildPatientView(PatientRoom patientRoom, Transform patient, XROrigin origin, Light sun)
+        {
+            var room = patientRoom.transform;
+            var presenter = new SerializedObject(patientRoom).FindProperty("_presenter").objectReferenceValue as ScenarioPresenter;
+
+            var emotions = patient.gameObject.AddComponent<EmotionHolder>();
+            var serialized = new SerializedObject(emotions);
+            serialized.FindProperty("_presenter").objectReferenceValue = presenter;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // Liam's patients have a Humanoid rig: the eyes follow the Head bone (sitting on the chair).
+            var pov = PovSetup.AddToScene(presenter, patient, origin);
+            pov.name = $"POV Controller ({patientRoom.RoomName})";
+            EmotionHudSetup.AddToScene(emotions, pov);
+            var world = EmotionWorldSetup.AddToScene(emotions, pov, LightsReaching(room, sun));
+            world.name = $"Patient World ({patientRoom.RoomName})";
+            BuildPatientViewEffects(room, origin.Camera.transform);
+        }
+
+        /// <summary>
+        /// The sun and the point and spot lights on the room's floor whose range reaches the room.
+        /// </summary>
+        private static Light[] LightsReaching(Transform room, Light sun)
+        {
+            var bounds = new Bounds(room.TransformPoint(0f, 1.5f, 2f), new Vector3(4.4f, 3.5f, 4.4f));
+            var lights = new List<Light> { sun };
+            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.InstanceID))
+            {
+                if (light == sun || light.type == LightType.Directional || light.GetComponentInParent<EmotionEffectAnchor>(true) != null)
+                    continue;
+                var position = light.transform.position;
+                if (Mathf.Abs(position.y - room.position.y) > FloorHeight - 0.01f)
+                    continue;
+                if (Vector3.Distance(bounds.ClosestPoint(position), position) <= light.range)
+                    lights.Add(light);
+            }
+            return lights.ToArray();
+        }
+
+        /// <summary>
+        /// The effect anchors of room 1A (Liam's room: origin in the middle of the doorway, the bed against the back
+        /// wall, the patient's chair right of the bed, the window in the right wall). The patient faces the door, so most
+        /// effects are between him and the door or by the window at his side.
+        /// </summary>
+        private static void BuildPatientViewEffects(Transform room, Transform camera)
+        {
+            var effects = new GameObject($"Emotion Effects ({room.name})").transform;
+            effects.SetParent(room, false);
+            var floor = room.position.y;
+            var ceiling = floor + FloorHeight - 0.2f;
+            var glass = Scenario01SceneBuilder.TightBounds(RequireChild(room, "Window/Glass").gameObject);
+            var sill = Scenario01SceneBuilder.TightBounds(RequireChild(room, "Window/Frame_Bottom").gameObject);
+            var bed = Scenario01SceneBuilder.TightBounds(RequireChild(room, "Furniture/Bed").gameObject);
+            var nightstand = Scenario01SceneBuilder.TightBounds(RequireChild(room, "Furniture/Nightstand").gameObject);
+            // The window wall's inner face (the sill sticks out of it a little) and the window's middle along the wall.
+            var insideX = sill.min.x + 0.03f;
+            var windowZ = glass.center.z;
+
+            // Joy: plants on the window sill and on the floor by the window and near the door, sunlight through the window.
+            EmotionWorldSetup.AddPlant(effects, "Plant Sill", new Vector3(insideX, sill.max.y, windowZ - 0.35f), "plantSmall1", 0.28f, 0f);
+            EmotionWorldSetup.AddPlant(effects, "Plant Window", new Vector3(insideX - 0.35f, floor, glass.min.z - 0.3f), "pottedPlant", 1.0f, 30f);
+            EmotionWorldSetup.AddPlant(effects, "Plant Door", room.TransformPoint(1.6f, 0f, 0.6f), "plantSmall3", 0.6f, 120f);
+            EmotionWorldSetup.AddSunBeam(effects, new Vector3(glass.max.x + 0.6f, ceiling - 0.3f, windowZ), room.TransformPoint(0.2f, 0f, 2.2f),
+                new Vector3(insideX - 0.8f, floor + 1.3f, windowZ), new Vector3(1.2f, 1.6f, 1.4f));
+
+            // Anger: small fires on the window sill, on the nightstand and at the foot of the bed (there is no curtain in
+            // this room, and the chair is the patient's seat), with one flickering light.
+            EmotionWorldSetup.AddFire(effects, "Fire Window", new Vector3(insideX, sill.max.y, windowZ + 0.4f), 0.35f);
+            EmotionWorldSetup.AddFire(effects, "Fire Nightstand", new Vector3(nightstand.center.x, nightstand.max.y, nightstand.center.z), 0.25f);
+            EmotionWorldSetup.AddFire(effects, "Fire Bed", new Vector3(bed.center.x, bed.max.y - 0.05f, bed.min.z + 0.2f), 0.3f);
+            EmotionWorldSetup.AddFireLight(effects, room.TransformPoint(0.9f, 1.3f, 1.8f));
+
+            // Fear: the room goes dark, only the flashlight on the player's head lights it.
+            EmotionWorldSetup.AddFlashlight(effects, camera);
+
+            // Sadness: rain outside the window (Liam's window has clear glass) and a few drops from the ceiling.
+            EmotionWorldSetup.AddRain(effects, new Vector3(glass.max.x + 0.12f, glass.min.y, windowZ),
+                new Vector3(glass.size.z, glass.size.y, 0.04f), room.eulerAngles.y - 90f);
+            EmotionWorldSetup.AddDrips(effects, "Drips Window", new Vector3(insideX - 0.4f, ceiling - 0.02f, windowZ - 0.6f), ceiling - floor);
+            EmotionWorldSetup.AddDrips(effects, "Drips Door", room.TransformPoint(-0.6f, ceiling - floor - 0.02f, 1.4f), ceiling - floor);
         }
 
         /// <summary>
