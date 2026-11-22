@@ -63,5 +63,119 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5e385186f2d8544458ee2474561b2242, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8375148884031064506}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5e385186f2d8544458ee2474561b2242, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3307018613819928002}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5e385186f2d8544458ee2474561b2242, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5638963341667724451}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 5e385186f2d8544458ee2474561b2242, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7745268704514994441}
   m_SourcePrefab: {fileID: 100100000, guid: 5e385186f2d8544458ee2474561b2242, type: 3}
+--- !u!1 &3635192288109939744 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 5e385186f2d8544458ee2474561b2242, type: 3}
+  m_PrefabInstance: {fileID: 4518137309363007857}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &8375148884031064506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3635192288109939744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bfd9750273dbb3d4bab9a55c7dc21f0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Face.FaceController
+  _presets: {fileID: 11400000, guid: 933f074660a701c4bbf81ffe4e7cdcda, type: 2}
+  _startExpression: 0
+  _intensity: 1
+  _autoBlink: 1
+  _microMotion: 1
+  _renderer: {fileID: 0}
+--- !u!114 &3307018613819928002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3635192288109939744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5626f8b4fdf062644823b05d38203ba5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Face.FaceFromAnimator
+  _map:
+  - State: Angry
+    Expression: 3
+  - State: Sad
+    Expression: 2
+  - State: Crying
+    Expression: 7
+  _restExpression: 0
+  _overrideSeconds: 5
+--- !u!114 &5638963341667724451
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3635192288109939744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da0117d5b41682740ad1a76127a718e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Face.HeadLookAt
+  _mode: 0
+  _weight: 1
+  _target: {fileID: 0}
+  _range: 3
+  _maxYaw: 60
+  _maxPitch: 25
+  _layingMaxYaw: 30
+  _layingState: Laying
+  _smoothTime: 0.25
+  _neckShare: 0.35
+  _localForward: {x: -0.012368446, y: 0, z: -0.99992335}
+  _localUp: {x: 0, y: 0.9999999, z: -0.000000059604645}
+--- !u!114 &7745268704514994441
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3635192288109939744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1151936166b2b744cba230bd74b4c919, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Face.TearDrops
+  _material: {fileID: 2100000, guid: 2d612ad8bc6684448914be703999de80, type: 2}
+  _startWeight: 70
+  _interval: {x: 0.7, y: 1.5}
+  _size: 0.011
+  _maxPerEye: 3
+  _pathLeft:
+  - {x: 0.04111944, y: 0.081824414, z: -0.07572854}
+  - {x: 0.04061415, y: 0.088869445, z: -0.076572426}
+  - {x: 0.03893747, y: 0.09747981, z: -0.07807446}
+  - {x: 0.035651013, y: 0.09287023, z: -0.07914862}
+  - {x: 0.03388209, y: 0.09747981, z: -0.08035696}
+  - {x: 0.03389277, y: 0.10556852, z: -0.08104957}
+  _pathRight:
+  - {x: -0.04111944, y: 0.081824414, z: -0.07572854}
+  - {x: -0.04061415, y: 0.088869445, z: -0.076572426}
+  - {x: -0.03893747, y: 0.09747981, z: -0.07807446}
+  - {x: -0.035651013, y: 0.09287023, z: -0.07914862}
+  - {x: -0.03388209, y: 0.09747981, z: -0.08035696}
+  - {x: -0.03389277, y: 0.10556852, z: -0.08104957}
+  _forward: {x: 0.000000013007076, y: 1, z: -6.123234e-17}
+  _up: {x: 0, y: 6.123234e-17, z: 1}
+  _headBone: mixamorig:Head
