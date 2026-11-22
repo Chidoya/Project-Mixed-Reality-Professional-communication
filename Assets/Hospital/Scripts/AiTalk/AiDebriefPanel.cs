@@ -32,6 +32,8 @@ namespace ProCommVR.Hospital.AiTalk
         [SerializeField] private float _belowEyes = 0.12f;
         [Tooltip("Alleen voor testen: E beëindigt het gesprek en opent de nabespreking.")]
         [SerializeField] private bool _testKeyE = true;
+        [Tooltip("Open zodra het gesprek eindigt. Uit: iets anders roept Open() aan (Prototype1: pas bij de dokter).")]
+        [SerializeField] private bool _openOnConversationEnd = true;
 
         private static readonly Color Background = new(0.09f, 0.11f, 0.14f, 1f);
         private static readonly Color TextMain = new(0.93f, 0.95f, 0.97f);
@@ -56,6 +58,9 @@ namespace ProCommVR.Hospital.AiTalk
         /// <summary>Na Klaar.</summary>
         public event Action Closed;
 
+        /// <summary>Na Opnieuw proberen (het gesprek start opnieuw).</summary>
+        public event Action Retried;
+
         // Knoppen zonder XR-ray: A / B op de rechtercontroller (Quest), R / Enter op het toetsenbord (Editor)
         public const string RetryLabel = "Opnieuw proberen (A / R)";
         public const string DoneLabel = "Klaar (B / Enter)";
@@ -73,7 +78,8 @@ namespace ProCommVR.Hospital.AiTalk
         private void OnAnyEnded(AiNpc npc, string reason)
         {
             _npc = npc;
-            _ = Open();
+            if (_openOnConversationEnd)
+                _ = Open();
         }
 
         private void OnActiveChanged(AiNpc npc)
@@ -188,6 +194,7 @@ namespace ProCommVR.Hospital.AiTalk
         public void Retry()
         {
             Hide();
+            Retried?.Invoke();
             _ = _npc.Restart();
         }
 
