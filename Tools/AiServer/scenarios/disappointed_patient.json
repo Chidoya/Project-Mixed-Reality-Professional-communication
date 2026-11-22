@@ -86,6 +86,7 @@
       "next": "B2_opening_up",
       "condition": {
         "tension_lt": 60,
+        "trust_gte": 38,
         "labels_ever_any": [
           "named_emotion",
           "named_emotion_partial"
@@ -94,10 +95,26 @@
     },
     {
       "id": "B2_opening_up",
-      "actor_goal": "You talk a bit more. You still doubt that getting up makes any sense.",
+      "actor_goal": "You talk a bit more and tell about your granddaughter and her birthday. You still doubt that getting up makes any sense.",
+      "next": "B3_considering",
+      "condition": {
+        "tension_lt": 48,
+        "trust_gte": 52,
+        "labels_ever_any": [
+          "asked_open_question",
+          "summarized",
+          "explained_why_staying",
+          "offered_support"
+        ]
+      }
+    },
+    {
+      "id": "B3_considering",
+      "actor_goal": "You start to think about what could still be possible. You are not convinced yet; you want a concrete, small plan.",
       "next": "END",
       "condition": {
-        "tension_lt": 45,
+        "tension_lt": 36,
+        "trust_gte": 66,
         "labels_this_turn_any": [
           "motivated_small_step",
           "offered_alternative_connection"
@@ -109,8 +126,19 @@
       "actor_goal": "You agree, a little reluctantly, to get out of bed for a short walk.",
       "terminal": true,
       "end_reason": "resolved"
+    },
+    {
+      "id": "ESCALATED",
+      "actor_goal": "You have had enough of this nurse. Tell them, upset, to leave you alone and to send someone else. Do not continue the conversation.",
+      "terminal": true,
+      "end_reason": "escalated"
     }
   ],
+  "escalation": {
+    "tension_gte": 92,
+    "trust_lte": 5,
+    "phase": "ESCALATED"
+  },
   "bands": [
     {
       "name": "VERY_HIGH",
@@ -179,6 +207,10 @@
     "off_topic_or_unsafe_effect": {
       "tension": 5,
       "trust": 0
+    },
+    "unsafe_effect": {
+      "tension": 25,
+      "trust": -20
     }
   },
   "labels": [
@@ -274,6 +306,14 @@
       "moment_nl": "Je liet hem alleen"
     },
     {
+      "name": "rude_or_hostile",
+      "tension": 20,
+      "trust": -20,
+      "description": "Insults, mocks, blames or threatens him, shouts at him, or says something cruel or outrageous.",
+      "example": "Stop whining, nobody cares about your party.",
+      "moment_nl": "Je was grof of kwetsend tegen hem"
+    },
+    {
       "name": "false_discharge_promise",
       "tension": 0,
       "trust": 0,
@@ -321,7 +361,8 @@
           "named_emotion_partial"
         ],
         "avoid": [
-          "invalidated_feeling"
+          "invalidated_feeling",
+          "rude_or_hostile"
         ]
       },
       "feedback": {

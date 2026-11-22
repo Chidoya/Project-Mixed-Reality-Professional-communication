@@ -5,6 +5,7 @@ using ProCommVR.Hospital.AiTalk;
 using ProCommVR.Pov;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace ProCommVR.Testing
@@ -61,6 +62,14 @@ namespace ProCommVR.Testing
         [SerializeField] private Transform _hand;
         [SerializeField] private Vector3 _handPosition = new Vector3(0.06f, 0.06f, 0.1f);
         [SerializeField] private TMP_Text _carryLabel;
+        [Tooltip("X (left controller) takes it in the hand or puts it back on the desk. C in the editor.")]
+        [SerializeField] private InputAction _carryAction = new InputAction("Carry Clipboard", InputActionType.Button,
+            "<XRController>{LeftHand}/{PrimaryButton}");
+
+        [Header("Microphone (optional)")]
+        [SerializeField] private ProCommVR.AiTalk.VoiceActivityTalk _voice;
+        [SerializeField] private TMP_Text _micLabel;
+
         [Tooltip("In the left hand from the start (else on the desk in the lobby).")]
         [SerializeField] private bool _startInHand = true;
 
@@ -100,14 +109,29 @@ namespace ProCommVR.Testing
 
         private void OnEnable()
         {
+            if (_carryAction.bindings.Count < 2)
+                _carryAction.AddBinding("<Keyboard>/c");
+            _carryAction.performed += OnCarryPressed;
+            _carryAction.Enable();
             if (_pov != null)
                 _pov.PovChanged += OnPovChanged;
         }
 
         private void OnDisable()
         {
+            _carryAction.performed -= OnCarryPressed;
+            _carryAction.Disable();
             if (_pov != null)
                 _pov.PovChanged -= OnPovChanged;
+        }
+
+        private void OnCarryPressed(InputAction.CallbackContext context) => ToggleCarry();
+
+        /// <summary>The next microphone of the computer (the AI must hear you).</summary>
+        public void NextMicrophone()
+        {
+            if (_voice != null)
+                _voice.NextMicrophone();
         }
 
         private void OnPovChanged(PovMode mode)
@@ -124,6 +148,14 @@ namespace ProCommVR.Testing
                 _trustValue.text = Mathf.RoundToInt(_reputation.Value).ToString();
             if (_status != null && _page < _pages.Length && _pages[_page].activeSelf)
                 _status.text = Status();
+            if (_micLabel != null && _voice != null)
+            {
+                var heard = _voice.RecentPeak >= _voice.Threshold;
+                _micLabel.text = $"<b>Mic:</b> {_voice.DeviceName}\n" +
+                                 $"level {_voice.RecentPeak * 1000f:0}  (speech above {_voice.Threshold * 1000f:0})  " +
+                                 (heard ? "<color=#2e8b3e><b>HEARD</b></color>" : "<color=#9a9a9a>quiet</color>") +
+                                 $"   {_voice.StatusText}";
+            }
         }
 
         // ---- Pages ----
@@ -228,7 +260,7 @@ namespace ProCommVR.Testing
         private void UpdateCarryLabel()
         {
             if (_carryLabel != null)
-                _carryLabel.text = IsCarried ? "Put down" : "Take";
+                _carryLabel.text = IsCarried ? "<b>Put down (X)</b>" : "<b>Take (X)</b>";
         }
 
         private string Status()

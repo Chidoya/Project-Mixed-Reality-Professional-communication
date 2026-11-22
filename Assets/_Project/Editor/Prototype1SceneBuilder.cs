@@ -114,6 +114,16 @@ namespace ProCommVR.Editor
             var voice = new GameObject("Voice Activity Talk (always on)").AddComponent<VoiceActivityTalk>();
             voice.transform.SetParent(prototype, false);
             Set(voice, "_npc", npc);
+            // The orange bar at the bottom of the view: how far the conversation is to its end (calm or escalated).
+            var progress = new GameObject("Conversation Progress Bar").AddComponent<ConversationProgressBar>();
+            progress.transform.SetParent(prototype, false);
+            Set(progress, "_npc", npc);
+            Set(progress, "_camera", origin.Camera);
+            Set(progress, "_imageMaterial", AssetDatabase.LoadAssetAtPath<Material>(EmotionHudSetup.ImageMaterialPath));
+            Set(progress, "_textMaterial", AssetDatabase.LoadAssetAtPath<Material>(EmotionHudSetup.TextMaterialPath));
+            // The ward map at the lobby entrance and the murmur of people in the lobby and the corridors.
+            WardMapAndAmbienceSetup.AddMap(prototype, new Vector2(15.0f, 20.3f));
+            WardMapAndAmbienceSetup.AddAmbience(prototype);
 
             var emotions = patient.gameObject.AddComponent<EmotionHolder>();
             var reputation = patient.gameObject.AddComponent<PatientReputation>();
@@ -154,7 +164,7 @@ namespace ProCommVR.Editor
             var aura = ReputationAuraSetup.AddToScene(reputation, rig.GetComponentInChildren<ProCommVR.Player.PlayerAvatar>(true));
             aura.transform.SetParent(prototype, true);
             // The clipboard on the lobby desk: a task template and the dev controls (emotion, trust slider).
-            var devClipboard = DevClipboardSetup.AddToScene(hospital, emotions, reputation, bridge, pov, rig, origin.Camera);
+            var devClipboard = DevClipboardSetup.AddToScene(hospital, emotions, reputation, bridge, pov, rig, origin.Camera, voice);
             devClipboard.transform.SetParent(prototype, true);
             var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
             var world = EmotionWorldSetup.AddToScene(emotions, pov, LightsReaching(room, sun, bed));

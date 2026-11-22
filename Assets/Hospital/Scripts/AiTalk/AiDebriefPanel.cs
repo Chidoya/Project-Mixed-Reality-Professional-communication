@@ -289,6 +289,7 @@ namespace ProCommVR.Hospital.AiTalk
                 "resolved" => "Gesprek geslaagd",
                 "time_up" => "Tijd op",
                 "critical_error" => "<color=#f2594d>Kritieke fout</color>",
+                "escalated" => "<color=#f2a33a>Gesprek geëscaleerd</color>",
                 _ => "Gesprek gestopt",
             };
             Text(_content, "Nabespreking", 34, TextMain, new Vector2(40f, -24f), new Vector2(500f, 44f));
