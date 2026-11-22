@@ -23,6 +23,12 @@ namespace ProCommVR.Pov
         [Tooltip("From the Head bone to the eyes, in meters: forward and up, in the facing direction of the body.")]
         [SerializeField] private Vector2 _eyeOffset = new Vector2(0.09f, 0.07f);
 
+        [Tooltip("Optional. Where the patient looks (e.g. the door for a patient lying in bed): the view faces this point. Empty: the body's facing.")]
+        [SerializeField] private Transform _lookAt;
+
+        [Tooltip("With Look At: from the Head bone to the eyes, in meters, straight up (a lying patient's eyes are above the head bone).")]
+        [SerializeField] private float _lookAtEyeHeight = 0.1f;
+
         private Renderer[] _renderers;
         private bool[] _wasEnabled;
 
@@ -42,6 +48,17 @@ namespace ProCommVR.Pov
         {
             var head = _animator != null && _animator.isHuman ? _animator.GetBoneTransform(HumanBodyBones.Head) : null;
             var facing = head == null && _eyes != null ? _eyes : Body;
+            if (_lookAt != null && head != null)
+            {
+                position = head.position + Vector3.up * _lookAtEyeHeight;
+                forward = _lookAt.position - position;
+                forward.y = 0f;
+                if (forward.sqrMagnitude > 0.0001f)
+                {
+                    forward.Normalize();
+                    return;
+                }
+            }
             forward = facing.forward;
             forward.y = 0f;
             if (forward.sqrMagnitude < 0.0001f)

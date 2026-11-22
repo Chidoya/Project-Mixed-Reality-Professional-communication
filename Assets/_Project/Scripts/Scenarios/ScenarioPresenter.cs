@@ -15,7 +15,7 @@ namespace ProCommVR.Scenarios
     /// per place; after that choice (<see cref="LocationChosen"/>) the NPC line and the four options follow, again
     /// within Options Range of the NPC, who may have moved to that place (<see cref="ConversationLocationMover"/>).
     /// </summary>
-    public class ScenarioPresenter : MonoBehaviour
+    public class ScenarioPresenter : MonoBehaviour, IPatientConversation
     {
         [SerializeField] private Scenario _scenario;
         [SerializeField] private bool _playOnStart = true;
@@ -81,6 +81,14 @@ namespace ProCommVR.Scenarios
         }
 
         public event Action<Scenario> ScenarioStarted;
+
+        private event Action _conversationStarted;
+
+        event Action IPatientConversation.ConversationStarted
+        {
+            add => _conversationStarted += value;
+            remove => _conversationStarted -= value;
+        }
 
         /// <summary>
         /// Raised when the player chooses where to continue the conversation, before the options appear.
@@ -182,6 +190,7 @@ namespace ProCommVR.Scenarios
             SetNpcText(_stage == Stage.ChoosingLocation ? scenario.LocationLine : scenario.NpcLine);
             _optionsVisible = false;
             ScenarioStarted?.Invoke(scenario);
+            _conversationStarted?.Invoke();
             UpdateOptionsVisibility();
         }
 

@@ -20,7 +20,7 @@ namespace ProCommVR.Pov
     /// <summary>
     /// Switches the player between the nurse view and the patient view during a conversation (the Switch Pov action,
     /// Y on the left controller). Limits from <see cref="PovSwitchSettings"/>: at most N switches to the patient per
-    /// conversation (reset on <see cref="ScenarioPresenter.ScenarioStarted"/>; switching back is always allowed) and a
+    /// conversation (reset on <see cref="IPatientConversation.ConversationStarted"/>; switching back is always allowed) and a
     /// minimum time between two switches, both ways.
     /// <para>
     /// To the patient: fade to black, remember the XR Origin pose, show the <see cref="PlayerAvatar"/> where the player
@@ -39,6 +39,9 @@ namespace ProCommVR.Pov
 
         [Tooltip("The conversation. Switching is only possible while it shows a scenario; a new scenario resets the count.")]
         [SerializeField] private ScenarioPresenter _presenter;
+
+        [Tooltip("Optional, instead of Presenter: any conversation that implements IPatientConversation (e.g. the AI conversation bridge).")]
+        [SerializeField] private MonoBehaviour _conversationSource;
 
         [Tooltip("The patient's eyes.")]
         [SerializeField] private PovAnchor _anchor;
@@ -75,6 +78,11 @@ namespace ProCommVR.Pov
         public bool IsSwitching => _busy;
         public PovSwitchSettings Settings => _settings;
 
+        /// <summary>The conversation that allows the switch: Conversation Source if set, else the presenter.</summary>
+        public IPatientConversation Conversation =>
+            _conversationSource != null && _conversationSource is IPatientConversation source ? source
+            : _presenter != null ? _presenter : null;
+
         private void Awake()
         {
             if (_origin == null)
@@ -87,8 +95,8 @@ namespace ProCommVR.Pov
 
         private void OnEnable()
         {
-            if (_presenter != null)
-                _presenter.ScenarioStarted += OnScenarioStarted;
+            if (Conversation != null)
+                Conversation.ConversationStarted += OnConversationStarted;
             if (_switchAction != null && _switchAction.action != null)
             {
                 _switchAction.action.performed += OnSwitchPerformed;
@@ -98,8 +106,8 @@ namespace ProCommVR.Pov
 
         private void OnDisable()
         {
-            if (_presenter != null)
-                _presenter.ScenarioStarted -= OnScenarioStarted;
+            if (Conversation != null)
+                Conversation.ConversationStarted -= OnConversationStarted;
             if (_switchAction != null && _switchAction.action != null)
                 _switchAction.action.performed -= OnSwitchPerformed;
         }
@@ -115,9 +123,10 @@ namespace ProCommVR.Pov
                 return "not set up";
             if (Time.time - _lastSwitchTime < _settings.MinSecondsBetweenSwitches)
                 return "too soon after the last switch";
-            if (Mode == PovMode.Nurse && (_presenter == null || !_presenter.IsPlaying))
+            var conversation = Conversation;
+            if (Mode == PovMode.Nurse && (conversation == null || !conversation.IsPlaying))
                 return "no conversation";
-            if (Mode == PovMode.Nurse && !_presenter.IsPlayerNear(_settings.MaxDistanceToPatient))
+            if (Mode == PovMode.Nurse && !conversation.IsPlayerNear(_settings.MaxDistanceToPatient))
                 return "too far from the patient";
             if (Mode == PovMode.Nurse && SwitchesThisConversation >= _settings.MaxSwitchesPerConversation)
                 return "no switches left in this conversation";
@@ -146,7 +155,7 @@ namespace ProCommVR.Pov
         {
             // The conversation was closed while the player looks through the patient's eyes (e.g. the shift ended):
             // back to the nurse, without waiting for the minimum time between switches.
-            if (Mode == PovMode.Patient && !_busy && _presenter != null && !_presenter.IsPlaying)
+            if (Mode == PovMode.Patient && !_busy && Conversation != null && !Conversation.IsPlaying)
             {
                 Debug.Log("[ProCommVR] Conversation closed in the patient view: back to the nurse view.", this);
                 _lastSwitchTime = Time.time;
@@ -159,7 +168,7 @@ namespace ProCommVR.Pov
             TrySwitch();
         }
 
-        private void OnScenarioStarted(Scenario scenario)
+        private void OnConversationStarted()
         {
             SwitchesThisConversation = 0;
         }
@@ -204,8 +213,8 @@ namespace ProCommVR.Pov
             Physics.SyncTransforms();
 
             _anchor.SetBodyHidden(true);
-            if (_presenter != null)
-                _presenter.BubblesHidden = true;
+            if (Conversation != null)
+                Conversation.BubblesHidden = true;
             if (_hint != null)
             {
                 _hint.transform.SetPositionAndRotation(eyes + forward * _hintOffset.x + Vector3.up * _hintOffset.y,
@@ -218,8 +227,8 @@ namespace ProCommVR.Pov
         {
             if (_hint != null)
                 _hint.SetActive(false);
-            if (_presenter != null)
-                _presenter.BubblesHidden = false;
+            if (Conversation != null)
+                Conversation.BubblesHidden = false;
             _anchor.SetBodyHidden(false);
 
             _origin.transform.SetPositionAndRotation(_savedPosition, _savedRotation);

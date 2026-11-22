@@ -35,6 +35,8 @@ namespace ProCommVR.Editor
         private const float BarHeight = 18f;
         private const float RowFontSize = 40f; // capitals about 28 mm: about 1 degree at 1.6 m
         private const float SmallFontSize = 28f;
+        private const float TrustHeight = 96f;
+        internal const string TrustLabel = "TRUST IN YOU";
 
         private static readonly Color PanelColor = new Color(9f / 255f, 18f / 255f, 26f / 255f, 0.74f);
         private static readonly Color TextColor = new Color(0.95f, 0.96f, 0.97f);
@@ -54,7 +56,7 @@ namespace ProCommVR.Editor
             XRTestSceneBuilder.EnsureFolder(Path.GetDirectoryName(PrefabPath));
             _imageMaterial = OverlayMaterial(ImageMaterialPath, new Material(Shader.Find(ImageShader)));
             _textMaterial = OverlayMaterial(TextMaterialPath, new Material(TMP_Settings.defaultFontAsset.material) { shader = Shader.Find(TextShader) });
-            var height = Padding * 2f + HeaderHeight + RowHeight * Rows.Length + HintHeight;
+            var height = Padding * 2f + HeaderHeight + RowHeight * Rows.Length + TrustHeight + HintHeight;
             var root = new GameObject("EmotionHud", typeof(RectTransform));
             try
             {
@@ -105,6 +107,22 @@ namespace ProCommVR.Editor
                     y -= RowHeight;
                 }
 
+                // Trust meter: how the patient thinks about the nurse (PatientReputation), a full-width bar under the emotions.
+                var trust = new GameObject("Trust", typeof(RectTransform));
+                var trustRect = (RectTransform)trust.transform;
+                Place(rect, trustRect, new Vector2(0f, y), new Vector2(Width, TrustHeight));
+                var trustLabel = Text(trustRect, "Trust Label", TrustLabel, SmallFontSize, new Vector2(Padding, -10f),
+                    new Vector2(Width * 0.6f, 36f), TextAlignmentOptions.Left, FontStyles.Bold);
+                trustLabel.characterSpacing = 6f;
+                trustLabel.alpha = 0.75f;
+                var trustNumber = Text(trustRect, "Trust Number", "50", RowFontSize, new Vector2(Width * 0.6f, -6f),
+                    new Vector2(Width * 0.4f - Padding, 44f), TextAlignmentOptions.Right, FontStyles.Bold);
+                var trustBarWidth = Width - Padding * 2f;
+                Box(trustRect, "Trust Track", new Vector2(Padding, -54f), new Vector2(trustBarWidth, BarHeight + 6f), TrackColor);
+                var trustFill = Box(trustRect, "Trust Fill", new Vector2(Padding, -54f), new Vector2(trustBarWidth * 0.5f, BarHeight + 6f),
+                    new Color(0.98f, 0.76f, 0.3f));
+                y -= TrustHeight;
+
                 var hint = Text(rect, "Hint", PovSetup.HintText, SmallFontSize, new Vector2(Padding, y),
                     new Vector2(Width - Padding * 2f, HintHeight), TextAlignmentOptions.Left, FontStyles.Italic);
                 hint.alpha = 0.8f;
@@ -125,6 +143,12 @@ namespace ProCommVR.Editor
                 serialized.FindProperty("_header").objectReferenceValue = header;
                 serialized.FindProperty("_hint").objectReferenceValue = hint;
                 serialized.FindProperty("_barWidth").floatValue = BarWidth;
+                serialized.FindProperty("_trustGroup").objectReferenceValue = trust;
+                serialized.FindProperty("_trustFill").objectReferenceValue = trustFill.rectTransform;
+                serialized.FindProperty("_trustFillImage").objectReferenceValue = trustFill;
+                serialized.FindProperty("_trustNumber").objectReferenceValue = trustNumber;
+                serialized.FindProperty("_trustLabel").objectReferenceValue = trustLabel;
+                serialized.FindProperty("_trustBarWidth").floatValue = trustBarWidth;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
 
                 return PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
@@ -138,7 +162,7 @@ namespace ProCommVR.Editor
         /// <summary>
         /// Adds the HUD to the scene, connected to the patient's emotions and the POV switch.
         /// </summary>
-        internal static EmotionHud AddToScene(EmotionHolder holder, PovController pov)
+        internal static EmotionHud AddToScene(EmotionHolder holder, PovController pov, PatientReputation reputation = null)
         {
             var prefab = BuildPrefab();
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
@@ -147,6 +171,7 @@ namespace ProCommVR.Editor
             var serialized = new SerializedObject(hud);
             serialized.FindProperty("_holder").objectReferenceValue = holder;
             serialized.FindProperty("_pov").objectReferenceValue = pov;
+            serialized.FindProperty("_reputation").objectReferenceValue = reputation;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return hud;
         }
