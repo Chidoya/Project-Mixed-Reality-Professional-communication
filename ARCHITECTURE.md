@@ -150,6 +150,8 @@ De setup is volledig gescript (`Assets/_Project/Editor/`), dus reproduceerbaar:
    Build**), draai deze stap dan ook opnieuw.
 10. **ProCommVR > Setup > 11. Build Patient View Test Scene** (overschrijft `PatientViewTest`, zie sectie 19; zet de
     scene achteraan in de Build Settings, niet bovenaan)
+11. **ProCommVR > Setup > 12. Build Prototype 1 (AI patient, U-ward)** (overschrijft `Prototype1`, zie sectie 20; vereist
+    Liam's `liam_u_afdeling.unity`; de scene komt achteraan in de Build Settings)
 
 In batchmode: `-executeMethod ProCommVR.Editor.XRProjectSetup.ConfigureForQuest`, daarna
 `ProCommVR.Editor.XRTestSceneBuilder.ImportStarterAssets` en
@@ -158,7 +160,7 @@ scenario-systeem: `ProCommVR.Editor.ScenarioTestSceneBuilder.ImportTmpEssentials
 (zonder `-quit`, want de package-import is asynchroon), daarna `BuildBubblePrefab`,
 `BuildResultsScreenPrefab` en `BuildScenarioTestScene`. Voor de patiëntenkamer:
 `ProCommVR.Editor.Scenario01SceneBuilder.BuildScene`, voor de testscene van de patient view
-`ProCommVR.Editor.Scenario01SceneBuilder.BuildPatientViewTestScene`. Voor de shift: `ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene`.
+`ProCommVR.Editor.Scenario01SceneBuilder.BuildPatientViewTestScene`, voor Prototype1 `ProCommVR.Editor.Prototype1SceneBuilder.BuildScene`. Voor de shift: `ProCommVR.Editor.ShiftHospitalSceneBuilder.BuildScene`.
 Elke builder zet zijn scene **eerst** in de Build Settings, behalve die van `PatientViewTest` (achteraan). Bouw je ze allemaal opnieuw, doe `ShiftHospital` dan als
 laatste, zodat een headset-build met de shift start.
 
@@ -794,6 +796,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunEmotionHud` | `Scenario01_PatientRoom`: precies één HUD, uit in de nurse view (ook als de emoties veranderen), alle 19 graphics tekenen bovenop (overlay-shaders); na Y (gesimuleerde linkercontroller): getoond (alpha 1) met de hint "Press Y to return", 1,60 m ver, 22° links van het midden, naar de camera gedraaid; de 4 getallen en balken komen overeen met de `EmotionHolder`, de dominante rij (Anger) is vet en fel, de andere gedimd; hoofdletters van de rijen 27 mm = 0,98°, kleinste tekst 0,68°; na `Apply` beweegt de balk mee tijdens het overvloeien en wordt Sadness dominant; bij een snelle draai van 60° naar links blijft de HUD minstens 12° links van het midden en komt hij terug op 22°; Y terug: uit. Screenshots: patient view met HUD |
 | `RunScenario01PatientPov` | `Scenario01_PatientRoom` met de echte Scenario 1-data: Initial Emotion (vooral verdrietig), de scores ongewijzigd, en naar welke emotie elke optie leidt (beste: Joy, afwijzend: Anger, de andere twee: Sadness); de patiënt start op de Initial Emotion; beste optie met laser + trigger: emoties = initial + delta, Sadness daalt van 0,70 naar 0,35, Joy dominant, in de nurse view verandert de kamer niet; Y (gesimuleerde linkercontroller): de HUD toont Joy als dominant en de 4 getallen van de holder, de kamer toont Joy op volle sterkte met precies de Joy-effecten; Y terug: de kamer is exact zoals ervoor (alle getinte lichten, ambient, fog, post-processing), geen effecten, geen HUD, het gesprek staat nog open, de score is 3; daarna opnieuw met de afwijzende optie: Anger, het vuur brandt. Screenshots: patient view en een effect, per antwoord |
 | `RunScenario01PatientPovShift` | `ShiftHospital`, taak 1 in kamer 1A: één POV controller; vanuit de lobby (gesprek al open) weigert Y ("too far from the patient"); met de lift naar 1A, beste optie, dezelfde checks als hierboven (HUD, Joy in de kamer, de zon en de lichten die tot in 1A schijnen exact terug); "Finish" sluit het gesprek en Y doet niets meer ("no conversation"); eindscherm "3 / 3" |
+| `RunPrototype1` | `Prototype1` met de echte AI-server (zie sectie 20): briefing zonder gesprek (Y geweigerd); bij de patiënt start het AI-gesprek, vertrouwen en emotie volgen de openingsbeurt (laag vertrouwen, Sadness); Y: patient view met de vertrouwensmeter, regen binnen en plassen op de vloer; Joy: de planten staan op de vloer; Fear: donker; afronden: naar de dokter, de nabespreking opent; Opnieuw proberen: terug bij de patiënt, nieuw gesprek, 0 switches; Klaar: einde. De spraak van de student zit niet in deze test |
 | `RunPatientViewTest` | `PatientViewTest`: het testpaneel toont de status (emotie, view, of Y werkt); de knop Joy (laser + trigger) maakt Joy dominant; Y toont het in de patient view (HUD en kamer); de testbediening zet de patiënt daar op Anger (de kamer volgt) en op Neutral (alles 0); Y terug; de knop Restart herstart het gesprek (Initial Emotion, 0 switches) |
 | `RunEmotionWorld` | `Scenario01_PatientRoom`: budget (volume met Color Adjustments en Vignette, geen Bloom; per emotie een profiel, effect-anchors en hoogstens 1 extra licht; deeltjessystemen hoogstens 200 deeltjes; geen schaduwen); **nurse view**: elke emotie dominant maken verandert niets (licht, ambient, fog, post-processing, volume, anchors); na Y (gesimuleerde linkercontroller), **patient view**, per emotie (Joy, Anger, Fear, Sadness via `SetImmediate`): volle sterkte, volume en post-processing aan, saturatie en kleurfilter van het profiel, kamerlicht maal het profiel, precies de eigen effecten aan, deeltjes spelen, eigen geluid speelt; wissel Sadness naar Joy: via neutraal, nooit twee emoties of twee extra lichten tegelijk, geen sprongen; een mood-verandering van het kamerlicht tijdens de patient view blijft behouden; Y terug: de kamer is exact zoals ervoor. Screenshots per emotie (naar het raam en de kamer) |
 
@@ -978,7 +981,7 @@ hint-pilletje uit stap 3 is weg: de HUD toont de hint.
   (*Dimmed Alpha* 0,55). Geen dominante emotie (alles onder de drempel): alle rijen gedimd.
 - **Tonen:** `PovChanged(Patient)` toont, `PovChanged(Nurse)` verbergt, met een fade van 0,2 s (`CanvasGroup`). Verborgen
   staat de Canvas uit.
-- **Zacht volgen** (`LateUpdate`): 1,6 m voor de camera, 22° naar links, 0,1 m onder ooghoogte, rechtop en naar de camera
+- **Zacht volgen** (`LateUpdate`): 1,1 m voor de camera (was 1,6 m, dichter na de playtest van 2026-11-22), 22° naar links, 0,1 m onder ooghoogte, rechtop en naar de camera
   gedraaid; de yaw ijlt na (`SmoothDampAngle`, 0,25 s). **Nooit in het midden:** het paneel blijft altijd tussen 12° en
   40° links van het midden, ook bij een snelle draai. Het volgt de pitch van het hoofd niet (het blijft op ooghoogte).
 - **Altijd bovenop:** een paneel op 1,6 m kan achter een muur vallen (de patiënt zit vlak bij de muur). Daarom tekent de
@@ -1094,3 +1097,55 @@ headset-build met enkel de testscene: zet `PatientViewTest` tijdelijk bovenaan i
 
 **Beperkingen:** A en B zijn met een eigen binding in de component gezet (`<XRController>{RightHand}/primaryButton` en
 `secondaryButton`), niet in de XRI-input actions; nog niet op de Quest 3 gecontroleerd.
+
+## 20. Prototype1: de AI-patiënt in Liam's U-afdeling (`Prototype1`)
+
+Eén volledige loop met één patiënt, als basis voor de hele gameloop: de feedback van de playtest van 2026-11-22
+(dokter als nabespreking, AI-gesprek, vertrouwensmeter, Liam's ziekenhuis en personage). Werkt **enkel in de editor of via
+Quest Link**: Liam's AI-server (`Tools/AiServer`, Ollama, Whisper, Piper) draait op de laptop, niet op de Quest.
+
+**Verloop** (`Scripts/AiTalk/PrototypeFlow.cs`):
+1. **Briefing:** de speler start in de linkergang voor de deur van kamer 1A, met een bord naast de deur.
+2. **Gesprek:** binnen 2,6 m van de patiënt zegt die zijn openingszin (Liam's `AiNpc`, scenario `disappointed_patient`).
+   **Rechtertrigger** ingedrukt houden om te praten (Engels; spatie in de editor), **Y** voor de patient view, **B** 1,2 s
+   ingedrukt houden (F in de editor) om het gesprek zelf af te ronden. De AI-server rondt ook zelf af (opgelost of een
+   kritieke fout).
+3. **Naar de dokter:** fade, de speler staat in de briefingruimte voor de arts (`Doctor_Female`, bij het whiteboard). Die zegt
+   een korte zin in een ballon en daarna opent Liam's nabespreking (`AiDebriefPanel`: score, rubric, betere zinnen).
+4. **A: opnieuw proberen** brengt de speler terug naar de patiënt met een nieuw gesprek; **B: klaar** sluit het prototype af.
+
+De teksten van de dokter, het bord en de hint staan in de inspector van `PrototypeFlow` en `Signs` (data, geen code).
+
+**AI en de patient view** (`Scripts/AiTalk/AiPatientBridge.cs`, op de patiënt naast `AiNpc`):
+- Implementeert `IPatientConversation` (nieuw, `Scripts/Scenarios/`), net als `ScenarioPresenter`. De `PovController` werkt met
+  beide: het veld *Conversation Source* (de brug) of zoals vroeger *Presenter*. Y kan zolang het AI-gesprek loopt; een
+  herstart geeft opnieuw 3 switches.
+- Na elke beurt: het emotie-label van de AI-server naar onze emoties (Happy: Joy, Angry: Anger, Worried en Surprised: Fear,
+  Sad, Crying en Pain: Sadness; Neutral met spanning vanaf 55 blijft Sadness, vertrouwen vanaf 70 wordt Joy), sterkte uit de
+  spanning (of het vertrouwen bij Joy). Alles aanpasbaar in de inspector. `EmotionHolder.SetTarget` (nieuw) laat het overvloeien.
+- Het vertrouwen van de AI-server (0 tot 100) is de **reputatie** van de patiënt (`PatientReputation`, nieuw).
+- De patiënt ligt in bed: zijn ogen kijken naar het voeteneinde (`PovAnchor` > *Look At*, nieuw).
+
+**Vertrouwensmeter in de HUD:** onder de vier emoties "TRUST IN YOU" met een balk en een getal (rood onder 35, oranje,
+groen vanaf 65). Enkel zichtbaar als de HUD een `PatientReputation` heeft (`EmotionHudSetup.AddToScene(..., reputation)`);
+in de andere scenes blijft hij verborgen.
+
+**Effecten in kamer 1A** (`Prototype1SceneBuilder.BuildEffects`): elk punt op de vloer gaat via een raycast op de vloer en
+enkel waar geen meubel of muur staat (`EmotionWorldSetup.OnFloor`, nieuw), zodat niets zweeft.
+- Joy: drie planten op de vloer en zonlicht door het raam.
+- Anger: vuur op het nachtkastje, aan het voeteneinde en op de vloer.
+- Fear: donkerder dan voor de playtest (profiel `EmotionWorld_Fear`: belichting -0,9, vignet 0,65, licht 0,01,
+  ambient 0,02, mist 0,45), enkel de zaklamp op het hoofd.
+- Sadness: **regen binnen** in de kamer (`EmotionWorldSetup.AddIndoorRain`, van net onder het plafond tot de vloer, met
+  spatjes), **plassen** die groeien op de vloer (`AddPuddle`, materiaal `Materials/Emotions/Puddle.mat`) en druppels.
+
+**Aanpassingen aan Liam's code:** `AiDebriefPanel` kreeg *Open On Conversation End* (in Prototype1 uit: het paneel opent pas
+bij de dokter) en het event `Retried`. De rest van Liam's AI-code is ongewijzigd.
+
+**Teleport:** Liam's lege markers `Hospital/Teleport/TeleportArea_*` voor de hal, de gangen, kamer 1A en de briefingruimte
+krijgen een `TeleportationArea`.
+
+**Beperkingen:** nog niet getest op de Quest 3 of via Quest Link (microfoon, knoppen, 72 fps). Geen muziek (komt nog). De
+rechtertrigger is zowel push-to-talk als select van de rechterlaser. De AI-scenario's en de mapping naar emoties zijn nog
+na te kijken door de inhoudsexpert.
+

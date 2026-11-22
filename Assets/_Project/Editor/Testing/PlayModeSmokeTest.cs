@@ -77,6 +77,7 @@ namespace ProCommVR.Editor.Testing
                 case "s1-pov": return Scenario01PatientPov();
                 case "s1-pov-shift": return Scenario01PatientPovShift();
                 case "pov-test": return PatientViewTest();
+                case "prototype1": return Prototype1Test();
                 case "shift": return ShiftLoop(false);
                 case "shift-timeout": return ShiftLoop(true);
                 case "s2-good": return Scenario02("consultation-room", Answer.Best);
