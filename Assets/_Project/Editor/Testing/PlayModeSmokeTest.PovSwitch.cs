@@ -56,8 +56,8 @@ namespace ProCommVR.Editor.Testing
             if (Errors.Count > 0)
                 yield break;
             var settings = pov.Settings;
-            Check(settings != null && settings.MaxSwitchesPerConversation == 3 && Mathf.Approximately(settings.MinSecondsBetweenSwitches, 2f),
-                "settings: 3 switches per conversation, 2 s between switches");
+            Check(settings != null && settings.Unlimited && Mathf.Approximately(settings.MinSecondsBetweenSwitches, 2f),
+                "settings: no limit on the switches per conversation, 2 s between switches");
             var bodyRenderers = anchor.Body.GetComponentsInChildren<Renderer>(true).Where(r => r.enabled).ToArray();
             Check(bodyRenderers.Length > 0, $"the patient has {bodyRenderers.Length} visible renderer(s)");
 
@@ -159,12 +159,8 @@ namespace ProCommVR.Editor.Testing
                         yield return step;
                 }
 
-                // The fourth switch is refused.
-                Check(pov.WhyNot() != null, $"a fourth switch is refused ({pov.WhyNot()})");
-                foreach (var step in PressY(() => pov.Mode == PovMode.Patient))
-                    yield return step;
-                yield return 0.5f;
-                Check(pov.Mode == PovMode.Nurse && pov.SwitchesThisConversation == 3, "Y does nothing after 3 switches");
+                // No limit: a fourth switch is allowed (Jalil's choice, 2026-11-22).
+                Check(pov.SwitchesThisConversation == 3 && pov.WhyNot() == null, $"a fourth switch is allowed ({pov.WhyNot() ?? "allowed"})");
 
                 // A new conversation resets the count.
                 presenter.Play(presenter.CurrentScenario);

@@ -231,6 +231,18 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
     nog geen PR naar `Liam`. Uitleg: `docs/ai_gesprek.md` en `Tools/AiServer/README.md`.
   - Nog niet getest: echte microfoon, Quest (knoppen, joystick, headset). De Unity Editor maakt de server
     ongeveer 2x trager (gedeelde GPU); op een losse Quest speelt dat niet.
+- 2026-11-22: Prototype1 gebouwd op `feature/jalil/prototype1` (vanaf `origin/jalil`, plus een merge van Liam's
+  `feature/liam/ai-gesprek-unity` met zijn U-afdeling), na Jalils playtest van de patient view. Nieuwe scene
+  `Assets/_Project/Scenes/Prototype1.unity` in Liam's U-afdeling: briefing in de gang, AI-gesprek met Liam's patiënt in
+  kamer 1A (rechtertrigger praten, Y patient view, B vasthouden om af te ronden), daarna naar de dokter in de
+  briefingruimte (ballon, dan Liam's nabesprekingspaneel; A opnieuw, B klaar). Het vertrouwen van de AI-server is de
+  reputatie (`PatientReputation`), getoond als trust-meter in de HUD. In de patient view is de speler een witte figuur
+  met een trust-aura (`ReputationAura`: vleugels van licht, gouden aura, niets, zwarte vloeistof, zwarte golven).
+  Playtest-fixes: HUD dichter (1,1 m), Fear donkerder, regen binnen met plassen, planten op de vloer.
+  Getest: compile-check en Play mode smoke tests (`RunPrototype1` met de echte AI-server plus 8 regressietests), alle
+  geslaagd. Niet getest op de Quest 3 of via Quest Link; werkt enkel in de editor of via Quest Link (AI-server op de
+  laptop). PR #25 naar `jalil` staat open en bevat ook Liam's AI-branch. Gewerkt in een aparte worktree
+  `Project_prototype1`. Volgende stap: Jalils playtest, daarna de volledige gameloop voor de playtest van de lector.
 
 ## Beslissingen
 
@@ -266,6 +278,10 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
 | 2026-11-10 | Nabespreking: scores in Python uit de labels, vaste feedbackteksten, samenvatting uit sjabloon (`summary_mode: template`) | Het 4B-model beoordeelde onbetrouwbaar en traag (25-75 s); nu juist en direct |
 | 2026-11-11 | Kritieke labels tellen alleen met een sleutelwoord (`critical_requires_any`) | Een fout label mag een scenario niet onterecht beëindigen |
 | 2026-11-11 | Acteur-checks in Python: geen herhaalde zinnen, tijden en namen alleen uit de feiten of van de student | Het 4B-model herhaalde zinnen en verzon tijden en namen |
+| 2026-11-22 | Prototype1 in Liam's U-afdeling (kamer 1A) met het AI-gesprek, na het gesprek naar de dokter (ballon + Liam's nabespreking) | Feedback van Jalils playtest: NPC's via AI, scene in Liam's hospital, nabespreking bij de dokter |
+| 2026-11-22 | Het vertrouwen van de AI-server is de reputatie, getoond als trust-meter in de HUD; de patient view blijft manueel (Y) | Eén bron voor vertrouwen, meter en AI spreken elkaar niet tegen; Jalil koos zelf voor Y |
+| 2026-11-22 | In de patient view is de speler een witte figuur met een trust-aura (vanaf 80 licht met vleugels, 60 tot 80 goud, 40 tot 60 niets, 20 tot 40 zwarte vloeistof, onder 20 zwarte golven), enkel in Prototype1 | De student ziet door de ogen van de patiënt meteen hoe die over hem denkt (idee van Jalil) |
+| 2026-11-22 | Grenzen van het vertrouwen op 40 en 60, voor de meter en de aura | De aura leest de grenzen van `PatientReputation`, zodat meter en aura altijd overeenkomen |
 
 
 ## Open vragen

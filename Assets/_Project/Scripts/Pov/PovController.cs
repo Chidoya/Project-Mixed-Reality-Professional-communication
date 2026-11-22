@@ -128,7 +128,7 @@ namespace ProCommVR.Pov
                 return "no conversation";
             if (Mode == PovMode.Nurse && !conversation.IsPlayerNear(_settings.MaxDistanceToPatient))
                 return "too far from the patient";
-            if (Mode == PovMode.Nurse && SwitchesThisConversation >= _settings.MaxSwitchesPerConversation)
+            if (Mode == PovMode.Nurse && !_settings.Unlimited && SwitchesThisConversation >= _settings.MaxSwitchesPerConversation)
                 return "no switches left in this conversation";
             return null;
         }

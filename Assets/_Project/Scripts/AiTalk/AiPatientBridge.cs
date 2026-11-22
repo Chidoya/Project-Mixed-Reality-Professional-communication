@@ -78,6 +78,12 @@ namespace ProCommVR.AiTalk
         public event Action ConversationStarted;
 
         public AiNpc Npc => _npc;
+
+        /// <summary>For testing (the dev clipboard): the AI turns no longer change the patient's emotions.</summary>
+        public bool HoldEmotions { get; set; }
+
+        /// <summary>For testing (the dev clipboard): the AI turns no longer change the trust.</summary>
+        public bool HoldTrust { get; set; }
         public bool IsPlaying => _npc != null && _npc.isActiveAndEnabled && _started && !_npc.HasEnded;
         public bool BubblesHidden { set => _bubblesHidden = value; }
         public bool AreBubblesHidden => _bubblesHidden;
@@ -137,9 +143,9 @@ namespace ProCommVR.AiTalk
             // Not understood or the server is not reachable: the patient's state stays as it was.
             if (turn == null || turn.localFallback)
                 return;
-            if (_reputation != null)
+            if (_reputation != null && !HoldTrust)
                 _reputation.Set(turn.trust);
-            if (_holder != null)
+            if (_holder != null && !HoldEmotions)
                 _holder.SetTarget(ToEmotions(turn.emotion, turn.anger, turn.trust));
         }
 

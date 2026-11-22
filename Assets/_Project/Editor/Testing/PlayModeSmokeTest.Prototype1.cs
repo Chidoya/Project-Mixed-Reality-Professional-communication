@@ -100,6 +100,7 @@ namespace ProCommVR.Editor.Testing
                 Screenshot("prototype1-sadness");
 
                 // The player as the patient sees him: a white figure with an aura from the trust.
+                var trustBefore2 = reputation.Value;
                 var aura = Object.FindAnyObjectByType<ReputationAura>();
                 Check(aura != null && aura.Avatar != null && aura.Avatar.IsVisible, "the patient sees the player's figure, with the trust aura");
                 if (aura != null && aura.Avatar != null)
@@ -108,6 +109,7 @@ namespace ProCommVR.Editor.Testing
                     Check(renderers.Length > 0 && renderers.All(r => r.sharedMaterials.All(m => m == aura.WhiteMaterial)),
                         "the player's figure is blank white");
                     var trustBefore = reputation.Value;
+                    trustBefore2 = trustBefore;
                     foreach (var (trust, tier) in new[] { (10f, ReputationTier.Abyss), (30f, ReputationTier.Liquid), (50f, ReputationTier.Neutral),
                                  (70f, ReputationTier.Golden), (90f, ReputationTier.Radiant) })
                     {
@@ -126,6 +128,35 @@ namespace ProCommVR.Editor.Testing
                     Check(wings.Length == 2 && wings.All(w => w.GetComponent<MeshFilter>().sharedMesh != null && w.localScale.x > 0.9f),
                         "Radiant: the wings are unfolded");
                     reputation.Set(trustBefore);
+                }
+
+                // The dev clipboard: emotion and trust set by hand stay until "AI drives".
+                var clipboard = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>();
+                Check(clipboard != null, "Prototype1 has the dev clipboard");
+                if (clipboard != null)
+                {
+                    clipboard.ShowFear();
+                    clipboard.TrustSlider.value = 85f;
+                    yield return holder.BlendSeconds + 0.3f;
+                    Check(holder.Dominant == Emotion.Fear && Mathf.Approximately(reputation.Value, 85f) && bridge.HoldEmotions && bridge.HoldTrust,
+                        $"the dev clipboard sets Fear and trust 85 ({holder.Current}, {reputation.Value})");
+                    Check(clipboard.Page == 0, $"the clipboard starts on the tasks page ({clipboard.Page})");
+                    ClipboardShot(clipboard, "prototype1-clipboard-tasks");
+                    clipboard.NextPage();
+                    yield return null;
+                    Check(clipboard.Page == 1, $"> shows the dev page ({clipboard.Page})");
+                    ClipboardShot(clipboard, "prototype1-clipboard-dev");
+                    clipboard.NextPage();
+                    Check(clipboard.Page == 0, $"the clipboard has 2 pages ({clipboard.Page})");
+                    clipboard.LetAiDrive();
+                    Check(!bridge.HoldEmotions && !bridge.HoldTrust, "AI drives again");
+                    clipboard.Take();
+                    Check(clipboard.IsCarried, "Take puts the clipboard in the left hand");
+                    clipboard.PutDown();
+                    Check(!clipboard.IsCarried, "Put down puts it back on the desk");
+                    reputation.Set(trustBefore2);
+                    holder.SetImmediate(new EmotionState(0.05f, 0.05f, 0.05f, 0.76f));
+                    yield return 1f;
                 }
 
                 // Joy (set directly: the AI decides when the patient is happy): the plants grow on the floor, not in the air.
@@ -158,6 +189,22 @@ namespace ProCommVR.Editor.Testing
                 foreach (var step in PressY(() => pov.Mode == PovMode.Nurse && !pov.IsSwitching))
                     yield return step;
                 Check(pov.Mode == PovMode.Nurse, "Y switches back to the nurse view");
+
+                // No limit in Prototype1: Y keeps working after 3 switches.
+                Check(pov.Settings.Unlimited, "Prototype1 has no limit on the switches per conversation");
+                for (var i = 0; i < 3; i++)
+                {
+                    foreach (var step in WaitUntilAllowed(pov))
+                        yield return step;
+                    foreach (var step in PressY(() => pov.Mode == PovMode.Patient && !pov.IsSwitching))
+                        yield return step;
+                    foreach (var step in WaitUntilAllowed(pov))
+                        yield return step;
+                    foreach (var step in PressY(() => pov.Mode == PovMode.Nurse && !pov.IsSwitching))
+                        yield return step;
+                }
+                Check(pov.SwitchesThisConversation >= 4 && pov.WhyNot() != "no switches left in this conversation",
+                    $"Y still works after {pov.SwitchesThisConversation} switches ({pov.WhyNot() ?? "allowed"})");
             }
             finally
             {
@@ -206,6 +253,43 @@ namespace ProCommVR.Editor.Testing
             debrief.Done();
             yield return 0.5f;
             Check(flow.Current == PrototypeFlow.Stage.Finished, $"Done ends the prototype ({flow.Current})");
+        }
+
+        /// <summary>A picture of the clipboard from above (a temporary camera; it is hidden in the patient view).</summary>
+        private static void ClipboardShot(ProCommVR.Testing.DevClipboard clipboard, string name)
+        {
+            if (string.IsNullOrEmpty(_screenshotFolder))
+                return;
+            var visual = clipboard.transform.Find("Visual").gameObject;
+            var wasActive = visual.activeSelf;
+            visual.SetActive(true);
+            Canvas.ForceUpdateCanvases();
+            var cameraObject = new GameObject("Clipboard Shot Camera");
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.fieldOfView = 40f;
+            camera.nearClipPlane = 0.02f;
+            // From the visitor side, above the desk, looking down at the board.
+            var board = clipboard.transform;
+            camera.transform.position = board.position + board.forward * 0.25f + Vector3.up * 0.42f;
+            camera.transform.LookAt(board.position);
+            var texture = new RenderTexture(1280, 960, 24);
+            camera.targetTexture = texture;
+            camera.Render();
+            RenderTexture.active = texture;
+            var image = new Texture2D(texture.width, texture.height, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
+            image.Apply();
+            RenderTexture.active = null;
+            System.IO.Directory.CreateDirectory(_screenshotFolder);
+            var path = System.IO.Path.Combine(_screenshotFolder, $"{++_screenshotIndex:00}-{name}.png");
+            System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+            Object.DestroyImmediate(image);
+            camera.targetTexture = null;
+            texture.Release();
+            Object.DestroyImmediate(texture);
+            Object.DestroyImmediate(cameraObject);
+            visual.SetActive(wasActive);
+            Log($"screenshot {path}");
         }
 
         /// <summary>The ambient light of the room itself, before the patient view multiplied its tint on top.</summary>
