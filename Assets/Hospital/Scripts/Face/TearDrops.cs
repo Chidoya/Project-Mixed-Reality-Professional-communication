@@ -51,6 +51,28 @@ namespace ProCommVR.Hospital.Face
         private bool _tried;
 
         public int ActiveDrops => _drops.Count;
+
+        private bool _hidden;
+
+        /// <summary>
+        /// Verbergt alle druppels en maakt geen nieuwe zolang true (bv. als de camera in het hoofd van dit personage zit).
+        /// </summary>
+        public bool Hidden
+        {
+            get => _hidden;
+            set
+            {
+                _hidden = value;
+                if (!value)
+                    return;
+                foreach (var d in _drops)
+                {
+                    d.T.gameObject.SetActive(false);
+                    _free.Push(d.T);
+                }
+                _drops.Clear();
+            }
+        }
         public bool IsBaked => _pathLeft != null && _pathLeft.Length > 1 && _pathRight != null && _pathRight.Length > 1;
 
         private void Start() => Setup();
@@ -189,7 +211,7 @@ namespace ProCommVR.Hospital.Face
         {
             if (!_ready)
                 Setup();
-            if (!_ready)
+            if (!_ready || _hidden)
                 return;
             _clock += dt;
             var crying = _face.GetWeight("Tears") >= _startWeight;

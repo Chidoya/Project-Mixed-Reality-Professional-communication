@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 280f267519167e44db70aa101c27b924, type: 3}
+  m_Name: ScenarioOneStoryProps
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.PatientPov.ScenarioOneStoryProps
+  CardFront: 'HAPPY
+
+    BIRTHDAY'
+  CardInside: 'Grandpa,
+
+    come to my party!
+
+    Saturday 3 pm
+
+    Love, Emma'
+  CardOffset: {x: -0.1, y: 0}
+  CrumpledScale: {x: 0.7, y: 0.45, z: 0.85}
+  CrumpleTiltDegrees: 25
+  PhotoOffset: {x: 0.15, y: -0.03}
+  JoyBrightness: 1.25
+  TipOverAt: 0.8
+  TipSeconds: 0.8
+  RiseHeight: 0.5
+  Sway: 0.06
+  DeflatedScale: 0.35
+  DriftDistance: 1.6
+  SinkDistance: 0.6
+  StartHour: 14
+  StartMinute: 40
+  SadTimeScale: 0.2
+  FastTimeScale: 2.5
+  TickVolume: 0.12
+  LoudTickVolume: 0.55
+  BlendSeconds: 2

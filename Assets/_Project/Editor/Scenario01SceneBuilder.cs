@@ -127,12 +127,8 @@ namespace ProCommVR.Editor
             serializedEmotions.ApplyModifiedPropertiesWithoutUndo();
 
             // The patient view: Y switches the camera to the patient's eyes (and back).
-            // The placeholder has no Head bone: its eyes are at the face direction marker, and turn with the body.
-            var eyes = new GameObject("POV Eyes").transform;
-            eyes.SetParent(patient, false);
-            eyes.localPosition = new Vector3(0f, 0.6f, 0.45f);
-            eyes.localRotation = Quaternion.identity;
-            var pov = PovSetup.AddToScene(presenter, patient, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>(), eyes);
+            // Liam's character has a Humanoid rig: the eyes follow its Head bone.
+            var pov = PovSetup.AddToScene(presenter, patient, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>());
 
             // The patient's emotions, only in the patient view.
             EmotionHudSetup.AddToScene(emotions, pov);
@@ -140,6 +136,7 @@ namespace ProCommVR.Editor
             // The room reacts to the patient's dominant emotion, only in the patient view.
             EmotionWorldSetup.AddToScene(emotions, pov, new[] { light });
             BuildEmotionEffects(wallHeight, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>().Camera.transform);
+            ProCommVR.Hospital.PatientPov.PatientPovSetup.AddToScene(emotions, pov, patient, null, rig.GetComponent<Unity.XR.CoreUtils.XROrigin>().Camera.transform);
 
             Debug.Log($"[ProCommVR] Patient room built, wall height {wallHeight:F2} m.");
             if (!testControls)
@@ -331,51 +328,55 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
-        /// Placeholder patient (capsule, no character model yet) sitting slumped on the edge of the bed,
-        /// looking out of the window. A small dark visor shows which way the patient faces.
-        /// Also creates one target per NpcPose for the NpcReactor.
+        /// Patient X: Liam's old man (Patient_Male_Old, variant PatientX_Scenario1 with a bandage on the infected lower
+        /// right leg and a face) sitting on the edge of the bed, legs over the side, looking out of the window.
+        /// Also creates one target per NpcPose for the NpcReactor. His legs hang over the bed's side, so the poses only
+        /// turn him on the edge of the bed (no turning into the mattress); the head (HeadLookAt) does the rest.
         /// </summary>
         private static Transform BuildPatient(out List<KeyValuePair<NpcPose, Transform>> poses)
         {
-            var root = new GameObject("Patient X (placeholder)").transform;
+            var root = new GameObject("Patient X").transform;
 
-            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            body.name = "Body";
+            var prefab = ProCommVR.Hospital.PatientPov.PatientPovSetup.EnsurePatientPrefab();
+            var body = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            body.name = "Body (Patient X)";
             body.transform.SetParent(root, false);
-            Object.DestroyImmediate(body.GetComponent<Collider>());
-            body.GetComponent<Renderer>().sharedMaterial = ScenarioTestSceneBuilder.GetOrCreatePlaceholderNpcMaterial();
+            var animator = body.GetComponentInChildren<Animator>();
+            animator.applyRootMotion = false;
+            var state = animator.gameObject.AddComponent<NpcAnimationState>();
+            var serializedState = new SerializedObject(state);
+            serializedState.FindProperty("_stateName").stringValue = "Sitting";
+            serializedState.ApplyModifiedPropertiesWithoutUndo();
 
-            var visor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            visor.name = "Face Direction";
-            visor.transform.SetParent(body.transform, false);
-            visor.transform.localPosition = new Vector3(0f, 0.6f, 0.42f);
-            visor.transform.localScale = new Vector3(0.6f, 0.12f, 0.2f);
-            Object.DestroyImmediate(visor.GetComponent<Collider>());
-            visor.GetComponent<Renderer>().sharedMaterial = XRTestSceneBuilder.GetOrCreateMaterial($"{MaterialFolder}/PlaceholderNpcFace.mat", new Color(0.15f, 0.18f, 0.25f));
-
-            // The capsule is 2 m tall at scale 1: 0.45 makes it 0.9 m, the upper body of a seated person.
-            body.transform.localScale = new Vector3(0.4f, 0.45f, 0.4f);
-            var seatCenter = PatientSeat + Vector3.up * 0.42f;
+            // The root goes as far below the mattress as the sitting animation's seat is above the root (measured on the
+            // animation), so he sits on the mattress with his feet hanging just above the floor.
+            var seatHeight = ProCommVR.Hospital.PatientPov.PatientPovSetup.SeatHeight(prefab, "Sitting", SittingSeatHeight);
+            var seat = new Vector3(PatientSeat.x, MattressHeight - seatHeight, PatientSeat.z);
             var toWindow = Vector3.right;
             var toPlayer = PlayerStart - PatientSeat;
             toPlayer.y = 0f;
 
-            // Start pose: slumped forward, looking out of the window (Scenario 1 source document).
-            body.transform.SetPositionAndRotation(seatCenter, Lean(toWindow, 15f));
+            // Start pose: looking out of the window (Scenario 1 source document).
+            body.transform.SetPositionAndRotation(seat, Quaternion.LookRotation(toWindow));
 
             var poseRoot = new GameObject("Poses").transform;
             poseRoot.SetParent(root, false);
             poses = new List<KeyValuePair<NpcPose, Transform>>
             {
-                // Sits up and turns to the nurse.
-                new KeyValuePair<NpcPose, Transform>(NpcPose.Engaged, CreatePose(poseRoot, "Engaged", seatCenter + Vector3.up * 0.04f, Lean(toPlayer, 0f))),
-                // Turns his back to the nurse.
-                new KeyValuePair<NpcPose, Transform>(NpcPose.TurnsAway, CreatePose(poseRoot, "Turns Away", seatCenter, Lean(-toPlayer, 10f))),
-                // Sinks further down, back to the window.
-                new KeyValuePair<NpcPose, Transform>(NpcPose.Withdrawn, CreatePose(poseRoot, "Withdrawn", seatCenter - Vector3.up * 0.04f, Lean(toWindow, 30f))),
+                // Turns toward the nurse (as far as the bed's edge allows; his head turns the rest).
+                new KeyValuePair<NpcPose, Transform>(NpcPose.Engaged, CreatePose(poseRoot, "Engaged", seat,
+                    Quaternion.LookRotation(Vector3.Slerp(toWindow, toPlayer.normalized, 0.55f)))),
+                // Turns his back to the nurse: toward the head of the bed.
+                new KeyValuePair<NpcPose, Transform>(NpcPose.TurnsAway, CreatePose(poseRoot, "Turns Away", seat,
+                    Quaternion.LookRotation(new Vector3(0.7f, 0f, 0.7f)))),
+                // Back to the window, away from everyone.
+                new KeyValuePair<NpcPose, Transform>(NpcPose.Withdrawn, CreatePose(poseRoot, "Withdrawn", seat,
+                    Quaternion.LookRotation(new Vector3(1f, 0f, 0.25f)))),
             };
             return body.transform;
         }
+
+        private const float SittingSeatHeight = 0.45f;
 
         private static Quaternion Lean(Vector3 facing, float forwardTilt)
         {
