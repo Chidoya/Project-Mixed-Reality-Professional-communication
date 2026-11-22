@@ -19,7 +19,7 @@ namespace ProCommVR.Testing
     /// A dev control holds its value: the AI turns no longer overwrite it (<see cref="AiPatientBridge.HoldEmotions"/>,
     /// <see cref="AiPatientBridge.HoldTrust"/>) until "AI drives" is pressed.
     /// <para>
-    /// "Take" puts the clipboard in the left hand (click with the right laser), "Put down" puts it back on the desk.
+    /// It starts in the left hand (Start In Hand); "Put down" puts it on the desk in the lobby, "Take" in the hand again.
     /// In the patient view it is hidden (the lasers are off there).
     /// </para>
     /// </summary>
@@ -61,6 +61,8 @@ namespace ProCommVR.Testing
         [SerializeField] private Transform _hand;
         [SerializeField] private Vector3 _handPosition = new Vector3(0.06f, 0.06f, 0.1f);
         [SerializeField] private TMP_Text _carryLabel;
+        [Tooltip("In the left hand from the start (else on the desk in the lobby).")]
+        [SerializeField] private bool _startInHand = true;
 
         private int _page;
         private Transform _homeParent;
@@ -69,6 +71,7 @@ namespace ProCommVR.Testing
 
         public int Page => _page;
         public bool IsCarried => _hand != null && transform.parent == _hand;
+        public Transform Hand => _hand;
         public Slider TrustSlider => _trustSlider;
 
         private void Awake()
@@ -87,6 +90,12 @@ namespace ProCommVR.Testing
             }
             ShowPage(0);
             UpdateCarryLabel();
+        }
+
+        private void Start()
+        {
+            if (_startInHand)
+                Take();
         }
 
         private void OnEnable()
@@ -197,7 +206,10 @@ namespace ProCommVR.Testing
         public void Take()
         {
             if (_hand == null)
+            {
+                Debug.LogWarning("[ProCommVR] Dev clipboard: no hand to hold it.", this);
                 return;
+            }
             transform.SetParent(_hand, false);
             transform.localPosition = _handPosition;
             // Facing the eyes, tilted like a tablet held in the hand; the text up points away from the player.

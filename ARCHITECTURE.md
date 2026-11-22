@@ -796,7 +796,7 @@ telt hij mee); is dat te zwaar, dan kan Kenney's `bedSingle` (Liam's kamerbed) i
 | `RunEmotionHud` | `Scenario01_PatientRoom`: precies één HUD, uit in de nurse view (ook als de emoties veranderen), alle 19 graphics tekenen bovenop (overlay-shaders); na Y (gesimuleerde linkercontroller): getoond (alpha 1) met de hint "Press Y to return", 1,60 m ver, 22° links van het midden, naar de camera gedraaid; de 4 getallen en balken komen overeen met de `EmotionHolder`, de dominante rij (Anger) is vet en fel, de andere gedimd; hoofdletters van de rijen 27 mm = 0,98°, kleinste tekst 0,68°; na `Apply` beweegt de balk mee tijdens het overvloeien en wordt Sadness dominant; bij een snelle draai van 60° naar links blijft de HUD minstens 12° links van het midden en komt hij terug op 22°; Y terug: uit. Screenshots: patient view met HUD |
 | `RunScenario01PatientPov` | `Scenario01_PatientRoom` met de echte Scenario 1-data: Initial Emotion (vooral verdrietig), de scores ongewijzigd, en naar welke emotie elke optie leidt (beste: Joy, afwijzend: Anger, de andere twee: Sadness); de patiënt start op de Initial Emotion; beste optie met laser + trigger: emoties = initial + delta, Sadness daalt van 0,70 naar 0,35, Joy dominant, in de nurse view verandert de kamer niet; Y (gesimuleerde linkercontroller): de HUD toont Joy als dominant en de 4 getallen van de holder, de kamer toont Joy op volle sterkte met precies de Joy-effecten; Y terug: de kamer is exact zoals ervoor (alle getinte lichten, ambient, fog, post-processing), geen effecten, geen HUD, het gesprek staat nog open, de score is 3; daarna opnieuw met de afwijzende optie: Anger, het vuur brandt. Screenshots: patient view en een effect, per antwoord |
 | `RunScenario01PatientPovShift` | `ShiftHospital`, taak 1 in kamer 1A: één POV controller; vanuit de lobby (gesprek al open) weigert Y ("too far from the patient"); met de lift naar 1A, beste optie, dezelfde checks als hierboven (HUD, Joy in de kamer, de zon en de lichten die tot in 1A schijnen exact terug); "Finish" sluit het gesprek en Y doet niets meer ("no conversation"); eindscherm "3 / 3" |
-| `RunPrototype1` | `Prototype1` met de echte AI-server (zie sectie 20): briefing zonder gesprek (Y geweigerd); bij de patiënt start het AI-gesprek, vertrouwen en emotie volgen de openingsbeurt (laag vertrouwen, Sadness); Y: patient view met de vertrouwensmeter, regen binnen en plassen op de vloer; Joy: de planten staan op de vloer; Fear: donker; afronden: naar de dokter, de nabespreking opent; Opnieuw proberen: terug bij de patiënt, nieuw gesprek, 0 switches; Klaar: einde. Ook: Y werkt na meer dan 3 switches, de trust-aura per niveau en het dev-klembord (emotie, vertrouwen, *AI drives*, pagina's, Take en Put down). De spraak van de student zit niet in deze test |
+| `RunPrototype1` | `Prototype1` met de echte AI-server (zie sectie 20): briefing zonder gesprek (Y geweigerd); bij de patiënt start het AI-gesprek, vertrouwen en emotie volgen de openingsbeurt (laag vertrouwen, Sadness); Y: patient view met de vertrouwensmeter, regen binnen en plassen op de vloer; Joy: de planten staan op de vloer; Fear: donker; afronden: naar de dokter, de nabespreking opent; Opnieuw proberen: terug bij de patiënt, nieuw gesprek, 0 switches; Klaar: einde. Ook: handenvrij praten (een opgenomen zin tussen stiltes wordt vanzelf verstuurd en de AI hoort ze), het klembord start in de linkerhand, Y werkt na meer dan 3 switches, de trust-aura per niveau en het dev-klembord (emotie, vertrouwen, *AI drives*, pagina's, Take en Put down). De spraak van de student zit niet in deze test |
 | `RunPatientViewTest` | `PatientViewTest`: het testpaneel toont de status (emotie, view, of Y werkt); de knop Joy (laser + trigger) maakt Joy dominant; Y toont het in de patient view (HUD en kamer); de testbediening zet de patiënt daar op Anger (de kamer volgt) en op Neutral (alles 0); Y terug; de knop Restart herstart het gesprek (Initial Emotion, 0 switches) |
 | `RunEmotionWorld` | `Scenario01_PatientRoom`: budget (volume met Color Adjustments en Vignette, geen Bloom; per emotie een profiel, effect-anchors en hoogstens 1 extra licht; deeltjessystemen hoogstens 200 deeltjes; geen schaduwen); **nurse view**: elke emotie dominant maken verandert niets (licht, ambient, fog, post-processing, volume, anchors); na Y (gesimuleerde linkercontroller), **patient view**, per emotie (Joy, Anger, Fear, Sadness via `SetImmediate`): volle sterkte, volume en post-processing aan, saturatie en kleurfilter van het profiel, kamerlicht maal het profiel, precies de eigen effecten aan, deeltjes spelen, eigen geluid speelt; wissel Sadness naar Joy: via neutraal, nooit twee emoties of twee extra lichten tegelijk, geen sprongen; een mood-verandering van het kamerlicht tijdens de patient view blijft behouden; Y terug: de kamer is exact zoals ervoor. Screenshots per emotie (naar het raam en de kamer) |
 
@@ -1107,8 +1107,8 @@ Quest Link**: Liam's AI-server (`Tools/AiServer`, Ollama, Whisper, Piper) draait
 **Verloop** (`Scripts/AiTalk/PrototypeFlow.cs`):
 1. **Briefing:** de speler start in de linkergang voor de deur van kamer 1A, met een bord naast de deur.
 2. **Gesprek:** binnen 2,6 m van de patiënt zegt die zijn openingszin (Liam's `AiNpc`, scenario `disappointed_patient`).
-   **Rechtertrigger** ingedrukt houden om te praten (Engels; spatie in de editor), **Y** voor de patient view, **B** 1,2 s
-   ingedrukt houden (F in de editor) om het gesprek zelf af te ronden. De AI-server rondt ook zelf af (opgelost of een
+   **Gewoon praten** (Engels): de microfoon staat altijd aan, geen knop (zie *Handenvrij praten* hieronder). **Y** voor de
+   patient view, **B** 1,2 s ingedrukt houden (F in de editor) om het gesprek zelf af te ronden. De AI-server rondt ook zelf af (opgelost of een
    kritieke fout).
 3. **Naar de dokter:** fade, de speler staat in de briefingruimte voor de arts (`Doctor_Female`, bij het whiteboard). Die zegt
    een korte zin in een ballon en daarna opent Liam's nabespreking (`AiDebriefPanel`: score, rubric, betere zinnen).
@@ -1166,8 +1166,21 @@ een canvas en twee pagina's (knoppen `<` en `>`, laser + trigger):
   *AI drives* en *Restart talk*, plus een status (emotie, wie emotie en vertrouwen bepaalt, gesprek, of Y werkt).
   Een waarde die je zelf zet blijft staan: de AI-beurten overschrijven ze niet meer (`AiPatientBridge.HoldEmotions`
   en `HoldTrust`) tot je op *AI drives* drukt.
-- **Take / Put down:** het klembord in de linkerhand (klikken met de rechterlaser) of terug op de balie. In de patient
-  view is het verborgen.
+- **Take / Put down:** het klembord zit **vanaf de start in de linkerhand** (*Start In Hand*); klikken met de rechterlaser.
+  *Put down* legt het op de balie in de lobby, *Take* neemt het terug. In de patient view is het verborgen.
+
+**Handenvrij praten** (`Scripts/AiTalk/VoiceActivityTalk.cs`): vervangt in Prototype1 Liam's push-to-talk (dat staat er nog,
+maar uit). Feedback van de playtest van 2026-11-22: bij elke druk op de trigger hing het beeld even vast (`Microphone.Start`
+blokkeert) en het begin van de zin ging verloren. Nu:
+- De microfoon start één keer en blijft aan (de Quest-microfoon, anders de standaardmicrofoon).
+- Spraakdetectie op luidheid: een stukje van 20 ms is spraak als het duidelijk luider is dan het achtergrondgeluid
+  (dat wordt voortdurend gemeten; *Noise Factor* 3, *Min Level* 0,012). Na 0,15 s spraak begint een zin, na 0,9 s stilte
+  wordt ze verstuurd naar de AI-server (`AiNpc.SendStudentAudio`), met 0,4 s van vóór de spraak (*Pre Roll*), zodat het
+  eerste woord heel blijft. Korter dan 0,5 s spraak: genegeerd; langer dan 15 s: toch verstuurd.
+- Terwijl de patiënt praat of de AI denkt, luistert de microfoon niet (geen echo van de patiënt), tot 0,4 s erna.
+- M in de editor zet de microfoon aan of uit. De hint bij het bed toont wat de microfoon doet (*Listening, just talk*,
+  *Hearing you...*, *The patient is thinking...*).
+- Alle waarden staan in de inspector. Test: `VoiceActivityTalk.Feed` voert opgenomen geluid in zonder microfoon.
 
 **Aanpassingen aan Liam's code:** `AiDebriefPanel` kreeg *Open On Conversation End* (in Prototype1 uit: het paneel opent pas
 bij de dokter) en het event `Retried`. De rest van Liam's AI-code is ongewijzigd.
@@ -1176,6 +1189,6 @@ bij de dokter) en het event `Retried`. De rest van Liam's AI-code is ongewijzigd
 krijgen een `TeleportationArea`.
 
 **Beperkingen:** nog niet getest op de Quest 3 of via Quest Link (microfoon, knoppen, 72 fps). Geen muziek (komt nog). De
-rechtertrigger is zowel push-to-talk als select van de rechterlaser. De AI-scenario's en de mapping naar emoties zijn nog
+spraakdetectie is enkel getest met opgenomen spraak, nog niet met de echte Quest-microfoon in een lawaaierige ruimte. De AI-scenario's en de mapping naar emoties zijn nog
 na te kijken door de inhoudsexpert.
 
