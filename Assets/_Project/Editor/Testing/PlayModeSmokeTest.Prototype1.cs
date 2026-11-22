@@ -115,6 +115,25 @@ namespace ProCommVR.Editor.Testing
                 npc.TurnApplied -= OnTurn;
             }
 
+            // The orange conversation bar at the bottom of the view.
+            var progressBar = Object.FindAnyObjectByType<ConversationProgressBar>();
+            Check(progressBar != null && progressBar.IsVisible && progressBar.Color.r > 0.9f && progressBar.Color.g > 0.4f && progressBar.Color.b < 0.2f,
+                "the orange conversation bar is shown during the conversation");
+            Check(progressBar != null && progressBar.Progress >= 0f && progressBar.Progress < 0.95f,
+                $"the bar shows how far the conversation is ({progressBar?.Progress:0.00}, trust {npc.Trust}, tension {npc.Anger})");
+
+            // The ward map at the lobby entrance and the murmur of people.
+            var map = GameObject.Find("Ward Map (lobby entrance)");
+            Check(map != null && map.GetComponentsInChildren<SpriteRenderer>().Length >= 4
+                  && map.GetComponentsInChildren<SpriteRenderer>().All(r => r.color.r > 0.9f && r.color.b < 0.2f),
+                "the ward map hangs at the lobby entrance with orange points of interest");
+            if (map != null)
+                ObjectShot(map.transform.position + Vector3.back * 1.7f + Vector3.down * 0.1f, map.transform.position, "prototype1-map");
+            var murmurs = Object.FindObjectsByType<ProCommVR.Atmosphere.AmbienceLoop>(FindObjectsSortMode.None)
+                .Select(a => a.GetComponent<AudioSource>()).ToList();
+            Check(murmurs.Count >= 4 && murmurs.All(a => a.isPlaying && a.clip != null && a.loop),
+                $"the ambience of people talking plays ({murmurs.Count} sources)");
+
             // The dev clipboard starts in the left hand.
             var clipboardAtStart = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);
             Check(clipboardAtStart != null && clipboardAtStart.IsCarried,
@@ -265,6 +284,7 @@ namespace ProCommVR.Editor.Testing
             while (flow.Current != PrototypeFlow.Stage.Debrief && EditorApplication.timeSinceStartup < doctorWait)
                 yield return null;
             Check(flow.Current == PrototypeFlow.Stage.Debrief, $"after the conversation the player goes to the doctor ({flow.Current})");
+            Check(progressBar == null || Mathf.Approximately(progressBar.Progress, 1f), "the conversation bar is full at the end");
             var camera = origin.Camera.transform.position;
             Check(Vector3.Distance(Flat(camera), Flat(doctorSpot.position)) < 0.3f, $"the player stands in front of the doctor ({camera})");
             var doctor = GameObject.Find("Doctor (debrief)");
@@ -301,6 +321,36 @@ namespace ProCommVR.Editor.Testing
             debrief.Done();
             yield return 0.5f;
             Check(flow.Current == PrototypeFlow.Stage.Finished, $"Done ends the prototype ({flow.Current})");
+        }
+
+        /// <summary>A picture from a temporary camera at a point, looking at a target.</summary>
+        private static void ObjectShot(Vector3 from, Vector3 target, string name)
+        {
+            if (string.IsNullOrEmpty(_screenshotFolder))
+                return;
+            var cameraObject = new GameObject("Object Shot Camera");
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.fieldOfView = 60f;
+            camera.nearClipPlane = 0.05f;
+            camera.transform.position = from;
+            camera.transform.LookAt(target);
+            var texture = new RenderTexture(1280, 960, 24);
+            camera.targetTexture = texture;
+            camera.Render();
+            RenderTexture.active = texture;
+            var image = new Texture2D(texture.width, texture.height, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
+            image.Apply();
+            RenderTexture.active = null;
+            System.IO.Directory.CreateDirectory(_screenshotFolder);
+            var path = System.IO.Path.Combine(_screenshotFolder, $"{++_screenshotIndex:00}-{name}.png");
+            System.IO.File.WriteAllBytes(path, image.EncodeToPNG());
+            Object.DestroyImmediate(image);
+            camera.targetTexture = null;
+            texture.Release();
+            Object.DestroyImmediate(texture);
+            Object.DestroyImmediate(cameraObject);
+            Log($"screenshot {path}");
         }
 
         /// <summary>A picture of the clipboard from above (a temporary camera; it is hidden in the patient view).</summary>

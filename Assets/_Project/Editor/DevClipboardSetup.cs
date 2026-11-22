@@ -27,7 +27,7 @@ namespace ProCommVR.Editor
         private static readonly Color ButtonColor = new Color(0.86f, 0.87f, 0.9f);
 
         internal static DevClipboard AddToScene(Transform hospital, EmotionHolder holder, PatientReputation reputation,
-            AiPatientBridge bridge, PovController pov, GameObject rig, Camera eventCamera)
+            AiPatientBridge bridge, PovController pov, GameObject rig, Camera eventCamera, VoiceActivityTalk voice = null)
         {
             var station = hospital.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "StaffStation");
             var liamClipboard = station != null ? station.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Clipboard") : null;
@@ -89,14 +89,15 @@ namespace ProCommVR.Editor
             var trustValue = Label(dev, "Trust Value", "50", 11f, new Vector2(90f, -26f), new Vector2(28f, 18f), TextAlignmentOptions.Right);
             Button(dev, "AI drives", new Vector2(-52f, -60f), new Vector2(96f, 26f), ButtonColor, clipboard.LetAiDrive);
             Button(dev, "Restart talk", new Vector2(52f, -60f), new Vector2(96f, 26f), ButtonColor, clipboard.RestartConversation);
-            Label(dev, "Help", "Emotion and trust stay as you set them until <b>AI drives</b>.", 7.5f, new Vector2(0f, -88f),
-                new Vector2(204f, 22f), TextAlignmentOptions.Center);
+            // The microphone: which one, how loud, and whether that counts as speech. Next mic tries the next one.
+            var micLabel = Label(dev, "Mic", "", 6.5f, new Vector2(-28f, -90f), new Vector2(152f, 28f), TextAlignmentOptions.Left);
+            Button(dev, "Next mic", new Vector2(80f, -90f), new Vector2(50f, 24f), ButtonColor, clipboard.NextMicrophone);
 
             // ---- Footer: pages and carry ----
             Button(rect, "<", new Vector2(-88f, -128f), new Vector2(30f, 24f), ButtonColor, clipboard.PreviousPage);
             var pageLabel = Label(rect, "Page Label", "", 9f, new Vector2(-40f, -128f), new Vector2(64f, 24f), TextAlignmentOptions.Center);
             Button(rect, ">", new Vector2(8f, -128f), new Vector2(30f, 24f), ButtonColor, clipboard.NextPage);
-            var carry = Button(rect, "Take", new Vector2(70f, -128f), new Vector2(72f, 24f), new Color(0.75f, 0.88f, 0.78f), clipboard.ToggleCarry);
+            var carry = Button(rect, "Take (X)", new Vector2(70f, -128f), new Vector2(72f, 24f), new Color(0.75f, 0.88f, 0.78f), clipboard.ToggleCarry);
 
             var leftHand = rig.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Left Controller");
             var serialized = new SerializedObject(clipboard);
@@ -116,6 +117,8 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_visual").objectReferenceValue = visual.gameObject;
             serialized.FindProperty("_hand").objectReferenceValue = leftHand;
             serialized.FindProperty("_carryLabel").objectReferenceValue = carry;
+            serialized.FindProperty("_voice").objectReferenceValue = voice;
+            serialized.FindProperty("_micLabel").objectReferenceValue = micLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             dev.gameObject.SetActive(false);
 

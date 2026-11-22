@@ -23,6 +23,7 @@ namespace ProCommVR.AiTalk
         public enum State { Off, Waiting, Ready, Hearing, Sending }
 
         private const string LogPrefix = "[ProCommVR] Voice: ";
+        private const string DevicePref = "ProCommVR.Voice.Microphone";
         private const int Rate = 16000;
         private const int BufferSeconds = 20;
         private const int FrameSamples = Rate / 50; // 20 ms
@@ -68,6 +69,19 @@ namespace ProCommVR.AiTalk
 
         public State Current { get; private set; } = State.Off;
         public float Level { get; private set; }
+        /// <summary>The loudest level of the last second (for a meter).</summary>
+        public float RecentPeak { get; private set; }
+        /// <summary>A frame must be louder than this to count as speech.</summary>
+        public float Threshold => Mathf.Max(_minLevel, _noise * _noiseFactor);
+        public string DeviceName => _device ?? "default microphone";
+        [Tooltip("A microphone that gives no sound at all (not even noise) this long is replaced by the next one.")]
+        [SerializeField, Range(1f, 10f)] private float _switchWhenSilentSeconds = 3f;
+        private float _zeroSince = -1f;
+        private int _autoSwitches;
+        private float _peakHold;
+        private float _peakTime;
+        private float _logTime;
+        private float _logPeak;
         public float NoiseLevel => _noise;
 
         /// <summary>Raised with the wav (16 kHz mono) and its length in seconds, right before it is sent.</summary>
@@ -103,20 +117,45 @@ namespace ProCommVR.AiTalk
             Current = State.Off;
         }
 
-        private void StartMicrophone()
+        private void StartMicrophone(string device = null)
         {
             if (Microphone.devices.Length == 0)
             {
                 Debug.LogWarning(LogPrefix + "no microphone found.");
                 return;
             }
-            _device = !string.IsNullOrEmpty(_microphoneDevice) ? _microphoneDevice : PickDevice();
+            // A microphone chosen on the dev clipboard (remembered), else the one in the inspector, else the Quest's.
+            var chosen = PlayerPrefs.GetString(DevicePref, "");
+            _device = device != null ? device
+                : System.Array.IndexOf(Microphone.devices, chosen) >= 0 ? chosen
+                : !string.IsNullOrEmpty(_microphoneDevice) ? _microphoneDevice : PickDevice();
             Microphone.GetDeviceCaps(_device, out var min, out var max);
             var rate = (min == 0 && max == 0) || (min <= Rate && Rate <= max) ? Rate : max;
             // Looping: the microphone runs for the whole scene, started once.
             _clip = Microphone.Start(_device, true, 2, rate);
             _readPosition = 0;
             Debug.Log($"{LogPrefix}listening on '{_device ?? "default microphone"}' ({rate} Hz), always on.");
+        }
+
+        /// <summary>Switches to the next microphone of the computer (and remembers it, when chosen by hand).</summary>
+        public void NextMicrophone() => NextMicrophone(true);
+
+        private void NextMicrophone(bool remember)
+        {
+            var devices = Microphone.devices;
+            if (devices.Length == 0)
+                return;
+            var next = devices[(System.Array.IndexOf(devices, _device) + 1 + devices.Length) % devices.Length];
+            OnDisable();
+            if (remember)
+            {
+                PlayerPrefs.SetString(DevicePref, next);
+                PlayerPrefs.Save();
+            }
+
+            _noise = 0.005f;
+            ResetSpeech();
+            StartMicrophone(next);
         }
 
         private static string PickDevice()
@@ -145,16 +184,60 @@ namespace ProCommVR.AiTalk
         {
             var position = Microphone.GetPosition(_device);
             if (position < 0 || position == _readPosition)
+            {
+                // No new samples at all: also a microphone that is not connected.
+                if (DeadFor(Time.unscaledTime))
+                    SwitchFromDeadMicrophone();
                 return;
+            }
             var available = position - _readPosition;
             if (available < 0)
                 available += _clip.samples;
             ReadClip(_readPosition, available);
             _readPosition = position;
 
+            if (SwitchedFromDeadMicrophone())
+                return;
             var mono = _clip.channels == 1 ? _read : WavUtility.ToMono(_read, _clip.channels);
             var samples = _clip.frequency == Rate ? mono : WavUtility.Resample(mono, _clip.frequency, Rate);
             Process(samples, _clip.frequency == Rate && _clip.channels == 1 ? available : samples.Length);
+        }
+
+        /// <summary>
+        /// A microphone that gives exact zeros is not connected (e.g. the Quest's microphone while Quest Link sends the
+        /// sound to another input). After a few seconds of that, try the next microphone, once per microphone.
+        /// </summary>
+        private bool SwitchedFromDeadMicrophone()
+        {
+            var peak = 0f;
+            foreach (var v in _read)
+                peak = Mathf.Max(peak, Mathf.Abs(v));
+            if (peak > 0.0002f) // a real microphone always has some noise
+            {
+                _zeroSince = -1f;
+                return false;
+            }
+            return DeadFor(Time.unscaledTime) && SwitchFromDeadMicrophone();
+        }
+
+        /// <summary>True when the microphone has given nothing but silence (or nothing) for Switch When Silent Seconds.</summary>
+        private bool DeadFor(float now)
+        {
+            if (_zeroSince < 0f)
+                _zeroSince = now;
+            return now - _zeroSince >= _switchWhenSilentSeconds;
+        }
+
+        private bool SwitchFromDeadMicrophone()
+        {
+            if (_autoSwitches >= Microphone.devices.Length - 1)
+                return false;
+            _autoSwitches++;
+            _zeroSince = -1f;
+            var old = DeviceName;
+            NextMicrophone(false);
+            Debug.LogWarning($"{LogPrefix}'{old}' gives (almost) no sound at all, switched to '{DeviceName}'.");
+            return true;
         }
 
         /// <summary>
@@ -200,6 +283,22 @@ namespace ProCommVR.AiTalk
             for (var i = 0; i < FrameSamples; i++)
                 sum += _frame[i] * _frame[i];
             Level = Mathf.Sqrt(sum / FrameSamples);
+            if (Level > _peakHold || Time.unscaledTime - _peakTime > 1f)
+            {
+                _peakHold = Level;
+                _peakTime = Time.unscaledTime;
+            }
+            RecentPeak = _peakHold;
+            _logPeak = Mathf.Max(_logPeak, Level);
+            if (Time.unscaledTime - _logTime > 10f)
+            {
+                // Every 10 s in the log: is the microphone hearing anything at all?
+                Debug.Log($"{LogPrefix}'{DeviceName}': loudest {_logPeak:0.0000}, noise {_noise:0.0000}, speech above {Threshold:0.0000}, state {Current}.");
+                if (_logPeak < 0.0005f)
+                    Debug.LogWarning(LogPrefix + "the microphone is silent. Choose another one (dev clipboard, Next mic) or check the Quest Link audio input.");
+                _logTime = Time.unscaledTime;
+                _logPeak = 0f;
+            }
             var threshold = Mathf.Max(_minLevel, _noise * _noiseFactor);
             var loud = Level > threshold;
 
