@@ -144,6 +144,9 @@ namespace ProCommVR.Editor
 
             var hud = EmotionHudSetup.AddToScene(emotions, pov, reputation);
             hud.transform.SetParent(prototype, true);
+            // The player as the patient sees him: a white figure with an aura from the trust (black waves to wings).
+            var aura = ReputationAuraSetup.AddToScene(reputation, rig.GetComponentInChildren<ProCommVR.Player.PlayerAvatar>(true));
+            aura.transform.SetParent(prototype, true);
             var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
             var world = EmotionWorldSetup.AddToScene(emotions, pov, LightsReaching(room, sun, bed));
             world.name = $"Patient World (Room {RoomLabel})";

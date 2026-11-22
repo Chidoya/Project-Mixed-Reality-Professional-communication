@@ -3,6 +3,7 @@ using System.Linq;
 using ProCommVR.AiTalk;
 using ProCommVR.Emotions;
 using ProCommVR.Hospital.AiTalk;
+using ProCommVR.Player;
 using ProCommVR.Pov;
 using Unity.XR.CoreUtils;
 using UnityEditor;
@@ -97,6 +98,35 @@ namespace ProCommVR.Editor.Testing
                 Check(puddles.Count >= 2 && puddles.All(p => p.IsOn), $"Sadness: puddles grow on the floor ({puddles.Count})");
                 Check(puddles.All(p => Mathf.Abs(p.transform.position.y - patientSpot.position.y) < 0.05f), "the puddles lie on the floor");
                 Screenshot("prototype1-sadness");
+
+                // The player as the patient sees him: a white figure with an aura from the trust.
+                var aura = Object.FindAnyObjectByType<ReputationAura>();
+                Check(aura != null && aura.Avatar != null && aura.Avatar.IsVisible, "the patient sees the player's figure, with the trust aura");
+                if (aura != null && aura.Avatar != null)
+                {
+                    var renderers = aura.Avatar.GetComponentsInChildren<Renderer>();
+                    Check(renderers.Length > 0 && renderers.All(r => r.sharedMaterials.All(m => m == aura.WhiteMaterial)),
+                        "the player's figure is blank white");
+                    var trustBefore = reputation.Value;
+                    foreach (var (trust, tier) in new[] { (10f, ReputationTier.Abyss), (30f, ReputationTier.Liquid), (50f, ReputationTier.Neutral),
+                                 (70f, ReputationTier.Golden), (90f, ReputationTier.Radiant) })
+                    {
+                        reputation.Set(trust);
+                        yield return 2f;
+                        var look = aura.Look(tier);
+                        var others = new[] { ReputationTier.Abyss, ReputationTier.Liquid, ReputationTier.Golden, ReputationTier.Radiant }
+                            .Where(t => t != tier).Select(aura.Look);
+                        Check(aura.Current == tier && others.All(o => !o.root.activeSelf)
+                              && (tier == ReputationTier.Neutral || (look.root.activeSelf && Mathf.Approximately(aura.Weight(tier), 1f)
+                                                                     && look.particles.All(p => p.particleCount > 0))),
+                            $"trust {trust}: {tier} ({aura.Current}, weight {aura.Weight(tier):0.00})");
+                        Screenshot($"prototype1-aura-{tier.ToString().ToLowerInvariant()}");
+                    }
+                    var wings = aura.Look(ReputationTier.Radiant).wings;
+                    Check(wings.Length == 2 && wings.All(w => w.GetComponent<MeshFilter>().sharedMesh != null && w.localScale.x > 0.9f),
+                        "Radiant: the wings are unfolded");
+                    reputation.Set(trustBefore);
+                }
 
                 // Joy (set directly: the AI decides when the patient is happy): the plants grow on the floor, not in the air.
                 holder.SetImmediate(new EmotionState(0.85f, 0.05f, 0.05f, 0.05f));

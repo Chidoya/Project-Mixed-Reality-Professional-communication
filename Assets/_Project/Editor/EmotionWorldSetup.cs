@@ -559,7 +559,7 @@ namespace ProCommVR.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static ParticleSystem Particles(Transform parent, string name, Vector3 localPosition, Quaternion localRotation, Material material,
+        internal static ParticleSystem Particles(Transform parent, string name, Vector3 localPosition, Quaternion localRotation, Material material,
             int maxParticles, bool worldSpace = false)
         {
             var go = new GameObject(name);
@@ -584,7 +584,7 @@ namespace ProCommVR.Editor
             return particles;
         }
 
-        private static void FadeInOut(ParticleSystem particles, Color color)
+        internal static void FadeInOut(ParticleSystem particles, Color color)
         {
             var colors = particles.colorOverLifetime;
             colors.enabled = true;
@@ -594,9 +594,9 @@ namespace ProCommVR.Editor
             colors.color = gradient;
         }
 
-        private static Material Additive() => ParticleMaterial("Particle_Additive", BlendMode.SrcAlpha, BlendMode.One);
+        internal static Material Additive() => ParticleMaterial("Particle_Additive", BlendMode.SrcAlpha, BlendMode.One);
 
-        private static Material AlphaBlended() => ParticleMaterial("Particle_Alpha", BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha);
+        internal static Material AlphaBlended() => ParticleMaterial("Particle_Alpha", BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha);
 
         private static Material ParticleMaterial(string name, BlendMode source, BlendMode destination)
         {
