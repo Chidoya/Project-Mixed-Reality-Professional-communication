@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 11904a8158a17f1438da2da8c137b55d, type: 3}
   m_Name: PovSwitchSettings
   m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Pov.PovSwitchSettings
-  _maxSwitchesPerConversation: 3
+  _maxSwitchesPerConversation: 0
   _minSecondsBetweenSwitches: 2
   _fadeSeconds: 0.25
   _maxDistanceToPatient: 3.5

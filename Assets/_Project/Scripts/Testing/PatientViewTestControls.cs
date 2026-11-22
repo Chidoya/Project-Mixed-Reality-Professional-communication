@@ -140,7 +140,7 @@ namespace ProCommVR.Testing
             }
             if (_pov != null)
             {
-                var max = _pov.Settings != null ? _pov.Settings.MaxSwitchesPerConversation : 0;
+                var max = _pov.Settings == null || _pov.Settings.Unlimited ? "no limit" : _pov.Settings.MaxSwitchesPerConversation.ToString();
                 var why = _pov.WhyNot();
                 text.Append($"View: {_pov.Mode}   Switches: {_pov.SwitchesThisConversation} / {max}\n");
                 text.Append(why == null ? "Y: ready" : $"Y: {why}");

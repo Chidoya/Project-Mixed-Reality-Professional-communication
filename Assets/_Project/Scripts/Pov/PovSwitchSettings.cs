@@ -9,8 +9,8 @@ namespace ProCommVR.Pov
     [CreateAssetMenu(fileName = "PovSwitchSettings", menuName = "ProCommVR/POV Switch Settings")]
     public class PovSwitchSettings : ScriptableObject
     {
-        [Tooltip("How often the player may switch to the patient view in one conversation. Switching back is always allowed.")]
-        [SerializeField, Min(0)] private int _maxSwitchesPerConversation = 3;
+        [Tooltip("How often the player may switch to the patient view in one conversation (0: no limit). Switching back is always allowed.")]
+        [SerializeField, Min(0)] private int _maxSwitchesPerConversation;
 
         [Tooltip("Minimum seconds between two switches (both ways), so a quick double press is ignored.")]
         [SerializeField, Min(0f)] private float _minSecondsBetweenSwitches = 2f;
@@ -23,6 +23,9 @@ namespace ProCommVR.Pov
         [SerializeField, Min(0f)] private float _maxDistanceToPatient = 3.5f;
 
         public int MaxSwitchesPerConversation => _maxSwitchesPerConversation;
+
+        /// <summary>No limit on the switches per conversation (Max Switches Per Conversation is 0).</summary>
+        public bool Unlimited => _maxSwitchesPerConversation == 0;
         public float MinSecondsBetweenSwitches => _minSecondsBetweenSwitches;
         public float FadeSeconds => _fadeSeconds;
         public float MaxDistanceToPatient => _maxDistanceToPatient;
