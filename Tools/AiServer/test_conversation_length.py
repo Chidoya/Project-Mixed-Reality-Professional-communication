@@ -30,6 +30,11 @@ play("good", [
  "And how about a short walk together in the corridor, just five minutes?",
  "Let's start with a short walk now, I'll help you up.",
 ])
+play("playtest 2026-11-23 (should not escalate)", [
+ "Can you hear me this test?",
+ "Right, alright man, listen.",
+ "Okay, so listen, everything will be alright, okay?",
+])
 play("rude", [
  "Hi.",
  "Stop whining, nobody cares about your stupid party.",

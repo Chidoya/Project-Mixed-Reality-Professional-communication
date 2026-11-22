@@ -135,8 +135,8 @@
     }
   ],
   "escalation": {
-    "tension_gte": 92,
-    "trust_lte": 5,
+    "tension_gte": 100,
+    "trust_lte": 0,
     "phase": "ESCALATED"
   },
   "bands": [
@@ -209,8 +209,8 @@
       "trust": 0
     },
     "unsafe_effect": {
-      "tension": 25,
-      "trust": -20
+      "tension": 30,
+      "trust": -25
     }
   },
   "labels": [
@@ -306,14 +306,6 @@
       "moment_nl": "Je liet hem alleen"
     },
     {
-      "name": "rude_or_hostile",
-      "tension": 20,
-      "trust": -20,
-      "description": "Insults, mocks, blames or threatens him, shouts at him, or says something cruel or outrageous.",
-      "example": "Stop whining, nobody cares about your party.",
-      "moment_nl": "Je was grof of kwetsend tegen hem"
-    },
-    {
       "name": "false_discharge_promise",
       "tension": 0,
       "trust": 0,
@@ -361,8 +353,7 @@
           "named_emotion_partial"
         ],
         "avoid": [
-          "invalidated_feeling",
-          "rude_or_hostile"
+          "invalidated_feeling"
         ]
       },
       "feedback": {

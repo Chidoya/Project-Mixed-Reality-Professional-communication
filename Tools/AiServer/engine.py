@@ -143,6 +143,7 @@ class Session:
     lock: threading.Lock = field(default_factory=threading.Lock)
     debrief: Optional[dict[str, Any]] = None
     critical: Optional[dict[str, Any]] = None  # the critical error that ended the scenario
+    last_labels: list[str] = field(default_factory=list)  # labels of the student's last sentence (for the actor)
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -329,6 +330,7 @@ class Engine:
                                 reply=sc.fallback_line(), fallback=True)
 
         result.update({k: cls[k] for k in ("labels", "evidence_quote", "off_topic", "unsafe")})
+        session.last_labels = list(cls["labels"])
 
         # 2. off topic / unsafe: no AI reply, fallback line, tension +5
         if cls["off_topic"] or cls["unsafe"]:
@@ -498,6 +500,26 @@ class Engine:
             if new_phase.get("terminal"):
                 session.ended = new_phase.get("end_reason", "resolved")
 
+    @staticmethod
+    def _felt(session: Session) -> str:
+        """How the student's last sentence landed (from its labels), so the reply matches the change in trust:
+        a false promise or a dismissive sentence does not get a warm thank you."""
+        sc = session.scenario
+        good, bad = [], []
+        for name in session.last_labels:
+            label = sc.labels.get(name)
+            if not label:
+                continue
+            text = label.get("description") or name.replace("_", " ")
+            (bad if label.get("trust", 0) < 0 else good if label.get("trust", 0) > 0 else []).append(text.rstrip("."))
+        lines = ""
+        if bad:
+            lines += ("How that sentence felt to you: " + "; ".join(bad).lower() + ". It made you trust the nurse less. "
+                      "Do not thank the nurse or agree warmly; sound more doubtful or distant.\n")
+        if good:
+            lines += "What helped you a little: " + "; ".join(good).lower() + ".\n"
+        return lines
+
     def _check_escalation(self, session: Session, notes: list[str]) -> None:
         """Optional "escalation" in the scenario: {"tension_gte": 90, "trust_lte": 5, "phase": "ESCALATED"}.
         When the tension gets that high (or the trust that low) the character has had enough: the conversation moves to
@@ -552,6 +574,7 @@ class Engine:
             f"{band['instruction']}.\n"
             f"Your trust in this nurse: {session.trust}/100.\n\n"
             f"The nurse just said: \"{last_student}\"\n"
+            + self._felt(session) +
             f"React only to what the nurse really said in this conversation, mostly that last "
             f"sentence. Never claim or suggest the nurse said, promised, explained or offered "
             f"something they did not say: only mention a time, a plan, a reason or a promise if "
