@@ -72,8 +72,53 @@ namespace ProCommVR.Editor.Testing
             Check(Mathf.Approximately(reputation.Value, npc.Trust), $"the trust follows the AI server ({reputation.Value} = {npc.Trust})");
             Check(reputation.Value < reputation.LowThreshold, $"the disappointed patient starts with low trust ({reputation.Value})");
             yield return holder.BlendSeconds + 0.3f;
+            var openingClip = npc.GetComponentsInChildren<AudioSource>().FirstOrDefault(a => a.name == "Voice")?.clip;
+            var opening = new float[openingClip != null ? openingClip.samples * openingClip.channels : 0];
+            var openingRate = openingClip != null ? openingClip.frequency : 16000;
+            if (openingClip != null)
+                openingClip.GetData(opening, 0);
             Check(holder.Dominant == Emotion.Sadness, $"his opening turn makes him sad ({holder.Current}, AI: {npc.LastTurn?.emotion}, tension {npc.Anger})");
             Screenshot("prototype1-patient");
+
+            // Hands-free talking: no button. A spoken sentence between silences is sent to the AI by itself.
+            var voice = Object.FindAnyObjectByType<VoiceActivityTalk>();
+            var ptt = Object.FindAnyObjectByType<ProCommVR.Hospital.AiTalk.PushToTalk>();
+            Check(voice != null && voice.Listening && (ptt == null || !ptt.enabled), "Prototype1 talks hands-free (push-to-talk is off)");
+            if (voice != null && opening.Length > 0)
+            {
+                voice.StopMicrophone();
+                yield return 1f;
+                var sent = 0f;
+                void OnSent(byte[] wav, float seconds) => sent = seconds;
+                voice.SpeechSent += OnSent;
+                var turns = 0;
+                void OnTurn(ProCommVR.Hospital.AiTalk.AiTurn t) => turns++;
+                npc.TurnApplied += OnTurn;
+                var noise = new float[openingRate];
+                for (var i = 0; i < noise.Length; i++)
+                    noise[i] = (Random.value - 0.5f) * 0.004f;
+                voice.Feed(noise, openingRate);
+                Check(sent == 0f, "silence is not sent");
+                // The patient's own (recorded) sentence as if the student said it, then silence.
+                voice.Feed(opening, openingRate);
+                voice.Feed(noise, openingRate);
+                voice.Feed(noise, openingRate);
+                Check(sent > 0.5f && Mathf.Abs(sent - opening.Length / (float)openingRate) < 1.2f,
+                    $"after the silence the sentence is sent by itself ({sent:0.0} s of {opening.Length / (float)openingRate:0.0} s)");
+                var replyWait = EditorApplication.timeSinceStartup + 120f;
+                while (turns == 0 && EditorApplication.timeSinceStartup < replyWait)
+                    yield return null;
+                Check(turns > 0, $"the AI hears the hands-free sentence (heard: \"{npc.LastTurn?.transcript}\", reply: \"{npc.LastTurn?.reply}\")");
+                while (npc.IsSpeaking || npc.Busy)
+                    yield return null;
+                voice.SpeechSent -= OnSent;
+                npc.TurnApplied -= OnTurn;
+            }
+
+            // The dev clipboard starts in the left hand.
+            var clipboardAtStart = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);
+            Check(clipboardAtStart != null && clipboardAtStart.IsCarried,
+                $"the dev clipboard is in the left hand from the start (parent {clipboardAtStart?.transform.parent?.name}, hand {(clipboardAtStart != null ? clipboardAtStart.Hand : null)?.name})");
 
             // Y: the patient view, with the trust meter.
             AddPovDevices();
@@ -131,10 +176,12 @@ namespace ProCommVR.Editor.Testing
                 }
 
                 // The dev clipboard: emotion and trust set by hand stay until "AI drives".
-                var clipboard = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>();
+                var clipboard = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);
                 Check(clipboard != null, "Prototype1 has the dev clipboard");
                 if (clipboard != null)
                 {
+                    // On the desk for the pictures (the left controller is not tracked in batchmode, so the hand is off).
+                    clipboard.PutDown();
                     clipboard.ShowFear();
                     clipboard.TrustSlider.value = 85f;
                     yield return holder.BlendSeconds + 0.3f;
@@ -154,6 +201,7 @@ namespace ProCommVR.Editor.Testing
                     Check(clipboard.IsCarried, "Take puts the clipboard in the left hand");
                     clipboard.PutDown();
                     Check(!clipboard.IsCarried, "Put down puts it back on the desk");
+                    clipboard.Take();
                     reputation.Set(trustBefore2);
                     holder.SetImmediate(new EmotionState(0.05f, 0.05f, 0.05f, 0.76f));
                     yield return 1f;

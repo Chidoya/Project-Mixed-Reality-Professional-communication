@@ -96,7 +96,9 @@ namespace ProCommVR.Editor
             new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule)).transform.SetParent(prototype, false);
 
             // ---- The patient: Liam's AI conversation, our emotions and trust ----
-            var ptt = new GameObject("PushToTalk (right trigger, space)").AddComponent<PushToTalk>();
+            // Liam's push-to-talk stays in the scene but off: the player talks hands-free (VoiceActivityTalk below).
+            var ptt = new GameObject("PushToTalk (off, hands-free talk)").AddComponent<PushToTalk>();
+            ptt.enabled = false;
             ptt.transform.SetParent(prototype, false);
             Set(ptt, "_settings", settings);
             Set(ptt, "_talkAction", talkAction);
@@ -108,6 +110,10 @@ namespace ProCommVR.Editor
             serializedNpc.FindProperty("_scenarioId").stringValue = ScenarioId;
             serializedNpc.FindProperty("_autoStart").boolValue = false; // PrototypeFlow starts it when the player is near
             serializedNpc.ApplyModifiedPropertiesWithoutUndo();
+            // Always listening: what the player says is sent after a short silence (no button, no lost first words).
+            var voice = new GameObject("Voice Activity Talk (always on)").AddComponent<VoiceActivityTalk>();
+            voice.transform.SetParent(prototype, false);
+            Set(voice, "_npc", npc);
 
             var emotions = patient.gameObject.AddComponent<EmotionHolder>();
             var reputation = patient.gameObject.AddComponent<PatientReputation>();
@@ -174,7 +180,7 @@ namespace ProCommVR.Editor
             // Above the open door of 1A: Liam's patient card next to the door already tells who the patient is.
             var briefing = CreateSign(signs, "Briefing Sign",
                 "<b>Prototype 1: talk to the patient in room 1A</b>\n" +
-                "Hold the <b>right trigger</b> while you talk (English).  <b>Y</b>: patient view.",
+                "Just talk, the microphone is always on (English).  <b>Y</b>: patient view.",
                 DoorTop(room) + Vector3.up * 0.35f - room.forward * 0.12f, room.forward, 2.2f);
             briefing.fontSize = 0.5f;
             var talkHint = CreateSign(signs, "Talk Hint", "",
@@ -196,6 +202,7 @@ namespace ProCommVR.Editor
             serializedFlow.FindProperty("_doctorBubble").objectReferenceValue = doctorBubble;
             serializedFlow.FindProperty("_briefingSign").objectReferenceValue = briefing;
             serializedFlow.FindProperty("_talkHint").objectReferenceValue = talkHint;
+            serializedFlow.FindProperty("_voice").objectReferenceValue = voice;
             serializedFlow.ApplyModifiedPropertiesWithoutUndo();
 
             // Saved under a new path, last in the Build Settings: a headset build still starts with the shift.

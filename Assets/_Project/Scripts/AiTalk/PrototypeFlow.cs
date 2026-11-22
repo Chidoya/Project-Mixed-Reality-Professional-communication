@@ -14,8 +14,8 @@ namespace ProCommVR.AiTalk
     /// The loop of Prototype1 (one patient, free speech through Liam's AI server):
     /// <list type="number">
     /// <item>Briefing: the player starts in the corridor in front of the patient's room, with a sign that says what to do.</item>
-    /// <item>Talk: as soon as the player is near the patient, the patient says his first line. Hold the right trigger to
-    /// talk (Liam's PushToTalk), Y switches to the patient's eyes (the patient view, with the trust meter).</item>
+    /// <item>Talk: as soon as the player is near the patient, the patient says his first line. Just talk: the microphone is
+    /// always on (VoiceActivityTalk), Y switches to the patient's eyes (the patient view, with the trust meter).</item>
     /// <item>The conversation ends when the AI server ends it (resolved or a critical error) or when the player holds B
     /// (F in the Editor) to finish it.</item>
     /// <item>To the doctor: a fade to black and the player stands in front of the doctor, who says a short line; then
@@ -66,8 +66,10 @@ namespace ProCommVR.AiTalk
         [SerializeField] private TMP_Text _briefingSign;
         [SerializeField] private TMP_Text _talkHint;
         [TextArea, SerializeField] private string _talkHintText =
-            "Hold the right trigger to talk.  Y: patient view.  Hold B: finish the conversation.";
+            "Just talk to the patient.  Y: patient view.  Hold B: finish the conversation.";
         [TextArea, SerializeField] private string _finishingHintText = "Finishing the conversation...";
+        [Tooltip("Optional: the hint also shows what the microphone does (listening, hearing you, thinking).")]
+        [SerializeField] private VoiceActivityTalk _voice;
 
         private InputAction _finishAction;
         private float _finishHeld;
@@ -142,7 +144,8 @@ namespace ProCommVR.AiTalk
                             && (_pov == null || _pov.Mode == PovMode.Nurse);
             _finishHeld = pressed && canFinish ? _finishHeld + Time.deltaTime : 0f;
             if (_talkHint != null)
-                _talkHint.text = _finishHeld > 0f ? _finishingHintText : _talkHintText;
+                _talkHint.text = _finishHeld > 0f ? _finishingHintText
+                    : _voice != null ? $"{_talkHintText}\n<b>{_voice.StatusText}</b>" : _talkHintText;
             if (_finishHeld < _finishHoldSeconds)
                 return;
             _finishHeld = 0f;
