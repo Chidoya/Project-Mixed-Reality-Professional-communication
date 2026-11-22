@@ -105,6 +105,15 @@ namespace ProCommVR.Emotions
         }
 
         /// <summary>
+        /// Sets a new target (clamped to 0..1); <see cref="Current"/> follows smoothly. For conversations that give a
+        /// whole emotional state per turn instead of a delta (e.g. the AI conversation).
+        /// </summary>
+        public void SetTarget(EmotionState state)
+        {
+            _target = state.Clamped();
+        }
+
+        /// <summary>
         /// Sets target and current at once, without blending (e.g. at the start of a conversation).
         /// </summary>
         public void SetImmediate(EmotionState state)

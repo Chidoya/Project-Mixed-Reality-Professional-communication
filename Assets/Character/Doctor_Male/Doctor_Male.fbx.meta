@@ -17,6 +17,11 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
+      name: Doctor_Male_Face
+    second: {fileID: 2100000, guid: ae1e6fa869eb038448441fd31d065805, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
       name: Doctor_Male_Hair
     second: {fileID: 2100000, guid: 485d7b00c7dd85049a0ca965a4e5cfd3, type: 2}
   - first:
@@ -111,7 +116,7 @@ ModelImporter:
     tangentImportMode: 3
     normalCalculationMode: 4
     legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes: 0
-    blendShapeNormalImportMode: 1
+    blendShapeNormalImportMode: 2
     normalSmoothingSource: 0
   referencedClips: []
   importAnimation: 0

@@ -1,0 +1,181 @@
+using System.Text;
+using TMPro;
+using UnityEngine;
+
+namespace ProCommVR.Hospital.AiTalk
+{
+    /// <summary>
+    /// Klein world-space paneel naast het personage (alleen voor testen, als settings.showDebugPanel aan staat):
+    /// status, transcriptie, labels, boosheid, vertrouwen, band, fase en de wachttijden per stap.
+    /// Bouwt zichzelf op bij de start en draait mee naar de camera.
+    /// </summary>
+    public class AiDebugPanel : MonoBehaviour
+    {
+        [SerializeField] private AiNpc _npc;
+        [Tooltip("Afstand van het paneel tot de camera (m).")]
+        [SerializeField] private float _viewDistance = 0.6f;
+        [Tooltip("Plaats in het zicht van de camera: x links/rechts, y omhoog/omlaag (m, op die afstand).")]
+        [SerializeField] private Vector2 _viewOffset = new(-0.4f, -0.03f);
+        [SerializeField] private Vector2 _size = new(0.56f, 0.5f);
+
+        private Transform _panel;
+        private TextMeshPro _text;
+        private string _status = "";
+        private AiTurn _turn;
+        private string _name = "Character";
+        private string _tension = "Tension";
+        private AiDebriefPanel _debrief;
+
+        private void Start()
+        {
+            // Volgt het actieve personage (scenariokiezer); _npc is enkel de startwaarde
+            var npc = AiNpc.Active != null ? AiNpc.Active : _npc != null ? _npc : FindAnyObjectByType<AiNpc>();
+            if (npc == null || npc.Settings == null || !npc.Settings.showDebugPanel)
+            {
+                enabled = false;
+                return;
+            }
+            Build();
+            Bind(npc);
+            AiNpc.ActiveChanged += Bind;
+        }
+
+        private void OnDestroy()
+        {
+            AiNpc.ActiveChanged -= Bind;
+            Bind(null);
+        }
+
+        private void Bind(AiNpc npc)
+        {
+            if (npc == _npc && npc != null && _bound)
+                return;
+            if (_npc != null && _bound)
+            {
+                _npc.TurnApplied -= OnTurn;
+                _npc.StatusChanged -= OnStatus;
+            }
+            _bound = false;
+            if (npc == null)
+                return;
+            _npc = npc;
+            _npc.TurnApplied += OnTurn;
+            _npc.StatusChanged += OnStatus;
+            _bound = true;
+            _turn = null;
+            _name = "Character";
+            _status = "";
+            Refresh();
+        }
+
+        private bool _bound;
+
+        private void OnTurn(AiTurn turn)
+        {
+            _turn = turn;
+            if (!string.IsNullOrEmpty(turn.character_name))
+                _name = turn.character_name;
+            if (!string.IsNullOrEmpty(turn.tension_name))
+                _tension = char.ToUpper(turn.tension_name[0]) + turn.tension_name.Substring(1);
+            Refresh();
+        }
+
+        private void OnStatus(string status)
+        {
+            _status = status;
+            Refresh();
+        }
+
+        private void LateUpdate()
+        {
+            if (_panel == null || _npc == null)
+                return;
+            // Verborgen zolang de nabespreking open is
+            if (_debrief == null)
+                _debrief = FindAnyObjectByType<AiDebriefPanel>();
+            var show = _debrief == null || _debrief.State == AiDebriefPanel.PanelState.Hidden;
+            if (_panel.gameObject.activeSelf != show)
+                _panel.gameObject.SetActive(show);
+            var cam = Camera.main;
+            if (cam == null)
+                return;
+            // Altijd in beeld: vast links in het zicht van de camera (headset), dichtbij, iets onder het midden.
+            // Zo hangt het nooit achter of in het personage, ook niet bij een liggende of zittende patiënt.
+            var c = cam.transform;
+            _panel.position = c.position + c.forward * _viewDistance + c.right * _viewOffset.x + c.up * _viewOffset.y;
+            _panel.rotation = Quaternion.LookRotation(_panel.position - c.position, c.up);
+            _panel.localScale = Vector3.one * _viewDistance; // dichtbij (vóór muren) maar even groot in beeld als op 1 m
+        }
+
+        private void Build()
+        {
+            _panel = new GameObject("AiDebugPanel_View").transform;
+            _panel.SetParent(transform, false);
+
+            var background = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            background.name = "Background";
+            Destroy(background.GetComponent<Collider>());
+            background.transform.SetParent(_panel, false);
+            background.transform.localPosition = new Vector3(0f, 0f, 0.002f);
+            background.transform.localScale = new Vector3(_size.x, _size.y, 1f);
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+            var mat = new Material(shader) { color = new Color(0.08f, 0.1f, 0.13f, 1f) };
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", new Color(0.08f, 0.1f, 0.13f, 1f));
+            background.GetComponent<MeshRenderer>().sharedMaterial = mat;
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(_panel, false);
+            _text = textGo.AddComponent<TextMeshPro>();
+            _text.rectTransform.sizeDelta = _size - new Vector2(0.04f, 0.04f);
+            _text.fontSize = 0.22f;
+            _text.textWrappingMode = TextWrappingModes.Normal;
+            _text.alignment = TextAlignmentOptions.TopLeft;
+            _text.color = new Color(0.92f, 0.94f, 0.96f);
+            _text.richText = true;
+        }
+
+        private void Refresh()
+        {
+            if (_text == null)
+                return;
+            var sb = new StringBuilder();
+            sb.Append("<b>AI TALK</b>  <color=#8fd3ff>").Append(_status).AppendLine("</color>");
+            var t = _turn;
+            if (t == null)
+            {
+                sb.AppendLine("Hold SPACE (Quest: right trigger) and talk.");
+                _text.text = sb.ToString();
+                return;
+            }
+            if (!string.IsNullOrEmpty(t.transcript))
+                sb.Append("<color=#c8c8c8>You:</color> ").AppendLine(t.transcript);
+            sb.Append("<color=#c8c8c8>").Append(_name).Append(":</color> ").AppendLine(t.reply);
+            if (t.localFallback)
+            {
+                sb.Append("<color=#ffb347>").Append(t.retry ? "not understood (retry)" : t.error).AppendLine("</color>");
+            }
+            else
+            {
+                var labels = t.labels != null && t.labels.Length > 0 ? string.Join(", ", t.labels) : "-";
+                sb.Append("<color=#c8c8c8>Labels:</color> ").AppendLine(labels);
+                if (!string.IsNullOrEmpty(t.evidence_quote))
+                    sb.Append("<color=#c8c8c8>Quote:</color> \"").Append(t.evidence_quote).AppendLine("\"");
+                var before = t.before;
+                sb.Append(_tension).Append(' ').Append(before != null ? before.anger + " > " : "").Append(t.anger)
+                  .Append("   Trust ").Append(before != null ? before.trust + " > " : "").Append(t.trust).AppendLine();
+                sb.Append("Band ").Append(t.band).Append("   Phase ").Append(t.phase);
+                if (t.HasEnded)
+                    sb.Append("   <color=#7dff9a>END: ").Append(t.ended).Append("</color>");
+                sb.AppendLine();
+                sb.Append(t.emotion).Append(" / ").Append(t.animation).Append(" / ").Append(t.pose).AppendLine();
+            }
+            var ms = t.timings_ms;
+            if (ms != null)
+                sb.Append("<size=80%>STT ").Append(ms.stt_ms).Append("  cls ").Append(ms.classify_ms)
+                  .Append("  actor ").Append(ms.actor_ms).Append("  TTS ").Append(ms.tts_ms)
+                  .Append("  server ").Append(ms.request_total_ms).Append("  total ").Append(t.roundTripMs).Append(" ms</size>");
+            _text.text = sb.ToString();
+        }
+    }
+}

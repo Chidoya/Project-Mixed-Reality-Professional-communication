@@ -123,6 +123,8 @@ Goed om te weten bij het plaatsen:
 | `WallClock` | Wijzers op de echte tijd; `SetTime(DateTime)` voor een vaste tijd |
 | `FloorGuideLight` | Kleur en puls van een lichtstrook in de gang |
 | `ItemSpots`, `RoomTint`, `EarGrow`, `MonitorScreen`, `PassingCart` | Losse stukken voor de 360°-afleidingen, zie hieronder |
+| `ScenarioAnchor` | Markeert een leeg anker van een scenario; tekent in de Scene-view een bol en een pijl (forward) |
+| `AlarmLamp` | Rode alarmlamp: `SetOn(bool)`, `Blink(float)`. In rust uit (lens Off, licht disabled) |
 
 ## Losse stukken voor de 360°-afleidingen
 
@@ -166,3 +168,39 @@ Aandachtspunten voor het koppelen:
 
 `hospital_lobby_staff_station.png` (de post) en `hospital_guide_lights_floor1.png` (1A groen, 1B neutraal, 1C paars),
 naast de bestaande screenshots van de lobby, de gang en de kamers.
+
+## U-afdeling (voor later): `Assets/Scenes/liam_u_afdeling.unity`
+
+Een tweede, realistischere afdeling naast de testscene: één verdieping in U-vorm (42 x 28 m) met 15 patiëntkamers,
+een kern (balie, briefing, toiletten, rustruimte, medicatiekamer) en dichte liften en trap. Gebouwd door
+**ProCommVR > Hospital > Build U-Afdeling** (`Editor/UWard/`, maten in `docs/Plattegrond/maten.md`).
+Kamerprefabs in `Prefabs/UWard/`; `PatientRoom.prefab` en `liam_test_scene` blijven ongewijzigd.
+
+Jalils shift gebruikt nog de testscene. Welke namen hetzelfde zijn en wat anders is: `docs/Plattegrond/namen.md`.
+Nieuw script: `Scripts/LockedDoor.cs` (markeert een dichte deur of lift met de reden). Op de Quest krijgt elk object
+maar 4 extra lichten (Mobile_Renderer, Forward), daarom zijn vloer, plafond en lange muren in stukken van max. 6 m gedeeld.
+
+`Scripts/EditorPosePreview.cs` toont de personages in edit mode in hun houding (Laying, Sitting, Idle) in plaats van de
+T-pose; in Play mode neemt de Animator het over. Controles op de opgeslagen scene (deuren in hun opening en naar binnen
+draaiend, sanitair en nachtkastjes juist gedraaid, personeel 0,8 m van de muren, houding van de patiënten in Play mode):
+**Window > General > Test Runner > EditMode > ProCommVR.Editor.Tests.UWardSceneTests** (`Editor/UWard/Tests/`).
+
+### Scenario 2 in de U-afdeling (de boze dochter)
+
+Alles wat het storyboard van scenario 2 nodig heeft, klaar voor als Jalils shift overstapt. Enkel plekken, props,
+personages en lichten; de spellogica (aftelklok, keuzes, paneel, tikgeluid, alarm, opnieuw spelen) blijft van Jalil.
+Welke constante van Jalil bij welk anker hoort: tabel **Scenario 2 in de U-afdeling** in `docs/Plattegrond/namen.md`.
+
+| Waar | Wat |
+| --- | --- |
+| `Core/FamilyRoom` | gesprekskamer (plattegrond v8, x 25..33,6, y 8..12,6), warm `Light`, deuren naar de hal en de rechtergang, bord met pictogram |
+| `Floor3/Room_3C` | pre-op kamer: `Props/Gown` (schort op het voeteneinde), klembord, gordijn half dicht, `Furniture/Bed/Anchor_BedEdge` |
+| `Characters/Patient_3C` | de vader op de bedrand: `Body_Pyjama` (aan) en `Body_Gown` (uit, `Materials/Patient_Gown_Top.mat`) |
+| `Scenarios/Scenario2_AngryDaughter/Anchors` | lege ankers (speler, dochter, panelen, klok, bord, luidsprekers, `Path_ToFamilyRoom`, `Path_Gurney`); waarden in `UWardLayout.Scenario2Anchors` |
+| `Scenarios/Scenario2_AngryDaughter/Actors` | `Daughter` (Visitor_Daughter, Angry), `Blocker_Corridor`, `Countdown_Mount` (leeg paneel), `Gurney` met `Porter` (INACTIEF) |
+| `Floor3/AlarmLights`, `Core/FamilyRoom/AlarmLight` | 4 rode alarmlampen, uit in rust. Test: **ProCommVR > Hospital > Test Alarm** |
+
+De toiletten zijn sinds versie 7 niet veranderd: `ToiletsUnchanged` vergelijkt ze met `Editor/UWard/Tests/UWardToiletReference.txt`.
+`Editor/UWard/Tests/UWardScenario2Report.cs` schrijft een tabel van alle paden van scenario 2 (plan- en Unity-coördinaten).
+Nog niet gedaan: een loop-animatie voor de dochter en de portier (ze schuiven nu); dat vraagt een nieuwe state in
+`Assets/Character` en eerst overleg met Jalil.

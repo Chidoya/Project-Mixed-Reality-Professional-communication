@@ -9,7 +9,7 @@ namespace ProCommVR.Emotions
 {
     /// <summary>
     /// A small world-space panel with the patient's four emotions, only in the patient view. It soft-follows the head:
-    /// about 1.6 m away, to the left of the center of the view, lagging slightly behind head turns, always facing the
+    /// about 1.1 m away, to the left of the center of the view, lagging slightly behind head turns, always facing the
     /// camera and never closer to the center than Min Angle From Center.
     /// <para>
     /// The values come from <see cref="EmotionHolder.EmotionChanged"/> (raised every frame while the emotions blend, so
@@ -35,6 +35,9 @@ namespace ProCommVR.Emotions
         [SerializeField] private EmotionHolder _holder;
         [SerializeField] private PovController _pov;
 
+        [Tooltip("Optional. How the patient thinks about the nurse: the trust meter under the emotions.")]
+        [SerializeField] private PatientReputation _reputation;
+
         [Tooltip("Empty: the main camera.")]
         [SerializeField] private Transform _camera;
 
@@ -43,11 +46,25 @@ namespace ProCommVR.Emotions
         [SerializeField] private TMP_Text _header;
         [SerializeField] private TMP_Text _hint;
 
+        [Header("Trust meter (optional)")]
+        [Tooltip("Shown only when a reputation is connected.")]
+        [SerializeField] private GameObject _trustGroup;
+        [SerializeField] private RectTransform _trustFill;
+        [SerializeField] private Image _trustFillImage;
+        [SerializeField] private TMP_Text _trustNumber;
+        [SerializeField] private TMP_Text _trustLabel;
+        [SerializeField, Min(1f)] private float _trustBarWidth = 448f;
+        [SerializeField] private Color _trustLowColor = new Color(0.95f, 0.38f, 0.32f);
+        [SerializeField] private Color _trustMidColor = new Color(0.98f, 0.76f, 0.3f);
+        [SerializeField] private Color _trustHighColor = new Color(0.37f, 0.82f, 0.5f);
+        [Tooltip("How fast the trust bar follows a new value (seconds).")]
+        [SerializeField, Min(0.01f)] private float _trustSmoothTime = 0.6f;
+
         [Tooltip("Width of a full bar (value 1), in canvas units.")]
         [SerializeField, Min(1f)] private float _barWidth = 180f;
 
         [Header("Follow the head")]
-        [SerializeField, Min(0.3f)] private float _distance = 1.6f;
+        [SerializeField, Min(0.3f)] private float _distance = 1.1f;
 
         [Tooltip("Degrees from the center of the view; negative is to the left.")]
         [SerializeField, Range(-60f, 60f)] private float _yawOffset = -22f;
@@ -78,6 +95,8 @@ namespace ProCommVR.Emotions
         private bool _shown;
         private Emotion? _dominant;
         private bool _dominantSet;
+        private float _trustShown = -1f;
+        private float _trustVelocity;
 
         public bool IsShown => _shown;
         public bool IsCanvasOn => _canvas != null && _canvas.enabled;
@@ -88,6 +107,10 @@ namespace ProCommVR.Emotions
         public float MinAngleFromCenter => _minAngleFromCenter;
         public float YawOffset => _yawOffset;
         public float Distance => _distance;
+        public PatientReputation Reputation => _reputation;
+        /// <summary>The trust value the bar shows right now (it follows the reputation smoothly), or -1 without a reputation.</summary>
+        public float TrustShown => _trustShown;
+        public string TrustText => _trustNumber != null ? _trustNumber.text : null;
 
         public Row GetRow(Emotion emotion)
         {
@@ -107,6 +130,8 @@ namespace ProCommVR.Emotions
             _group.interactable = false;
             _group.blocksRaycasts = false;
             _canvas.enabled = false;
+            if (_trustGroup != null)
+                _trustGroup.SetActive(_reputation != null);
             if (_camera == null && Camera.main != null)
                 _camera = Camera.main.transform;
         }
@@ -129,8 +154,34 @@ namespace ProCommVR.Emotions
 
         private void LateUpdate()
         {
-            if (_canvas.enabled)
-                Follow(false);
+            if (!_canvas.enabled)
+                return;
+            Follow(false);
+            UpdateTrust(false);
+        }
+
+        /// <summary>
+        /// The trust bar follows the reputation smoothly (snap: at once), colored red, amber or green.
+        /// </summary>
+        private void UpdateTrust(bool snap)
+        {
+            if (_reputation == null || _trustFill == null)
+                return;
+            var target = _reputation.Value;
+            _trustShown = snap || _trustShown < 0f
+                ? target
+                : Mathf.SmoothDamp(_trustShown, target, ref _trustVelocity, _trustSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
+            var size = _trustFill.sizeDelta;
+            size.x = Mathf.InverseLerp(PatientReputation.Min, PatientReputation.Max, _trustShown) * _trustBarWidth;
+            _trustFill.sizeDelta = size;
+            if (_trustNumber != null)
+                _trustNumber.SetText("{0}", Mathf.RoundToInt(_trustShown));
+            if (_trustFillImage != null)
+            {
+                _trustFillImage.color = _trustShown < _reputation.LowThreshold ? _trustLowColor
+                    : _trustShown >= _reputation.HighThreshold ? _trustHighColor
+                    : _trustMidColor;
+            }
         }
 
         /// <summary>
@@ -147,6 +198,7 @@ namespace ProCommVR.Emotions
                     ShowValues(_holder.Current);
                 _canvas.enabled = true;
                 Follow(true);
+                UpdateTrust(true);
             }
             if (_fade != null)
                 StopCoroutine(_fade);

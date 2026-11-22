@@ -1,0 +1,4 @@
+# Optional: CUDA libraries so faster-whisper can use an NVIDIA GPU on Windows (about 1.5 GB).
+# Without them the server falls back to the CPU (int8).
+nvidia-cublas-cu12==12.9.2.10
+nvidia-cudnn-cu12==9.28.1.4

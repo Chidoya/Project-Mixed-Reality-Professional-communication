@@ -71,11 +71,12 @@ namespace ProCommVR.Editor
             // Fear: the room goes dark (lights and ambient almost off, black fog), only the head flashlight lights it.
             [Emotion.Fear] = new ProfileValues
             {
-                ColorFilter = new Color(0.85f, 0.9f, 1f), Saturation = -35f, PostExposure = -0.5f,
-                Vignette = 0.55f, VignetteColor = Color.black,
-                LightTint = new Color(0.7f, 0.75f, 1f), LightIntensity = 0.03f,
-                AmbientTint = new Color(0.8f, 0.85f, 1f), AmbientIntensity = 0.06f,
-                Fog = true, FogColor = new Color(0.01f, 0.01f, 0.02f), FogDensity = 0.3f,
+                // Darker after the playtest of 2026-11-22 (was exposure -0.5, vignette 0.55, light 0.03, ambient 0.06, fog 0.3).
+                ColorFilter = new Color(0.85f, 0.9f, 1f), Saturation = -35f, PostExposure = -0.9f,
+                Vignette = 0.65f, VignetteColor = Color.black,
+                LightTint = new Color(0.7f, 0.75f, 1f), LightIntensity = 0.01f,
+                AmbientTint = new Color(0.8f, 0.85f, 1f), AmbientIntensity = 0.02f,
+                Fog = true, FogColor = new Color(0.01f, 0.01f, 0.02f), FogDensity = 0.45f,
                 Effects = new[] { EmotionEffectKind.Flashlight }, SoundVolume = 0.45f,
             },
             // Sadness: grey-blue and less colorful, rain on the window and a few drips inside.
@@ -375,6 +376,130 @@ namespace ProCommVR.Editor
         }
 
         /// <summary>
+        /// Sadness: rain inside the room, from just under the ceiling down to the floor, over an area of the room.
+        /// Center: the floor point under the middle of the area; size: width (x) and depth (z) in the area's own axes
+        /// (turned by yaw); height: from the floor to where the rain starts.
+        /// </summary>
+        internal static EmotionEffectAnchor AddIndoorRain(Transform parent, string name, Vector3 center, Vector2 size, float height, float yaw)
+        {
+            var anchor = NewAnchor(parent, name, center, Quaternion.Euler(0f, yaw, 0f), Emotion.Sadness, EmotionEffectKind.Rain, out var content);
+            const float speed = 6f;
+            // Emitted from a flat box under the ceiling, straight down; each streak lives exactly until it reaches the floor.
+            var rain = Particles(content.transform, "Indoor Rain", new Vector3(0f, height, 0f), Quaternion.Euler(90f, 0f, 0f),
+                AlphaBlended(), MaxParticlesPerSystem);
+            var main = rain.main;
+            main.startLifetime = height / speed;
+            main.startSpeed = speed;
+            main.startSize = 0.014f;
+            main.startColor = new Color(0.66f, 0.74f, 0.86f, 0.5f);
+            var emission = rain.emission;
+            // About 160 streaks alive at full weight (the Quest 3 budget is 200 per system).
+            emission.rateOverTime = Mathf.Min(MaxParticlesPerSystem * 0.8f / main.startLifetime.constant, 400f);
+            var shape = rain.shape;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(size.x, size.y, 0.02f);
+            var renderer = rain.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.lengthScale = 1.2f;
+            renderer.velocityScale = 0.05f;
+            Set(anchor, "_particles", rain);
+
+            // Small splashes where the rain hits the floor.
+            var splash = Particles(content.transform, "Splashes", new Vector3(0f, 0.01f, 0f), Quaternion.Euler(-90f, 0f, 0f),
+                AlphaBlended(), 60, true);
+            var splashMain = splash.main;
+            splashMain.startLifetime = 0.25f;
+            splashMain.startSpeed = new ParticleSystem.MinMaxCurve(0.3f, 0.7f);
+            splashMain.startSize = new ParticleSystem.MinMaxCurve(0.01f, 0.025f);
+            splashMain.gravityModifier = 1f;
+            splashMain.startColor = new Color(0.75f, 0.82f, 0.92f, 0.6f);
+            var splashEmission = splash.emission;
+            splashEmission.rateOverTime = 120f;
+            var splashShape = splash.shape;
+            splashShape.shapeType = ParticleSystemShapeType.Box;
+            splashShape.scale = new Vector3(size.x, size.y, 0.01f);
+            splashShape.randomDirectionAmount = 0.6f;
+            FadeInOut(splash, splashMain.startColor.color);
+            Set(anchor, "_particles", splash);
+            return anchor;
+        }
+
+        /// <summary>
+        /// Sadness: a puddle on the floor that grows with the sadness (a flat, dark, glossy disc). Position: the floor;
+        /// radius in meters, stretch: how much longer than wide (1 = round), yaw: its direction.
+        /// </summary>
+        internal static EmotionEffectAnchor AddPuddle(Transform parent, string name, Vector3 position, float radius, float stretch, float yaw)
+        {
+            var anchor = NewAnchor(parent, name, position + Vector3.up * 0.004f, Quaternion.Euler(0f, yaw, 0f), Emotion.Sadness,
+                EmotionEffectKind.Drips, out var content);
+            var puddle = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            puddle.name = "Puddle";
+            Object.DestroyImmediate(puddle.GetComponent<Collider>());
+            puddle.transform.SetParent(content.transform, false);
+            // A cylinder is 2 m high and 1 m wide: scale y to 2 mm.
+            puddle.transform.localScale = new Vector3(radius * 2f, 0.001f, radius * 2f * stretch);
+            var renderer = puddle.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = PuddleMaterial();
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Simple;
+            Set(anchor, "_grow", content.transform);
+            var serialized = new SerializedObject(anchor);
+            serialized.FindProperty("_swayDegrees").floatValue = 0f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return anchor;
+        }
+
+        private const string PuddleMaterialPath = "Assets/_Project/Materials/Emotions/Puddle.mat";
+
+        /// <summary>
+        /// A dark, wet look: URP Lit, transparent, very smooth (it reflects the room lights).
+        /// </summary>
+        private static Material PuddleMaterial()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>(PuddleMaterialPath);
+            if (material != null)
+                return material;
+            XRTestSceneBuilder.EnsureFolder(System.IO.Path.GetDirectoryName(PuddleMaterialPath));
+            material = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "Puddle" };
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_ZWrite", 0f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            material.SetColor("_BaseColor", new Color(0.16f, 0.2f, 0.27f, 0.62f));
+            material.SetFloat("_Smoothness", 0.95f);
+            material.SetFloat("_Metallic", 0.1f);
+            AssetDatabase.CreateAsset(material, PuddleMaterialPath);
+            return material;
+        }
+
+        /// <summary>
+        /// The floor under a point: the first collider below it (not a trigger), or the point itself when there is none.
+        /// So an effect never floats when the room's floor is not where the builder expects it.
+        /// </summary>
+        internal static Vector3 OnFloor(Vector3 point, float searchUp = 0.5f, float searchDown = 3f)
+        {
+            Physics.SyncTransforms();
+            var hits = Physics.RaycastAll(point + Vector3.up * searchUp, Vector3.down, searchUp + searchDown, ~0, QueryTriggerInteraction.Ignore);
+            var best = float.MaxValue;
+            var floor = point;
+            foreach (var hit in hits)
+            {
+                if (hit.distance < best && hit.normal.y > 0.7f)
+                {
+                    best = hit.distance;
+                    floor = hit.point;
+                }
+            }
+            return floor;
+        }
+
+        /// <summary>
         /// Sadness: a few drops falling from the ceiling.
         /// </summary>
         internal static EmotionEffectAnchor AddDrips(Transform parent, string name, Vector3 position, float fallHeight)
@@ -434,7 +559,7 @@ namespace ProCommVR.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static ParticleSystem Particles(Transform parent, string name, Vector3 localPosition, Quaternion localRotation, Material material,
+        internal static ParticleSystem Particles(Transform parent, string name, Vector3 localPosition, Quaternion localRotation, Material material,
             int maxParticles, bool worldSpace = false)
         {
             var go = new GameObject(name);
@@ -459,7 +584,7 @@ namespace ProCommVR.Editor
             return particles;
         }
 
-        private static void FadeInOut(ParticleSystem particles, Color color)
+        internal static void FadeInOut(ParticleSystem particles, Color color)
         {
             var colors = particles.colorOverLifetime;
             colors.enabled = true;
@@ -469,9 +594,9 @@ namespace ProCommVR.Editor
             colors.color = gradient;
         }
 
-        private static Material Additive() => ParticleMaterial("Particle_Additive", BlendMode.SrcAlpha, BlendMode.One);
+        internal static Material Additive() => ParticleMaterial("Particle_Additive", BlendMode.SrcAlpha, BlendMode.One);
 
-        private static Material AlphaBlended() => ParticleMaterial("Particle_Alpha", BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha);
+        internal static Material AlphaBlended() => ParticleMaterial("Particle_Alpha", BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha);
 
         private static Material ParticleMaterial(string name, BlendMode source, BlendMode destination)
         {

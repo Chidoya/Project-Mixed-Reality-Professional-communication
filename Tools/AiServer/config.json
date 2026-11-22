@@ -1,0 +1,30 @@
+{
+  "ollama_url": "http://127.0.0.1:11434",
+  "model_classifier": "qwen3.5:4b",
+  "model_actor": "qwen3.5:4b",
+  "model_judge": "qwen3.5:4b",
+  "temperature_classifier": 0,
+  "temperature_actor": 0.7,
+  "temperature_judge": 0,
+  "num_predict_classifier": 200,
+  "num_predict_actor": 300,
+  "num_predict_judge": 1500,
+  "num_ctx": 8192,
+  "keep_alive": "30m",
+  "request_timeout_seconds": 120,
+  "port": 8765,
+  "stt_model": "small.en",
+  "stt_language": "en",
+  "stt_try_gpu": true,
+  "stt_min_words": 2,
+  "stt_beam_size": 5,
+  "stt_cpu_threads": 8,
+  "tts_voice": "en_US-amy-medium",
+  "tts_length_scale_by_band": {
+    "VERY_HIGH": 0.85,
+    "HIGH": 0.9,
+    "MID": 1.0,
+    "LOW": 1.1
+  },
+  "models_dir": "models"
+}
