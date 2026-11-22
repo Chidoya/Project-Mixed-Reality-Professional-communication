@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
+using ProCommVR.Hospital.Face;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -22,6 +23,13 @@ namespace ProCommVR.Editor
         private const string TestScenePath = "Assets/Scenes/liam_test_scene.unity";
         private const string LitShader = "Universal Render Pipeline/Lit";
         private const string LogPrefix = "[CharacterSetup] ";
+
+        // Gezicht (blender/scripts/07_gezicht.py): één gedeeld materiaal met een paletbeeld
+        private const string FaceFolder = Root + "/Face";
+        private const string FacePalettePath = FaceFolder + "/FacePalette.png";
+        private const string FaceMaterialPath = FaceFolder + "/Face.mat";
+        private const string TearDropMaterialPath = FaceFolder + "/TearDrop.mat";
+        private const string FacePresetsPath = "Assets/Hospital/Data/FacePresets.asset";
 
         // State in de Animator -> mogelijke bestandsnamen van Mixamo-clips (zonder spaties, kleine letters)
         private static readonly (string State, string[] Names)[] States =
@@ -42,6 +50,7 @@ namespace ProCommVR.Editor
         public static void Setup(ICollection<string> only)
         {
             var clips = ImportAnimationClips();
+            PrepareFaceAssets();
             var prefabs = new List<GameObject>();
 
             foreach (var fbxPath in FindCharacterModels().Where(p => only == null || only.Contains(Path.GetFileNameWithoutExtension(p))))
@@ -104,6 +113,8 @@ namespace ProCommVR.Editor
             importer.importLights = false;
             importer.importAnimation = false;
             importer.importNormals = ModelImporterNormals.Import; // flat shading uit Blender behouden
+            importer.importBlendShapes = true;                     // gezicht (07_gezicht.py)
+            importer.importBlendShapeNormals = ModelImporterNormals.None; // anders worden de vlakjes zacht
             importer.animationType = ModelImporterAnimationType.Human;
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
@@ -137,8 +148,15 @@ namespace ProCommVR.Editor
 
             var importer = (ModelImporter)AssetImporter.GetAtPath(fbxPath);
             var shader = Shader.Find(LitShader);
+            var faceMaterial = AssetDatabase.LoadAssetAtPath<Material>(FaceMaterialPath);
             foreach (var source in embedded)
             {
+                if (source.name.EndsWith("_Face") && faceMaterial != null)
+                {
+                    // Alle gezichten delen één materiaal met het paletbeeld
+                    importer.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), source.name), faceMaterial);
+                    continue;
+                }
                 var color = source.HasProperty("_BaseColor") ? source.GetColor("_BaseColor") : source.color;
                 var path = $"{folder}/{source.name}.mat";
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -228,18 +246,123 @@ namespace ProCommVR.Editor
 
         private static GameObject BuildPrefab(string fbxPath, string name, AnimatorController controller)
         {
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
-            var instance = (GameObject)PrefabUtility.InstantiatePrefab(model);
-            instance.name = name;
+            // Bestaande prefab openen en bijwerken, zodat toegevoegde componenten (en verwijzingen
+            // ernaar in scenes) bij opnieuw draaien blijven bestaan.
+            var path = PrefabPath(name);
+            var existing = File.Exists(path);
+            GameObject root;
+            if (existing)
+                root = PrefabUtility.LoadPrefabContents(path);
+            else
+            {
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
+                root = (GameObject)PrefabUtility.InstantiatePrefab(model);
+                root.name = name;
+            }
 
-            var animator = instance.GetComponent<Animator>() ?? instance.AddComponent<Animator>();
+            var animator = root.GetComponent<Animator>() ?? root.AddComponent<Animator>();
             animator.avatar = AssetDatabase.LoadAllAssetsAtPath(fbxPath).OfType<Avatar>().FirstOrDefault();
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;
 
-            var prefab = PrefabUtility.SaveAsPrefabAsset(instance, PrefabPath(name));
-            Object.DestroyImmediate(instance);
+            AddFaceComponents(root, name);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            if (existing)
+                PrefabUtility.UnloadPrefabContents(root);
+            else
+                Object.DestroyImmediate(root);
             return prefab;
+        }
+
+        // --- Gezicht ---------------------------------------------------------------
+
+        /// <summary>Palet (point filter), gedeeld Face-materiaal, traandruppel-materiaal en FacePresets-asset.</summary>
+        private static void PrepareFaceAssets()
+        {
+            if (!File.Exists(FacePalettePath))
+            {
+                Debug.LogWarning($"{LogPrefix}{FacePalettePath} ontbreekt: kopieer blender/export/unity/_Face/FacePalette.png.");
+                return;
+            }
+
+            var texImporter = (TextureImporter)AssetImporter.GetAtPath(FacePalettePath);
+            texImporter.textureType = TextureImporterType.Default;
+            texImporter.sRGBTexture = true;
+            texImporter.mipmapEnabled = false;
+            texImporter.filterMode = FilterMode.Point;
+            texImporter.wrapMode = TextureWrapMode.Clamp;
+            texImporter.textureCompression = TextureImporterCompression.Uncompressed;
+            texImporter.npotScale = TextureImporterNPOTScale.None;
+            texImporter.SaveAndReimport();
+            var palette = AssetDatabase.LoadAssetAtPath<Texture2D>(FacePalettePath);
+
+            var shader = Shader.Find(LitShader);
+            var face = LoadOrCreateMaterial(FaceMaterialPath, shader);
+            face.SetTexture("_BaseMap", palette);
+            face.SetColor("_BaseColor", Color.white);
+            face.SetFloat("_Smoothness", 0.35f);
+            EditorUtility.SetDirty(face);
+
+            var tear = LoadOrCreateMaterial(TearDropMaterialPath, shader);
+            tear.SetColor("_BaseColor", new Color(0.78f, 0.94f, 1f));
+            tear.SetFloat("_Smoothness", 0.92f);
+            tear.EnableKeyword("_EMISSION");
+            tear.SetColor("_EmissionColor", new Color(0.22f, 0.30f, 0.36f));
+            tear.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            EditorUtility.SetDirty(tear);
+
+            if (AssetDatabase.LoadAssetAtPath<FacePresets>(FacePresetsPath) == null)
+            {
+                var presets = ScriptableObject.CreateInstance<FacePresets>();
+                presets.ResetToDefaults();
+                AssetDatabase.CreateAsset(presets, FacePresetsPath);
+            }
+        }
+
+        private static Material LoadOrCreateMaterial(string path, Shader shader)
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.shader = shader;
+            return mat;
+        }
+
+        /// <summary>FaceController, FaceFromAnimator, HeadLookAt en TearDrops (enkel als het model een gezicht heeft).</summary>
+        private static void AddFaceComponents(GameObject root, string name)
+        {
+            var hasFace = root.GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                .Any(r => r.sharedMesh != null && r.sharedMesh.GetBlendShapeIndex("Blink") >= 0);
+            if (!hasFace)
+            {
+                Debug.LogWarning($"{LogPrefix}{name}: geen gezicht-blendshapes (run blender/scripts/07_gezicht.py).");
+                return;
+            }
+
+            var face = root.GetComponent<FaceController>() ?? root.AddComponent<FaceController>();
+            var so = new SerializedObject(face);
+            so.FindProperty("_presets").objectReferenceValue = AssetDatabase.LoadAssetAtPath<FacePresets>(FacePresetsPath);
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            if (root.GetComponent<FaceFromAnimator>() == null)
+                root.AddComponent<FaceFromAnimator>();
+            var look = root.GetComponent<HeadLookAt>() ?? root.AddComponent<HeadLookAt>();
+            if (!look.Bake())
+                Debug.LogWarning($"{LogPrefix}{name}: kijkrichting van het hoofd niet gevonden.");
+
+            var tears = root.GetComponent<TearDrops>() ?? root.AddComponent<TearDrops>();
+            var faceRenderer = root.GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                .First(r => r.sharedMesh != null && r.sharedMesh.GetBlendShapeIndex("Blink") >= 0);
+            if (!tears.Bake(faceRenderer))
+                Debug.LogWarning($"{LogPrefix}{name}: traanpad niet gevonden (blendshape Tears).");
+            var tso = new SerializedObject(tears);
+            tso.FindProperty("_size").floatValue = 0.011f;
+            tso.FindProperty("_material").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Material>(TearDropMaterialPath);
+            tso.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>Lege standaard scene (camera + licht). Een bestaande scene wordt nooit aangeraakt.</summary>
