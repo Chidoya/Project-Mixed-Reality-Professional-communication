@@ -139,7 +139,7 @@ class Session:
     unlocked_facts: list[str] = field(default_factory=list)
     history: list[dict[str, str]] = field(default_factory=list)  # {"speaker": "student"|"character", "text"}
     turns: list[dict[str, Any]] = field(default_factory=list)
-    ended: Optional[str] = None  # None, "resolved", "time_up", "stopped", "critical_error"
+    ended: Optional[str] = None  # None, "resolved", "time_up", "stopped", "critical_error", "escalated"
     lock: threading.Lock = field(default_factory=threading.Lock)
     debrief: Optional[dict[str, Any]] = None
     critical: Optional[dict[str, Any]] = None  # the critical error that ended the scenario
@@ -333,10 +333,19 @@ class Engine:
         # 2. off topic / unsafe: no AI reply, fallback line, tension +5
         if cls["off_topic"] or cls["unsafe"]:
             t = time.perf_counter()
-            eff = sc.rules["off_topic_or_unsafe_effect"]
+            # Optional "unsafe_effect" in the rules: insults and threats weigh more than off topic talk.
+            eff = sc.rules["unsafe_effect"] if cls["unsafe"] and "unsafe_effect" in sc.rules \
+                else sc.rules["off_topic_or_unsafe_effect"]
             session.anger = int(_clamp(session.anger + _tension(eff), 0, 100))
             session.trust = int(_clamp(session.trust + eff["trust"], 0, 100))
+            self._check_escalation(session, result["notes"])
             timings["state_ms"] = int((time.perf_counter() - t) * 1000)
+            if session.ended:  # escalated: the character reacts himself (the ESCALATED phase), not a fallback line
+                t = time.perf_counter()
+                actor = self._act(session, result["notes"], result["tokens"])
+                timings["actor_ms"] = int((time.perf_counter() - t) * 1000)
+                if actor is not None:
+                    return self._finish(session, result, timings, t_start, actor=actor)
             return self._finish(session, result, timings, t_start,
                                 reply=sc.fallback_line(), fallback=True)
 
@@ -376,6 +385,7 @@ class Engine:
         t = time.perf_counter()
         self._apply_labels(session, cls["labels"], result["notes"])
         self._advance_phase(session, cls["labels"], result["notes"])
+        self._check_escalation(session, result["notes"])
         self._unlock_facts(session)
         timings["state_ms"] = int((time.perf_counter() - t) * 1000)
 
@@ -487,6 +497,24 @@ class Engine:
             new_phase = session.scenario.phase(session.phase)
             if new_phase.get("terminal"):
                 session.ended = new_phase.get("end_reason", "resolved")
+
+    def _check_escalation(self, session: Session, notes: list[str]) -> None:
+        """Optional "escalation" in the scenario: {"tension_gte": 90, "trust_lte": 5, "phase": "ESCALATED"}.
+        When the tension gets that high (or the trust that low) the character has had enough: the conversation moves to
+        that terminal phase (its actor_goal gives the last line) and ends with its end_reason (default "escalated")."""
+        esc = session.scenario.data.get("escalation")
+        if not esc or session.ended:
+            return
+        too_tense = "tension_gte" in esc and session.anger >= esc["tension_gte"]
+        too_little_trust = "trust_lte" in esc and session.trust <= esc["trust_lte"]
+        if not (too_tense or too_little_trust):
+            return
+        phase_id = esc.get("phase")
+        if phase_id:
+            session.phase = phase_id
+        phase = session.scenario.phase(session.phase) if phase_id else {}
+        session.ended = phase.get("end_reason", esc.get("end_reason", "escalated"))
+        notes.append(f"escalation: tension {session.anger}, trust {session.trust}: scenario ends ({session.ended})")
 
     def _unlock_facts(self, session: Session) -> None:
         sc = session.scenario
