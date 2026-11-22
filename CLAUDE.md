@@ -214,6 +214,12 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   meeluisterende buurman. Nieuw: een antwoord kan de taak laten mislukken (`Fails Task`, uitkomst `FailedAnswer`, rood
   alarm). Alle vijf taken uit de bron zitten nu in de shift. Getest: compile-check en alle 13 smoke tests. Niet op de
   Quest 3 getest; tekst, scores en reacties door Claude geschreven, nog na te kijken door content en inhoudsexpert.
+- 2026-11-22: Liam, `feature/liam/patient-pov-plus` (vanaf `origin/jalil`, lokaal, niet gepusht): Patient POV plus
+  (`ARCHITECTURE.md` sectie 20). Liam's gezichten overgezet; in Scenario 1 vervangt `Patient_Male_Old` (met verband) de
+  capsule; één `EmotionHolder` stuurt nu ook het gezicht en de blik, de verpleegkundige zoals de patiënt haar ziet, kaart,
+  foto, ballon en klok van de kleindochter, hartslag met haptics, dof geluid en een innerlijke stem (Piper). In Jalils
+  builders enkel de capsule vervangen en één regel `PatientPovSetup.AddToScene`. Getest met batchmode en Play mode smoke
+  tests (zie het eindrapport); niet op de Quest 3 getest.
 
 
 ## Beslissingen
