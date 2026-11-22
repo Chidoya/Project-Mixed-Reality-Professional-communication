@@ -1178,6 +1178,8 @@ blokkeert) en het begin van de zin ging verloren. Nu:
   wordt ze verstuurd naar de AI-server (`AiNpc.SendStudentAudio`), met 0,4 s van vóór de spraak (*Pre Roll*), zodat het
   eerste woord heel blijft. Korter dan 0,5 s spraak: genegeerd; langer dan 15 s: toch verstuurd.
 - Terwijl de patiënt praat of de AI denkt, luistert de microfoon niet (geen echo van de patiënt), tot 0,4 s erna.
+- Zolang de AI-server nog opstart (de eerste keer ongeveer 11 s), zegt de hint *The patient is getting ready (the AI is
+  starting)*: dan wordt nog niets gehoord.
 - M in de editor zet de microfoon aan of uit. De hint bij het bed toont wat de microfoon doet (*Listening, just talk*,
   *Hearing you...*, *The patient is thinking...*).
 - Alle waarden staan in de inspector. Test: `VoiceActivityTalk.Feed` voert opgenomen geluid in zonder microfoon.
@@ -1198,20 +1200,27 @@ echt eindigt, dan vol. De doelen staan in de inspector en moeten gelijk blijven 
 - Een fase meer: B1 (teruggetrokken) naar B2 (opent zich, vertrouwen 38+) naar B3 (overweegt, vertrouwen 52+, een open
   vraag, samenvatting, uitleg of steun) naar END (vertrouwen 66+, spanning onder 36 en een concreet voorstel). Getest met de
   echte AI: een goed gesprek duurt nu 7 beurten (was ongeveer 3).
-- `escalation` (nieuw, algemeen in `engine.py`): spanning 92+ of vertrouwen 5-: de patiënt zegt boos dat je moet gaan
-  (fase ESCALATED) en het gesprek eindigt met `escalated` (nabespreking: "Gesprek geëscaleerd").
-- `rules.unsafe_effect` (nieuw): beledigingen en dreigingen (unsafe) wegen zwaarder (spanning +25, vertrouwen -20) dan
-  off-topic (+5). Nieuw label `rude_or_hostile` (+20/-20). Getest: één grove zin ("Stop whining, nobody cares about your
-  stupid party") beëindigt het gesprek meteen.
+- `escalation` (nieuw, algemeen in `engine.py`): spanning 100 of vertrouwen 0: de patiënt zegt boos dat je moet gaan
+  (fase ESCALATED) en het gesprek eindigt met `escalated` (nabespreking: "Gesprek geëscaleerd"). Gewone fouten
+  (wegwuiven, valse belofte: +4 tot +10) hebben er een paar beurten voor nodig.
+- `rules.unsafe_effect` (nieuw): beledigingen en dreigingen (door de AI als unsafe herkend) wegen zwaarder (spanning +30,
+  vertrouwen -25) dan off-topic (+5). Getest: één grove zin ("Stop whining, nobody cares about your stupid party")
+  beëindigt het gesprek meteen. Een eigen label voor grofheid (`rude_or_hostile`) is na de playtest van 2026-11-23 weer
+  weg: het 4B-model gaf het ook aan gewone zinnen ("Right, alright man, listen."), wat het gesprek meteen beëindigde.
+- De acteur weet nu hoe de laatste zin van de student viel (`Engine._felt`, uit de labels van die beurt): na een valse
+  belofte of een wegwuivende zin bedankt hij niet meer warm, maar klinkt hij twijfelend of afstandelijk. Voordien daalde
+  het vertrouwen terwijl hij vriendelijk antwoordde.
 - Test zonder Unity: `Tools/AiServer/test_conversation_length.py` (speelt een goed en een grof gesprek in tekst).
 
 **Plattegrond** (`Editor/WardMapAndAmbienceSetup.cs`): `Art/Map/UWardFloorPlan.png` (hetzelfde plan als `UWardLayout`, 42 x 28
 m, ongeveer 50 px per meter) hangt in de gang onder, op de muur van de medicatiekamer, net links van de ingang van de lobby.
 Oranje punten: *You are here*, kamer 1A (patiënt), de balie en de dokter (briefingruimte).
 
-**Achtergrondgeluid:** `Audio/Ambience/HospitalBabble.wav` (40 s, loopt rond), gemaakt met `Tools/Ambience/make_babble.py`:
-twee Piper-stemmen van de AI-server (kristin en norman, op LibriVox-opnames) zeggen gewone ziekenhuiszinnen door elkaar,
-gedempt en met galm, geen echt gesprek. Vijf 3D-bronnen (lobby, gangen) starten elk op een ander punt (`AmbienceLoop`).
+**Achtergrondgeluid:** `Audio/Ambience/HospitalBabble_A/B/C.wav` (elk 60 s, 11 kHz, loopt rond), gemaakt met
+`Tools/Ambience/make_babble.py`: twee Piper-stemmen van de AI-server (kristin en norman, op LibriVox-opnames), elk persoon
+hoger of lager en sneller of trager, die dichterbij en verder weg wandelt (luider en stiller), met korte antwoorden en
+stille momenten, gedempt en met galm, geen echt gesprek. Vijf stille 3D-bronnen (lobby 0,2 en 0,16, gangen 0,1 en 0,08),
+elk met een andere clip en op een ander punt gestart (`AmbienceLoop`).
 
 **Aanpassingen aan Liam's code:** `AiDebriefPanel` kreeg *Open On Conversation End* (in Prototype1 uit: het paneel opent pas
 bij de dokter) en het event `Retried`. De rest van Liam's AI-code is ongewijzigd.

@@ -131,8 +131,9 @@ namespace ProCommVR.Editor.Testing
                 ObjectShot(map.transform.position + Vector3.back * 1.7f + Vector3.down * 0.1f, map.transform.position, "prototype1-map");
             var murmurs = Object.FindObjectsByType<ProCommVR.Atmosphere.AmbienceLoop>(FindObjectsSortMode.None)
                 .Select(a => a.GetComponent<AudioSource>()).ToList();
-            Check(murmurs.Count >= 4 && murmurs.All(a => a.isPlaying && a.clip != null && a.loop),
-                $"the ambience of people talking plays ({murmurs.Count} sources)");
+            Check(murmurs.Count >= 4 && murmurs.All(a => a.isPlaying && a.clip != null && a.loop && a.volume <= 0.25f)
+                  && murmurs.Select(a => a.clip).Distinct().Count() >= 3,
+                $"the ambience of people talking plays, quiet and varied ({murmurs.Count} sources, {murmurs.Select(a => a.clip).Distinct().Count()} clips)");
 
             // The dev clipboard starts in the left hand.
             var clipboardAtStart = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);

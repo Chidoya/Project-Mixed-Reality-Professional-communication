@@ -20,7 +20,7 @@ namespace ProCommVR.AiTalk
     /// </summary>
     public class VoiceActivityTalk : MonoBehaviour
     {
-        public enum State { Off, Waiting, Ready, Hearing, Sending }
+        public enum State { Off, Starting, Waiting, Ready, Hearing, Sending, Ended }
 
         private const string LogPrefix = "[ProCommVR] Voice: ";
         private const string DevicePref = "ProCommVR.Voice.Microphone";
@@ -312,7 +312,10 @@ namespace ProCommVR.AiTalk
             {
                 if (_speechStart >= 0)
                     ResetSpeech();
-                Current = !_listening || noConversation ? State.Off : _npc.Busy ? State.Sending : State.Waiting;
+                Current = !_listening || _npc == null ? State.Off
+                    : _npc.HasEnded ? State.Ended
+                    : noConversation ? State.Starting
+                    : _npc.Busy ? State.Sending : State.Waiting;
                 return;
             }
 
@@ -380,6 +383,8 @@ namespace ProCommVR.AiTalk
         public string StatusText => Current switch
         {
             State.Off => "Microphone off",
+            State.Starting => "The patient is getting ready (the AI is starting), one moment...",
+            State.Ended => "Conversation finished",
             State.Waiting => "Wait, the patient is talking...",
             State.Ready => "Listening, just talk",
             State.Hearing => "Hearing you...",
