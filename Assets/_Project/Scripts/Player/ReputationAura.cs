@@ -26,6 +26,10 @@ namespace ProCommVR.Player
     /// see-through liquid flow down it, the middle shows nothing, good trust gives a dark golden aura and very good
     /// trust a shining aura with wings of light.
     /// <para>
+    /// The Golden and Liquid tiers start at the thresholds of the <see cref="PatientReputation"/> (the same as the colors
+    /// of the trust meter in the HUD), so the meter and the aura always agree.
+    /// </para>
+    /// <para>
     /// Lives next to the <see cref="PlayerAvatar"/> (not inside it) and follows it. Each tier is a child with its own
     /// particle systems, light and (Radiant) wings, built by the scene builder; the tiers cross-fade, and a tier at
     /// weight 0 is inactive, so it costs nothing. Only shown while the avatar is visible.
@@ -54,11 +58,9 @@ namespace ProCommVR.Player
         [SerializeField] private Material _whiteMaterial;
 
         [Header("Thresholds (trust 0..100)")]
+        [Tooltip("From this on: the aura of light with wings. Golden starts at the reputation's High Threshold.")]
         [SerializeField, Range(0f, 100f)] private float _radiantFrom = 80f;
-        [SerializeField, Range(0f, 100f)] private float _goldenFrom = 60f;
-        [Tooltip("Below this: the black liquid.")]
-        [SerializeField, Range(0f, 100f)] private float _liquidBelow = 40f;
-        [Tooltip("Below this: the black waves.")]
+        [Tooltip("Below this: the black waves. The black liquid starts below the reputation's Low Threshold.")]
         [SerializeField, Range(0f, 100f)] private float _abyssBelow = 20f;
 
         [Header("Look")]
@@ -84,12 +86,15 @@ namespace ProCommVR.Player
         /// <summary>0: hidden, 1: fully shown.</summary>
         public float Weight(ReputationTier tier) => _weights.TryGetValue(tier, out var weight) ? weight : 0f;
 
+        private float GoldenFrom => _reputation != null ? _reputation.HighThreshold : 60f;
+        private float LiquidBelow => _reputation != null ? _reputation.LowThreshold : 40f;
+
         public ReputationTier TierFor(float trust)
         {
             if (trust >= _radiantFrom) return ReputationTier.Radiant;
-            if (trust >= _goldenFrom) return ReputationTier.Golden;
+            if (trust >= GoldenFrom) return ReputationTier.Golden;
             if (trust < _abyssBelow) return ReputationTier.Abyss;
-            if (trust < _liquidBelow) return ReputationTier.Liquid;
+            if (trust < LiquidBelow) return ReputationTier.Liquid;
             return ReputationTier.Neutral;
         }
 

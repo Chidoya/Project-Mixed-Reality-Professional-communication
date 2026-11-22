@@ -1126,8 +1126,8 @@ De teksten van de dokter, het bord en de hint staan in de inspector van `Prototy
 - Het vertrouwen van de AI-server (0 tot 100) is de **reputatie** van de patiënt (`PatientReputation`, nieuw).
 - De patiënt ligt in bed: zijn ogen kijken naar het voeteneinde (`PovAnchor` > *Look At*, nieuw).
 
-**Vertrouwensmeter in de HUD:** onder de vier emoties "TRUST IN YOU" met een balk en een getal (rood onder 35, oranje,
-groen vanaf 65). Enkel zichtbaar als de HUD een `PatientReputation` heeft (`EmotionHudSetup.AddToScene(..., reputation)`);
+**Vertrouwensmeter in de HUD:** onder de vier emoties "TRUST IN YOU" met een balk en een getal (rood onder 40, oranje,
+groen vanaf 60). Enkel zichtbaar als de HUD een `PatientReputation` heeft (`EmotionHudSetup.AddToScene(..., reputation)`);
 in de andere scenes blijft hij verborgen.
 
 **Effecten in kamer 1A** (`Prototype1SceneBuilder.BuildEffects`): elk punt op de vloer gaat via een raycast op de vloer en
@@ -1151,7 +1151,8 @@ materialen van de avatar; de rig-prefab zelf blijft ongewijzigd) met een aura vo
 | 20 tot 40 | Liquid | zwarte doorzichtige vloeistof die traag langs de figuur naar beneden loopt, plas op de vloer |
 | 0 tot 20 | Abyss | zwarte golven die van boven het hoofd over de figuur naar beneden stromen, zwarte wolk en plas |
 
-De grenzen staan in de inspector. De niveaus vloeien in 1,2 s in elkaar over, een niveau op gewicht 0 staat uit. De aura
+De grenzen 40 en 60 zijn die van `PatientReputation` (*Low* en *High Threshold*), dezelfde als de kleuren van de
+meter, zodat meter en aura altijd overeenkomen; 20 en 80 staan in de inspector van de aura. De niveaus vloeien in 1,2 s in elkaar over, een niveau op gewicht 0 staat uit. De aura
 staat naast de avatar (niet erin) en volgt hem; enkel zichtbaar zolang de avatar zichtbaar is (de patient view). De
 vleugels zijn een mesh die bij het starten gegenereerd wordt (`ReputationAura.WingMesh`). Effecten met de bestaande
 deeltjesmaterialen (`Particle_Additive`, `Particle_Alpha`), max. 180 deeltjes per systeem.

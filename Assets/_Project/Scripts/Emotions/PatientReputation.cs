@@ -21,11 +21,11 @@ namespace ProCommVR.Emotions
 
         [SerializeField, Range(Min, Max)] private float _value = 50f;
 
-        [Tooltip("Below this the meter is red (the patient does not trust the nurse).")]
-        [SerializeField, Range(Min, Max)] private float _lowThreshold = 35f;
+        [Tooltip("Below this the meter is red (the patient does not trust the nurse). Also where the player's black liquid aura starts.")]
+        [SerializeField, Range(Min, Max)] private float _lowThreshold = 40f;
 
-        [Tooltip("From this on the meter is green (the patient trusts the nurse).")]
-        [SerializeField, Range(Min, Max)] private float _highThreshold = 65f;
+        [Tooltip("From this on the meter is green (the patient trusts the nurse). Also where the player's golden aura starts.")]
+        [SerializeField, Range(Min, Max)] private float _highThreshold = 60f;
 
         /// <summary>Raised with the previous and the new value.</summary>
         public event Action<float, float> Changed;
