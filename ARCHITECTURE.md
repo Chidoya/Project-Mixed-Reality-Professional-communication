@@ -1139,6 +1139,23 @@ enkel waar geen meubel of muur staat (`EmotionWorldSetup.OnFloor`, nieuw), zodat
 - Sadness: **regen binnen** in de kamer (`EmotionWorldSetup.AddIndoorRain`, van net onder het plafond tot de vloer, met
   spatjes), **plassen** die groeien op de vloer (`AddPuddle`, materiaal `Materials/Emotions/Puddle.mat`) en druppels.
 
+**De speler zoals de patiënt hem ziet** (`Scripts/Player/ReputationAura.cs`, gebouwd door `Editor/ReputationAuraSetup.cs`):
+in de patient view is de speler een **blanco witte figuur** (`Materials/Player/AvatarWhite.mat` vervangt in Play mode alle
+materialen van de avatar; de rig-prefab zelf blijft ongewijzigd) met een aura volgens het vertrouwen:
+
+| Vertrouwen | Niveau | Effect |
+| --- | --- | --- |
+| 80 tot 100 | Radiant | stralend wit-gouden licht, lichtstralen, vleugels van licht die zachtjes klapperen |
+| 60 tot 80 | Golden | iets donkerdere gouden aura, gouden deeltjes, warm licht op de figuur |
+| 40 tot 60 | Neutral | niets |
+| 20 tot 40 | Liquid | zwarte doorzichtige vloeistof die traag langs de figuur naar beneden loopt, plas op de vloer |
+| 0 tot 20 | Abyss | zwarte golven die van boven het hoofd over de figuur naar beneden stromen, zwarte wolk en plas |
+
+De grenzen staan in de inspector. De niveaus vloeien in 1,2 s in elkaar over, een niveau op gewicht 0 staat uit. De aura
+staat naast de avatar (niet erin) en volgt hem; enkel zichtbaar zolang de avatar zichtbaar is (de patient view). De
+vleugels zijn een mesh die bij het starten gegenereerd wordt (`ReputationAura.WingMesh`). Effecten met de bestaande
+deeltjesmaterialen (`Particle_Additive`, `Particle_Alpha`), max. 180 deeltjes per systeem.
+
 **Aanpassingen aan Liam's code:** `AiDebriefPanel` kreeg *Open On Conversation End* (in Prototype1 uit: het paneel opent pas
 bij de dokter) en het event `Retried`. De rest van Liam's AI-code is ongewijzigd.
 
