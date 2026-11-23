@@ -190,9 +190,10 @@ namespace ProCommVR.Editor
             // Above the open door of 1A: Liam's patient card next to the door already tells who the patient is.
             var briefing = CreateSign(signs, "Briefing Sign",
                 "<b>Prototype 1: talk to the patient in room 1A</b>\n" +
-                "Just talk, the microphone is always on (English).  <b>Y</b>: patient view.",
+                "Mr. X has a leg infection and must stay a few more days. He misses his granddaughter's birthday.\n" +
+                "Read the case on your clipboard (<b>X</b>). Just talk, in English.  <b>Y</b>: patient view.",
                 DoorTop(room) + Vector3.up * 0.35f - room.forward * 0.12f, room.forward, 2.2f);
-            briefing.fontSize = 0.5f;
+            briefing.fontSize = 0.42f;
             var talkHint = CreateSign(signs, "Talk Hint", "",
                 patientSpotPoint + room.forward * 0.9f + room.right * -0.9f + Vector3.up * 1.95f, room.forward, 1.6f);
             talkHint.fontSize = 0.55f;
@@ -213,6 +214,12 @@ namespace ProCommVR.Editor
             serializedFlow.FindProperty("_briefingSign").objectReferenceValue = briefing;
             serializedFlow.FindProperty("_talkHint").objectReferenceValue = talkHint;
             serializedFlow.FindProperty("_voice").objectReferenceValue = voice;
+            // Critical error or escalated: a black screen with what happened, then the doctor.
+            var endingCard = new GameObject("Ending Card").AddComponent<EndingCard>();
+            endingCard.transform.SetParent(prototype, false);
+            Set(endingCard, "_camera", origin.Camera);
+            Set(endingCard, "_textMaterial", AssetDatabase.LoadAssetAtPath<Material>(EmotionHudSetup.TextMaterialPath));
+            serializedFlow.FindProperty("_endingCard").objectReferenceValue = endingCard;
             serializedFlow.ApplyModifiedPropertiesWithoutUndo();
 
             // Saved under a new path, last in the Build Settings: a headset build still starts with the shift.

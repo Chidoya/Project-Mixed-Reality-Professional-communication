@@ -32,6 +32,8 @@ namespace ProCommVR.AiTalk
         [SerializeField, Range(0f, 100f)] private float _escalateTension = 92f;
         [Tooltip("Escalated: trust at most this (escalation trust_lte).")]
         [SerializeField, Range(0f, 100f)] private float _escalateTrust = 5f;
+        [Tooltip("The phases of the scenario in order (the last one before END last): reaching a phase fills the bar at least to its share.")]
+        [SerializeField] private string[] _phases = { "B1_withdrawn", "B2_opening_up", "B3_considering" };
         [Tooltip("Shown at most this far: the last step is a concrete proposal, the bar cannot know when it comes.")]
         [SerializeField, Range(0.5f, 1f)] private float _maxBeforeEnd = 0.92f;
 
@@ -98,8 +100,12 @@ namespace ProCommVR.AiTalk
             }
             else
             {
-                var calm = Mathf.Min(Mathf.InverseLerp(_startTrust, _resolveTrust, _npc.Trust),
-                    Mathf.InverseLerp(_startTension, _resolveTension, _npc.Anger));
+                // Both trust and tension count (the average), so every step forward shows; a reached phase is a floor.
+                var calm = (Mathf.InverseLerp(_startTrust, _resolveTrust, _npc.Trust)
+                            + Mathf.InverseLerp(_startTension, _resolveTension, _npc.Anger)) / 2f;
+                var phase = _npc.LastTurn != null ? System.Array.IndexOf(_phases, _npc.LastTurn.phase) : -1;
+                if (phase > 0)
+                    calm = Mathf.Max(calm, phase / (float)_phases.Length);
                 var angry = Mathf.Max(Mathf.InverseLerp(_startTension, _escalateTension, _npc.Anger),
                     Mathf.InverseLerp(_startTrust, _escalateTrust, _npc.Trust));
                 Progress = Mathf.Min(Mathf.Max(calm, angry), _maxBeforeEnd);

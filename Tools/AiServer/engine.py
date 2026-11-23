@@ -501,6 +501,11 @@ class Engine:
                 session.ended = new_phase.get("end_reason", "resolved")
 
     @staticmethod
+    def _lost_trust(session: Session) -> bool:
+        labels = session.scenario.labels
+        return sum(labels[n].get("trust", 0) for n in session.last_labels if n in labels) < 0
+
+    @staticmethod
     def _felt(session: Session) -> str:
         """How the student's last sentence landed (from its labels), so the reply matches the change in trust:
         a false promise or a dismissive sentence does not get a warm thank you."""
@@ -562,6 +567,9 @@ class Engine:
         facts = "\n".join(f"- {f}" for f in session.unlocked_facts) or "- (nothing special)"
         facts_rule = sc.data.get("facts_instruction", "do not invent other personal or medical facts")
         animations = band.get("animations") or ["Idle", "Talking", "Angry", "Sad", "Crying"]
+        # A sentence that cost trust never gets a happy face: the look must match the trust (no mixed signals).
+        emotions = [e for e in band["allowed_emotions"] if e != "Happy"] if self._lost_trust(session) else band["allowed_emotions"]
+        emotions = emotions or band["allowed_emotions"]
         last_student = next((h["text"] for h in reversed(session.history) if h["speaker"] == "student"), "")
         own_lines = [h["text"] for h in session.history if h["speaker"] == "character"]
         last_own = "\n".join(f'- "{l}"' for l in own_lines[-3:]) or "- (nothing yet)"
@@ -586,7 +594,7 @@ class Engine:
             f"Do not repeat any earlier line of yours and do not repeat the nurse's question back; say something new.\n\n"
             "Answer as JSON:\n"
             "- reply: what you say out loud, at most 2 short sentences, spoken English, no swearing.\n"
-            f"- emotion: one of {', '.join(band['allowed_emotions'])}.\n"
+            f"- emotion: one of {', '.join(emotions)}.\n"
             f"- animation: one of {', '.join(animations)}.\n"
             "- pose: Engaged, TurnsAway, Withdrawn or Unchanged.\n"
             "- facts_used: the facts from the list above that you used in your reply "
@@ -625,8 +633,8 @@ class Engine:
         if reply != out.reply.strip():
             notes.append("reply trimmed to 2 sentences")
         out.reply = reply
-        if out.emotion not in band["allowed_emotions"]:
-            fixed = band["allowed_emotions"][0]
+        if out.emotion not in emotions:
+            fixed = emotions[0]
             notes.append(f"emotion {out.emotion} does not fit band {band['name']}, corrected to {fixed}")
             out.emotion = fixed
             out.animation = sc.data["emotion_to_animation"][fixed]

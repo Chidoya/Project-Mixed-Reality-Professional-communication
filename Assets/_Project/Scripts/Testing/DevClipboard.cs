@@ -37,7 +37,24 @@ namespace ProCommVR.Testing
         [Header("Pages")]
         [SerializeField] private GameObject[] _pages = new GameObject[0];
         [SerializeField] private TMP_Text _pageLabel;
-        [SerializeField] private string[] _pageNames = { "Tasks", "Dev" };
+        [SerializeField] private string[] _pageNames = { "Case", "Tasks", "Dev" };
+
+        [Header("Case page")]
+        [SerializeField] private TMP_Text _caseBody;
+        [Tooltip("The situation of the patient, as the student gets it before the conversation. Matches Liam's case card " +
+                 "(Assets/Hospital/Data/Case_1A.asset) and the AI scenario (disappointed_patient.json).")]
+        [TextArea(8, 30), SerializeField] private string _caseText =
+            "<b>Patient:</b> Mr. X, 51, room 1A.\n" +
+            "<b>Why he is here:</b> a leg infection that needs intravenous antibiotics for a few more days. " +
+            "Only the doctor decides when he can go home.\n" +
+            "<b>Today:</b> it is his granddaughter's birthday and he cannot be there. He feels useless and refuses " +
+            "physical therapy and getting out of bed.\n\n" +
+            "<b>Your task:</b> talk with him.\n" +
+            "- Show that you see how he feels (name it).\n" +
+            "- Ask what matters to him and listen.\n" +
+            "- Be honest about why he has to stay.\n" +
+            "- Help him take one small step: a short walk, or another way to be part of the birthday.\n\n" +
+            "<b>Do not:</b> promise he can go home (a critical error), or say that everything will be fine.";
 
         [Header("Tasks page")]
         [SerializeField] private TMP_Text _tasksBody;
@@ -90,6 +107,8 @@ namespace ProCommVR.Testing
             _homeRotation = transform.localRotation;
             if (_tasksBody != null)
                 _tasksBody.text = _tasksText;
+            if (_caseBody != null)
+                _caseBody.text = _caseText;
             if (_trustSlider != null)
             {
                 _trustSlider.minValue = PatientReputation.Min;

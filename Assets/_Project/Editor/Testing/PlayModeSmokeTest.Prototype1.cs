@@ -207,14 +207,18 @@ namespace ProCommVR.Editor.Testing
                     yield return holder.BlendSeconds + 0.3f;
                     Check(holder.Dominant == Emotion.Fear && Mathf.Approximately(reputation.Value, 85f) && bridge.HoldEmotions && bridge.HoldTrust,
                         $"the dev clipboard sets Fear and trust 85 ({holder.Current}, {reputation.Value})");
-                    Check(clipboard.Page == 0, $"the clipboard starts on the tasks page ({clipboard.Page})");
+                    Check(clipboard.Page == 0, $"the clipboard starts on the case page ({clipboard.Page})");
+                    ClipboardShot(clipboard, "prototype1-clipboard-case");
+                    clipboard.NextPage();
+                    yield return null;
+                    Check(clipboard.Page == 1, $"> shows the tasks page ({clipboard.Page})");
                     ClipboardShot(clipboard, "prototype1-clipboard-tasks");
                     clipboard.NextPage();
                     yield return null;
-                    Check(clipboard.Page == 1, $"> shows the dev page ({clipboard.Page})");
+                    Check(clipboard.Page == 2, $"> shows the dev page ({clipboard.Page})");
                     ClipboardShot(clipboard, "prototype1-clipboard-dev");
                     clipboard.NextPage();
-                    Check(clipboard.Page == 0, $"the clipboard has 2 pages ({clipboard.Page})");
+                    Check(clipboard.Page == 0, $"the clipboard has 3 pages ({clipboard.Page})");
                     clipboard.LetAiDrive();
                     Check(!bridge.HoldEmotions && !bridge.HoldTrust, "AI drives again");
                     clipboard.Take();
@@ -310,11 +314,23 @@ namespace ProCommVR.Editor.Testing
             while (npc.IsSpeaking || npc.Busy)
                 yield return null;
 
-            // Done: the end of the prototype.
-            flow.FinishConversation();
+            // A critical error: a black screen with "KRITIEKE FOUT", then the doctor (and Done ends the prototype).
+            npc.EndNow("critical_error");
+            var cardSeen = false;
             doctorWait = EditorApplication.timeSinceStartup + 60f;
             while (flow.Current != PrototypeFlow.Stage.Debrief && EditorApplication.timeSinceStartup < doctorWait)
+            {
+                if (flow.IsEndingCardShown && !cardSeen)
+                {
+                    cardSeen = true;
+                    var card = Object.FindAnyObjectByType<EndingCard>();
+                    Check(card != null && card.Title == "KRITIEKE FOUT", $"a critical error shows KRITIEKE FOUT on a black screen ({card?.Title})");
+                }
                 yield return null;
+            }
+            Check(cardSeen, "the critical error ends on the black screen before the doctor");
+            Check(!flow.IsEndingCardShown && Vector3.Distance(Flat(origin.Camera.transform.position), Flat(doctorSpot.position)) < 0.3f,
+                "after the black screen the player stands at the doctor");
             debriefWait = EditorApplication.timeSinceStartup + 90f;
             while (debrief.State != AiDebriefPanel.PanelState.Ready && debrief.State != AiDebriefPanel.PanelState.Failed
                    && EditorApplication.timeSinceStartup < debriefWait)
