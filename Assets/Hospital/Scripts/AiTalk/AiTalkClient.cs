@@ -33,6 +33,28 @@ namespace ProCommVR.Hospital.AiTalk
         private string Url(string path) => _settings.serverUrl.TrimEnd('/') + path;
         private int Timeout => Mathf.CeilToInt(_settings.requestTimeoutSeconds);
 
+        /// <summary>
+        /// Case, guide en grenzen van het scenario (GET /scenarios/{id}/meta), zonder sessie: voor de briefing in de lobby.
+        /// Null bij een fout (bv. de server draait nog niet).
+        /// </summary>
+        public async Awaitable<AiScenarioMeta> GetScenarioMeta()
+        {
+            using var request = UnityWebRequest.Get(Url($"/scenarios/{_scenarioId}/meta"));
+            request.timeout = Timeout;
+            var (ok, _) = await Send(request);
+            if (!ok)
+                return null;
+            try
+            {
+                return JsonUtility.FromJson<AiScenarioMeta>(request.downloadHandler.text);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"{LogPrefix}JSON van /scenarios/{_scenarioId}/meta onleesbaar: {e.Message}");
+                return null;
+            }
+        }
+
         /// <summary>Start een sessie. Geeft de openingszin terug, of een lokaal antwoord bij een fout.</summary>
         public async Awaitable<AiTurn> StartSession()
         {
@@ -105,6 +127,37 @@ namespace ProCommVR.Hospital.AiTalk
             catch (Exception e)
             {
                 return Fallback($"JSON van /turn/audio onleesbaar: {e.Message}");
+            }
+        }
+
+        /// <summary>Een getypte zin in plaats van spraak (POST /turn/text): voor tests, zonder stem in het antwoord.</summary>
+        public async Awaitable<AiTurn> SendText(string text)
+        {
+            if (!HasSession)
+                return Fallback("geen sessie (server niet bereikbaar bij de start?)");
+            var body = JsonUtility.ToJson(new AiTextRequest { session_id = SessionId, text = text });
+            using var request = new UnityWebRequest(Url("/turn/text"), UnityWebRequest.kHttpVerbPOST)
+            {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = Timeout,
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+            var (ok, ms) = await Send(request);
+            if (!ok)
+                return Fallback(Describe(request));
+            try
+            {
+                var turn = JsonUtility.FromJson<AiTurn>(request.downloadHandler.text);
+                if (turn == null)
+                    return Fallback("leeg antwoord op /turn/text");
+                turn.roundTripMs = ms;
+                turn.transcript = text;
+                return turn;
+            }
+            catch (Exception e)
+            {
+                return Fallback($"JSON van /turn/text onleesbaar: {e.Message}");
             }
         }
 

@@ -30,8 +30,9 @@ MonoBehaviour:
       for your granddaughter's special day means the world to you. While the infection
       means we must keep you here under the doctor's care for a few more days to
       ensure you heal safely, staying active is actually what will help you get back
-      on your feet faster. How about we do a short walk together today, and afterward,
-      I can help you set up a video call so you can sing happy birthday to her?
+      on your feet faster. How about I help you sit up a little and get you something
+      to drink, and afterward, I can help you set up a video call so you can sing
+      happy birthday to her?
     _score: 3
     _feedback: Validates emotional distress, stays strictly within nursing scope
       without making medical promises, and redirects the patient toward recovery

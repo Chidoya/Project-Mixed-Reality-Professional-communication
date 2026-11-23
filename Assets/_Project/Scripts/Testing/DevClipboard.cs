@@ -13,8 +13,9 @@ namespace ProCommVR.Testing
     /// <summary>
     /// The clipboard on the desk in the lobby (Prototype1): a task list and the developer controls, on pages.
     /// <list type="bullet">
-    /// <item>Page 1, Tasks: a template for the tasks of the shift (the text is in the inspector, no code).</item>
-    /// <item>Page 2, Dev: the patient's emotion (Joy, Anger, Fear, Sadness, Neutral), a slider for the trust (0 to 100),
+    /// <item>Case and Guide: the briefing and the hints per patient state, from the scenario file (<see cref="ScenarioBriefing"/>).</item>
+    /// <item>Tasks: a template for the tasks of the shift (the text is in the inspector, no code).</item>
+    /// <item>Dev: the patient's emotion (Joy, Anger, Fear, Sadness, Neutral), a slider for the trust (0 to 100),
     /// "AI drives" (the AI turns change emotion and trust again) and a restart of the conversation.</item>
     /// </list>
     /// A dev control holds its value: the AI turns no longer overwrite it (<see cref="AiPatientBridge.HoldEmotions"/>,
@@ -37,24 +38,14 @@ namespace ProCommVR.Testing
         [Header("Pages")]
         [SerializeField] private GameObject[] _pages = new GameObject[0];
         [SerializeField] private TMP_Text _pageLabel;
-        [SerializeField] private string[] _pageNames = { "Case", "Tasks", "Dev" };
+        [SerializeField] private string[] _pageNames = { "Case", "Guide", "Tasks", "Dev" };
 
-        [Header("Case page")]
+        [Header("Case and Guide pages (text from the scenario file, via the AI server)")]
+        [Tooltip("Loads the case and the guide of the scenario (Tools/AiServer/scenarios/<id>.json: \"case\", \"guide\").")]
+        [SerializeField] private ScenarioBriefing _briefing;
+        [SerializeField] private TMP_Text _caseTitle;
         [SerializeField] private TMP_Text _caseBody;
-        [Tooltip("The situation of the patient, as the student gets it before the conversation. Matches Liam's case card " +
-                 "(Assets/Hospital/Data/Case_1A.asset) and the AI scenario (disappointed_patient.json).")]
-        [TextArea(8, 30), SerializeField] private string _caseText =
-            "<b>Patient:</b> Mr. X, 51, room 1A.\n" +
-            "<b>Why he is here:</b> a leg infection that needs intravenous antibiotics for a few more days. " +
-            "Only the doctor decides when he can go home.\n" +
-            "<b>Today:</b> it is his granddaughter's birthday and he cannot be there. He feels useless and refuses " +
-            "physical therapy and getting out of bed.\n\n" +
-            "<b>Your task:</b> talk with him.\n" +
-            "- Show that you see how he feels (name it).\n" +
-            "- Ask what matters to him and listen.\n" +
-            "- Be honest about why he has to stay.\n" +
-            "- Help him take one small step: a short walk, or another way to be part of the birthday.\n\n" +
-            "<b>Do not:</b> promise he can go home (a critical error), or say that everything will be fine.";
+        [SerializeField] private TMP_Text _guideBody;
 
         [Header("Tasks page")]
         [SerializeField] private TMP_Text _tasksBody;
@@ -87,6 +78,10 @@ namespace ProCommVR.Testing
         [SerializeField] private ProCommVR.AiTalk.VoiceActivityTalk _voice;
         [SerializeField] private TMP_Text _micLabel;
 
+        [Tooltip("Dev: show the Dev page (emotion, trust, mic). Off: the nurse never sees the trust or the emotion on the " +
+                 "clipboard, only in the patient view. The page must be the last one.")]
+        [SerializeField] private bool _devMode;
+
         [Tooltip("In the left hand from the start (else on the desk in the lobby).")]
         [SerializeField] private bool _startInHand = true;
 
@@ -107,8 +102,13 @@ namespace ProCommVR.Testing
             _homeRotation = transform.localRotation;
             if (_tasksBody != null)
                 _tasksBody.text = _tasksText;
-            if (_caseBody != null)
-                _caseBody.text = _caseText;
+            ShowBriefing();
+            // Without dev mode the Dev page is not one of the pages.
+            if (!_devMode && _pages.Length > 0 && _pages[_pages.Length - 1] != null && _pages[_pages.Length - 1].name.Contains("Dev"))
+            {
+                _pages[_pages.Length - 1].SetActive(false);
+                System.Array.Resize(ref _pages, _pages.Length - 1);
+            }
             if (_trustSlider != null)
             {
                 _trustSlider.minValue = PatientReputation.Min;
@@ -144,6 +144,39 @@ namespace ProCommVR.Testing
                 _pov.PovChanged -= OnPovChanged;
         }
 
+        private object _shownMeta;
+
+        /// <summary>The case and the guide of the scenario (or "loading" while the AI server starts).</summary>
+        private void ShowBriefing()
+        {
+            if (_briefing == null)
+                return;
+            _shownMeta = _briefing.Meta;
+            if (_caseTitle != null)
+                _caseTitle.text = $"<b>{_briefing.CaseTitle}</b>";
+            if (_caseBody != null)
+                _caseBody.text = _briefing.CaseText;
+            if (_guideBody != null)
+                _guideBody.text = _briefing.GuideText;
+        }
+
+        /// <summary>The text on the Case page and the Guide page (for tests).</summary>
+        public string CaseText => _caseBody != null ? _caseBody.text : "";
+        public string GuideText => _guideBody != null ? _guideBody.text : "";
+        public int PageCount => _pages.Length;
+
+        /// <summary>The text of the Tasks page (the shift writes its tasks here).</summary>
+        public void SetTasksText(string text)
+        {
+            _tasksText = text;
+            if (_tasksBody != null)
+                _tasksBody.text = text;
+        }
+
+        public string TasksText => _tasksBody != null ? _tasksBody.text : _tasksText;
+        public bool DevMode => _devMode;
+        public string PageName(int page) => page >= 0 && page < _pageNames.Length ? _pageNames[page] : "";
+
         private void OnCarryPressed(InputAction.CallbackContext context) => ToggleCarry();
 
         /// <summary>The next microphone of the computer (the AI must hear you).</summary>
@@ -161,6 +194,8 @@ namespace ProCommVR.Testing
 
         private void Update()
         {
+            if (_briefing != null && !ReferenceEquals(_briefing.Meta, _shownMeta))
+                ShowBriefing();
             if (_reputation != null && _trustSlider != null && !Mathf.Approximately(_trustSlider.value, _reputation.Value))
                 _trustSlider.SetValueWithoutNotify(_reputation.Value);
             if (_trustValue != null && _reputation != null)

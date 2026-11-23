@@ -27,7 +27,8 @@ namespace ProCommVR.Editor
         private static readonly Color ButtonColor = new Color(0.86f, 0.87f, 0.9f);
 
         internal static DevClipboard AddToScene(Transform hospital, EmotionHolder holder, PatientReputation reputation,
-            AiPatientBridge bridge, PovController pov, GameObject rig, Camera eventCamera, VoiceActivityTalk voice = null)
+            AiPatientBridge bridge, PovController pov, GameObject rig, Camera eventCamera, VoiceActivityTalk voice = null,
+            ScenarioBriefing briefing = null)
         {
             var station = hospital.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "StaffStation");
             var liamClipboard = station != null ? station.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Clipboard") : null;
@@ -71,13 +72,21 @@ namespace ProCommVR.Editor
 
             // ---- Page 1: Case (the situation of the patient) ----
             var casePage = Page(rect, "Page Case");
-            Label(casePage, "Title", "<b>CASE: ROOM 1A</b>", 16f, new Vector2(0f, 128f), new Vector2(204f, 24f), TextAlignmentOptions.Center);
-            var caseBody = Label(casePage, "Body", "", 8.4f, new Vector2(0f, 4f), new Vector2(206f, 220f), TextAlignmentOptions.TopLeft);
+            var caseTitle = Label(casePage, "Title", "<b>CASE</b>", 16f, new Vector2(0f, 128f), new Vector2(204f, 24f), TextAlignmentOptions.Center);
+            var caseBody = Label(casePage, "Body", "", 8.4f, new Vector2(0f, 2f), new Vector2(206f, 226f), TextAlignmentOptions.TopLeft);
+            AutoSize(caseBody, 5.5f);
+
+            // ---- Page: Guide (hints per patient state, the nurse looks at the patient to know which one applies) ----
+            var guidePage = Page(rect, "Page Guide");
+            Label(guidePage, "Title", "<b>GUIDE</b>", 16f, new Vector2(0f, 128f), new Vector2(204f, 24f), TextAlignmentOptions.Center);
+            var guideBody = Label(guidePage, "Body", "", 8.4f, new Vector2(0f, 2f), new Vector2(206f, 226f), TextAlignmentOptions.TopLeft);
+            AutoSize(guideBody, 5.5f);
 
             // ---- Page 2: Tasks ----
             var tasks = Page(rect, "Page Tasks");
             Label(tasks, "Title", "<b>TODAY'S TASKS</b>", 16f, new Vector2(0f, 128f), new Vector2(204f, 24f), TextAlignmentOptions.Center);
-            var tasksBody = Label(tasks, "Body", "", 9.5f, new Vector2(0f, 10f), new Vector2(204f, 200f), TextAlignmentOptions.TopLeft);
+            var tasksBody = Label(tasks, "Body", "", 9.5f, new Vector2(0f, 4f), new Vector2(204f, 214f), TextAlignmentOptions.TopLeft);
+            AutoSize(tasksBody, 6f);
 
             // ---- Page 3: Dev ----
             var dev = Page(rect, "Page Dev");
@@ -111,11 +120,21 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_bridge").objectReferenceValue = bridge;
             serialized.FindProperty("_pov").objectReferenceValue = pov;
             var pages = serialized.FindProperty("_pages");
-            pages.arraySize = 3;
-            pages.GetArrayElementAtIndex(0).objectReferenceValue = casePage.gameObject;
-            pages.GetArrayElementAtIndex(1).objectReferenceValue = tasks.gameObject;
-            pages.GetArrayElementAtIndex(2).objectReferenceValue = dev.gameObject;
+            // The shift's tasks first, then the briefing; Dev only with dev mode (DevClipboard._devMode).
+            pages.arraySize = 4;
+            pages.GetArrayElementAtIndex(0).objectReferenceValue = tasks.gameObject;
+            pages.GetArrayElementAtIndex(1).objectReferenceValue = casePage.gameObject;
+            pages.GetArrayElementAtIndex(2).objectReferenceValue = guidePage.gameObject;
+            pages.GetArrayElementAtIndex(3).objectReferenceValue = dev.gameObject;
+            var pageNames = serialized.FindProperty("_pageNames");
+            var names = new[] { "Tasks", "Case", "Guide", "Dev" };
+            pageNames.arraySize = names.Length;
+            for (var i = 0; i < names.Length; i++)
+                pageNames.GetArrayElementAtIndex(i).stringValue = names[i];
+            serialized.FindProperty("_briefing").objectReferenceValue = briefing;
+            serialized.FindProperty("_caseTitle").objectReferenceValue = caseTitle;
             serialized.FindProperty("_caseBody").objectReferenceValue = caseBody;
+            serialized.FindProperty("_guideBody").objectReferenceValue = guideBody;
             serialized.FindProperty("_pageLabel").objectReferenceValue = pageLabel;
             serialized.FindProperty("_tasksBody").objectReferenceValue = tasksBody;
             serialized.FindProperty("_status").objectReferenceValue = status;
@@ -128,7 +147,8 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_micLabel").objectReferenceValue = micLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             dev.gameObject.SetActive(false);
-            tasks.gameObject.SetActive(false);
+            casePage.gameObject.SetActive(false);
+            guidePage.gameObject.SetActive(false);
 
             // On the desk, where Liam's clipboard lies; his own is switched off in this scene.
             root.SetPositionAndRotation(liamClipboard.position, anchor.rotation);
@@ -136,6 +156,13 @@ namespace ProCommVR.Editor
             if (leftHand == null)
                 Debug.LogWarning("[ProCommVR] Dev clipboard: no 'Left Controller' in the rig, Take does nothing.");
             return clipboard;
+        }
+
+        private static void AutoSize(TextMeshProUGUI label, float min)
+        {
+            label.enableAutoSizing = true;
+            label.fontSizeMin = min;
+            label.fontSizeMax = label.fontSize;
         }
 
         private static RectTransform Page(RectTransform parent, string name)

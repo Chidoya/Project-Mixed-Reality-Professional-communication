@@ -67,6 +67,9 @@ namespace ProCommVR.Player
         [SerializeField] private TierLook[] _tiers = Array.Empty<TierLook>();
         [Tooltip("Seconds to fade from one tier to the next.")]
         [SerializeField, Min(0.05f)] private float _fadeSeconds = 1.2f;
+        [Tooltip("Strength of a tier at its edge next to Neutral (1: the whole tier is the same). Lower: a tier gets " +
+                 "stronger the deeper the trust is in it, so every change of the trust shows, not only a change of tier.")]
+        [SerializeField, Range(0.1f, 1f)] private float _edgeStrength = 1f;
         [SerializeField, Range(0f, 30f)] private float _wingFlapDegrees = 7f;
         [SerializeField, Min(0f)] private float _wingFlapSpeed = 1.3f;
 
@@ -85,6 +88,30 @@ namespace ProCommVR.Player
 
         /// <summary>0: hidden, 1: fully shown.</summary>
         public float Weight(ReputationTier tier) => _weights.TryGetValue(tier, out var weight) ? weight : 0f;
+
+        /// <summary>
+        /// How deep the trust is in its tier (Edge Strength at the edge next to Neutral, 1 at the far end): Liquid and
+        /// Abyss get darker as the trust goes down, Golden and Radiant brighter as it goes up.
+        /// </summary>
+        public float Depth
+        {
+            get
+            {
+                if (_reputation == null || _edgeStrength >= 1f)
+                    return 1f;
+                var trust = _reputation.Value;
+                float t;
+                switch (Current)
+                {
+                    case ReputationTier.Golden: t = Mathf.InverseLerp(GoldenFrom, _radiantFrom, trust); break;
+                    case ReputationTier.Radiant: t = Mathf.InverseLerp(_radiantFrom, 100f, trust); break;
+                    case ReputationTier.Liquid: t = Mathf.InverseLerp(LiquidBelow, _abyssBelow, trust); break;
+                    case ReputationTier.Abyss: t = Mathf.InverseLerp(_abyssBelow, 0f, trust); break;
+                    default: return 1f;
+                }
+                return Mathf.Lerp(_edgeStrength, 1f, t);
+            }
+        }
 
         private float GoldenFrom => _reputation != null ? _reputation.HighThreshold : 60f;
         private float LiquidBelow => _reputation != null ? _reputation.LowThreshold : 40f;
@@ -157,11 +184,11 @@ namespace ProCommVR.Player
                 // Hidden avatar: off at once (the patient view closed behind a fade).
                 var weight = shown ? Mathf.MoveTowards(Weight(look.tier), target, step) : 0f;
                 _weights[look.tier] = weight;
-                Apply(i, weight);
+                Apply(i, weight, look.tier == Current ? Depth : 1f);
             }
         }
 
-        private void Apply(int index, float weight)
+        private void Apply(int index, float weight, float depth = 1f)
         {
             var look = _tiers[index];
             var on = weight > 0.001f;
@@ -172,10 +199,10 @@ namespace ProCommVR.Player
             for (var p = 0; p < look.particles.Length; p++)
             {
                 var emission = look.particles[p].emission;
-                emission.rateOverTimeMultiplier = _rates[index][p] * weight;
+                emission.rateOverTimeMultiplier = _rates[index][p] * weight * depth;
             }
             if (look.light != null)
-                look.light.intensity = _lightIntensities[index] * weight;
+                look.light.intensity = _lightIntensities[index] * weight * depth;
             var unfold = Mathf.SmoothStep(0f, 1f, weight);
             var flap = Mathf.Sin(Time.time * _wingFlapSpeed * Mathf.PI * 2f) * _wingFlapDegrees;
             for (var w = 0; w < look.wings.Length; w++)

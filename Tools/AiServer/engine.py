@@ -144,6 +144,7 @@ class Session:
     debrief: Optional[dict[str, Any]] = None
     critical: Optional[dict[str, Any]] = None  # the critical error that ended the scenario
     last_labels: list[str] = field(default_factory=list)  # labels of the student's last sentence (for the actor)
+    phase_turns: int = 0  # student turns spent in the current phase (for the optional "min_turns" of a phase)
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -278,8 +279,36 @@ class Engine:
             "tension_name": sc.tension_name,
             "rest_animation": op.get("rest_animation", "Idle"),
             "character_name": sc.data["persona"]["name"],
+            "meta": self.scenario_meta(sc),
         }
         return session, opening
+
+    @staticmethod
+    def scenario_meta(sc: Scenario) -> dict[str, Any]:
+        """What Unity may show about the scenario besides the conversation itself: the optional "case" (briefing on the
+        clipboard) and "guide" (hints per patient state) of the scenario file, and the limits of the conversation
+        (progress: the phases in order, the condition of the last phase, the escalation and the minimum turns), so a
+        client never has to copy these numbers. Scenarios without "case" or "guide" send empty ones."""
+        phases = [p for p in sc.phases if not p.get("terminal")]
+        last = next((p for p in reversed(phases) if p.get("next")
+                     and sc.phase(p["next"]).get("terminal")), phases[-1] if phases else {})
+        cond = last.get("condition", {}) if last else {}
+        esc = sc.data.get("escalation", {})
+        progress = {
+            "phases": [p["id"] for p in phases],
+            "resolve_trust": cond.get("trust_gte", 100),
+            "resolve_tension": _tension(cond, "tension_lt", "anger_lt", 0),
+            "escalate_tension": esc.get("tension_gte", 100),
+            "escalate_trust": esc.get("trust_lte", 0),
+            "min_turns_total": sum(int(p.get("min_turns", 0)) for p in phases),
+        }
+        case = sc.data.get("case", {})
+        return {
+            "progress": progress,
+            "case": {"title": case.get("title", ""), "text": "\n".join(case.get("lines", []))},
+            "guide": [{"when": g.get("when", ""), "title": g.get("title", ""), "text": g.get("text", "")}
+                      for g in sc.data.get("guide", [])],
+        }
 
     # -- one turn
 
@@ -315,6 +344,7 @@ class Engine:
                                 reply=sc.data["time_up_line"], fallback=True)
 
         session.history.append({"speaker": "student", "text": text})
+        session.phase_turns += 1
 
         # 1. classification
         t = time.perf_counter()
@@ -329,6 +359,7 @@ class Engine:
             return self._finish(session, result, timings, t_start,
                                 reply=sc.fallback_line(), fallback=True)
 
+        cls["labels"] = self._filter_labels(sc, text, cls["labels"], result["notes"])
         result.update({k: cls[k] for k in ("labels", "evidence_quote", "off_topic", "unsafe")})
         session.last_labels = list(cls["labels"])
 
@@ -353,14 +384,6 @@ class Engine:
 
         # 2b. critical error: the scenario ends at once, the character reacts with a fixed line
         critical = [l for l in cls["labels"] if l in sc.critical_labels]
-        for name in list(critical):
-            # A critical label ends the whole scenario: it only counts if one of its keywords is really said
-            words = sc.labels[name].get("critical_requires_any", [])
-            if words and not any(_has_word(text, w) for w in words):
-                critical.remove(name)
-                cls["labels"] = [l for l in cls["labels"] if l != name]
-                result["labels"] = cls["labels"]
-                result["notes"].append(f"critical label {name} dropped: none of its keywords in the sentence")
         if critical:
             t = time.perf_counter()
             self._apply_labels(session, cls["labels"], result["notes"])
@@ -457,6 +480,51 @@ class Engine:
         data["evidence_quote"] = text
         return data
 
+    # -- step 2: label filters (pure Python, all optional)
+
+    @staticmethod
+    def _filter_labels(sc: Scenario, text: str, labels: list[str], notes: list[str]) -> list[str]:
+        """Checks on the classifier's labels before they count:
+        - "upgrade_to" (optional, per label) replaces a label by a worse one when one of its words is said;
+        - a critical label only counts if one of its "critical_requires_any" keywords is really said;
+        - a label with "drop_if_any" does not count when one of those words is in the sentence (e.g. a small step that
+          is a walk, in a scenario where the patient stays in bed);
+        - "rules.max_labels_per_turn" (default: no limit) keeps at most that many labels: critical ones first, then the
+          ones that cost trust, then the rest, each in the classifier's order. So one long sentence cannot stack every
+          good label, and a bad label is never dropped for a good one."""
+        upgraded = []
+        for name in labels:
+            # Optional "upgrade_to": {"label": ..., "if_any": [...]}: a label close to a worse one becomes that one when
+            # its words are said (the small model mixes up "false promise" and "false discharge promise").
+            up = sc.labels[name].get("upgrade_to")
+            if up and up.get("label") in sc.labels and any(_has_word(text, w) for w in up.get("if_any", [])):
+                notes.append(f"label {name} upgraded to {up['label']}")
+                name = up["label"]
+            if name not in upgraded:
+                upgraded.append(name)
+        labels = upgraded
+        out = []
+        for name in labels:
+            label = sc.labels[name]
+            words = label.get("critical_requires_any", []) if label.get("critical") else []
+            if words and not any(_has_word(text, w) for w in words):
+                notes.append(f"critical label {name} dropped: none of its keywords in the sentence")
+                continue
+            hit = next((w for w in label.get("drop_if_any", []) if _has_word(text, w)), None)
+            if hit:
+                notes.append(f"label {name} dropped: the sentence says {hit!r}")
+                continue
+            out.append(name)
+        limit = sc.rules.get("max_labels_per_turn")
+        if limit is not None and len(out) > int(limit):
+            def rank(name: str) -> int:
+                label = sc.labels[name]
+                return 0 if label.get("critical") else 1 if label.get("trust", 0) < 0 else 2
+            kept = sorted(out, key=lambda n: (rank(n), out.index(n)))[:int(limit)]
+            notes.append(f"max {limit} labels per turn: dropped {[n for n in out if n not in kept]}")
+            out = [n for n in out if n in kept]
+        return out
+
     # -- step 3
 
     def _apply_labels(self, session: Session, labels: list[str], notes: list[str]) -> None:
@@ -493,9 +561,15 @@ class Engine:
             ok &= any(l in session.labels_ever for l in cond["labels_ever_any"])
         if "labels_this_turn_any" in cond:
             ok &= any(l in labels for l in cond["labels_this_turn_any"])
+        # Optional "min_turns" of the phase (default 0): the student stays at least this many turns in it.
+        min_turns = int(phase.get("min_turns", 0))
+        if ok and session.phase_turns < min_turns:
+            notes.append(f"phase {session.phase}: condition met, but only {session.phase_turns}/{min_turns} turns")
+            ok = False
         if ok:
             notes.append(f"phase {session.phase} -> {phase['next']}")
             session.phase = phase["next"]
+            session.phase_turns = 0
             new_phase = session.scenario.phase(session.phase)
             if new_phase.get("terminal"):
                 session.ended = new_phase.get("end_reason", "resolved")
@@ -539,6 +613,7 @@ class Engine:
         phase_id = esc.get("phase")
         if phase_id:
             session.phase = phase_id
+            session.phase_turns = 0
         phase = session.scenario.phase(session.phase) if phase_id else {}
         session.ended = phase.get("end_reason", esc.get("end_reason", "escalated"))
         notes.append(f"escalation: tension {session.anger}, trust {session.trust}: scenario ends ({session.ended})")
@@ -722,6 +797,10 @@ class Engine:
             result.update(actor.model_dump())
         else:
             emotion = emotion or band.get("fallback_emotion", band["allowed_emotions"][0])
+            # The same rule as for the actor: a fixed line (a critical reaction, a fallback) after a sentence that cost
+            # trust never gets a happy face.
+            if emotion == "Happy" and self._lost_trust(session):
+                emotion = next((e for e in band["allowed_emotions"] if e != "Happy"), "Neutral")
             result.update({
                 "reply": reply,
                 "emotion": emotion,

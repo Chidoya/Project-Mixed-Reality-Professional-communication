@@ -11,8 +11,10 @@ namespace ProCommVR.AiTalk
     /// scenario) and it fills faster when the player makes him angry (toward the "escalated" end), so the player knows
     /// roughly how much more there is to say.
     /// <para>
-    /// The targets mirror the scenario file (Tools/AiServer/scenarios/disappointed_patient.json: the condition of the last
-    /// phase and "escalation"); change both together. The start is the patient's state after his opening line.
+    /// The targets come from the scenario file, sent by the AI server in the opening (meta.progress: the phases, the
+    /// condition of the last phase, "escalation" and the minimum turns), so they never have to be copied here. The
+    /// inspector values are only used when the server sends no meta (an older server). The start is the patient's state
+    /// after his opening line.
     /// </para>
     /// The UI is made at runtime: a small world-space canvas in front of the camera, drawn on top (overlay materials).
     /// </summary>
@@ -23,7 +25,7 @@ namespace ProCommVR.AiTalk
         [SerializeField] private Material _imageMaterial;
         [SerializeField] private Material _textMaterial;
 
-        [Header("Targets (as in the scenario file)")]
+        [Header("Targets when the server sends no meta.progress (older server)")]
         [Tooltip("Resolved: trust at least this (condition trust_gte of the last phase).")]
         [SerializeField, Range(0f, 100f)] private float _resolveTrust = 66f;
         [Tooltip("Resolved: tension below this (condition tension_lt of the last phase).")]
@@ -36,6 +38,11 @@ namespace ProCommVR.AiTalk
         [SerializeField] private string[] _phases = { "B1_withdrawn", "B2_opening_up", "B3_considering" };
         [Tooltip("Shown at most this far: the last step is a concrete proposal, the bar cannot know when it comes.")]
         [SerializeField, Range(0.5f, 1f)] private float _maxBeforeEnd = 0.92f;
+
+        [Header("Show")]
+        [Tooltip("Dev: show the bar in the nurse view. Off (Prototype1): the patient view is the only feedback on how the " +
+                 "conversation goes; the bar still computes its progress (for tests).")]
+        [SerializeField] private bool _show;
 
         [Header("Look")]
         [SerializeField] private Color _color = new Color(1f, 0.55f, 0.1f);
@@ -91,6 +98,7 @@ namespace ProCommVR.AiTalk
             }
             if (!_hasStart)
                 return;
+            ReadTargets(_npc.Meta?.progress);
 
             if (_npc.HasEnded)
             {
@@ -108,13 +116,34 @@ namespace ProCommVR.AiTalk
                     calm = Mathf.Max(calm, phase / (float)_phases.Length);
                 var angry = Mathf.Max(Mathf.InverseLerp(_startTension, _escalateTension, _npc.Anger),
                     Mathf.InverseLerp(_startTrust, _escalateTrust, _npc.Trust));
+                // A scenario with a minimum number of turns cannot be further than its share of those turns.
+                if (_minTurns > 0)
+                    calm = Mathf.Min(calm, (_npc.LastTurn != null ? _npc.LastTurn.turn : 0) / (float)_minTurns);
                 Progress = Mathf.Min(Mathf.Max(calm, angry), _maxBeforeEnd);
             }
-            _root.SetActive(_hideAt < 0f || Time.time < _hideAt);
+            _root.SetActive(_show && (_hideAt < 0f || Time.time < _hideAt));
             _shown = Mathf.SmoothDamp(_shown, Progress, ref _velocity, _smoothSeconds);
             _fill.anchorMax = new Vector2(_shown, 1f);
             _label.text = _npc.HasEnded ? "Conversation finished" : "Conversation";
         }
+
+        private int _minTurns;
+
+        /// <summary>The limits of the conversation from the scenario (meta.progress), when the server sent them.</summary>
+        private void ReadTargets(AiProgressMeta progress)
+        {
+            if (progress == null || !progress.Present)
+                return;
+            _phases = progress.phases;
+            _resolveTrust = progress.resolve_trust;
+            _resolveTension = progress.resolve_tension;
+            _escalateTension = progress.escalate_tension;
+            _escalateTrust = progress.escalate_trust;
+            _minTurns = progress.min_turns_total;
+        }
+
+        /// <summary>The limits in use (for tests): resolve trust, resolve tension, escalate tension, escalate trust.</summary>
+        public Vector4 Targets => new Vector4(_resolveTrust, _resolveTension, _escalateTension, _escalateTrust);
 
         private void Build()
         {

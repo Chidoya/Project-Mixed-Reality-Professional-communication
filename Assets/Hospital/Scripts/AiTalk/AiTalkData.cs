@@ -61,6 +61,10 @@ namespace ProCommVR.Hospital.AiTalk
         public string rest_animation;
         public string tension_name;
         public string character_name;
+        /// <summary>Optioneel (alleen in de opening): case, guide en de grenzen van het gesprek uit het scenario.</summary>
+        public AiScenarioMeta meta;
+        /// <summary>Nummer van de beurt (1, 2, ...); 0 in de opening.</summary>
+        public int turn;
 
         // Alleen in Unity, niet van de server
         [NonSerialized] public bool localFallback;
@@ -68,6 +72,46 @@ namespace ProCommVR.Hospital.AiTalk
         [NonSerialized] public int roundTripMs;
 
         public bool HasEnded => !string.IsNullOrEmpty(ended);
+    }
+
+    /// <summary>Grenzen van het gesprek uit het scenario (meta.progress): fasen, einde en escalatie.</summary>
+    [Serializable]
+    public class AiProgressMeta
+    {
+        public string[] phases;
+        public float resolve_trust;
+        public float resolve_tension;
+        public float escalate_tension;
+        public float escalate_trust;
+        public int min_turns_total;
+
+        public bool Present => phases != null && phases.Length > 0;
+    }
+
+    /// <summary>De briefing van het scenario (meta.case), voor het klembord.</summary>
+    [Serializable]
+    public class AiCaseMeta
+    {
+        public string title;
+        public string text;
+    }
+
+    /// <summary>Een tip voor de verpleegkundige bij een toestand van de patiënt (meta.guide).</summary>
+    [Serializable]
+    public class AiGuideHint
+    {
+        public string when;
+        public string title;
+        public string text;
+    }
+
+    /// <summary>Wat Unity over het scenario mag tonen naast het gesprek zelf (meta in de opening).</summary>
+    [Serializable]
+    public class AiScenarioMeta
+    {
+        public AiProgressMeta progress;
+        public AiCaseMeta @case;
+        public AiGuideHint[] guide;
     }
 
     [Serializable]
@@ -149,6 +193,13 @@ namespace ProCommVR.Hospital.AiTalk
     internal class AiEndRequest
     {
         public string reason;
+    }
+
+    [Serializable]
+    internal class AiTextRequest
+    {
+        public string session_id;
+        public string text;
     }
 
     [Serializable]

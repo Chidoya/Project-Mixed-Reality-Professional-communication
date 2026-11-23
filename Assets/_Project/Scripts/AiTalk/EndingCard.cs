@@ -4,7 +4,7 @@ using UnityEngine;
 namespace ProCommVR.AiTalk
 {
     /// <summary>
-    /// Text on the black screen between the conversation and the doctor, e.g. "KRITIEKE FOUT" with what went wrong. A
+    /// Text on the black screen between the conversation and the doctor, e.g. "CRITICAL ERROR" with what went wrong. A
     /// small world-space canvas in front of the camera, drawn after the black fade quad (a copy of the overlay text
     /// material with a later render queue), so it is readable while the view is black. Made at runtime.
     /// </summary>
@@ -22,6 +22,8 @@ namespace ProCommVR.AiTalk
 
         public bool IsShown => _root != null && _root.activeSelf;
         public string Title => _title != null ? _title.text : "";
+        public string Subtitle => _subtitle != null ? _subtitle.text : "";
+        public string Body => _body != null ? _body.text : "";
 
         private void Awake()
         {

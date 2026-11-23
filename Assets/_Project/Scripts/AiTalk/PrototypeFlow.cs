@@ -55,15 +55,25 @@ namespace ProCommVR.AiTalk
         [Tooltip("Seconds between the doctor's line and the debrief panel.")]
         [SerializeField, Min(0f)] private float _debriefDelay = 2.5f;
 
-        [Header("Ending on a black screen (critical error, escalated)")]
-        [Tooltip("Shows the text on the black screen. Empty: no card, straight to the doctor.")]
+        [Header("Ending on a black screen (every end of the conversation)")]
+        [Tooltip("Shows the reason on the black screen. Empty: no card, straight to the doctor.")]
         [SerializeField] private EndingCard _endingCard;
-        [Tooltip("Seconds the black screen with the text stays before the player stands at the doctor.")]
+        [Tooltip("Seconds the black screen stays after a critical error or an escalation.")]
         [SerializeField, Min(1f)] private float _cardSeconds = 6f;
-        [SerializeField] private string _criticalTitle = "KRITIEKE FOUT";
-        [SerializeField] private string _escalatedTitle = "GESPREK GEËSCALEERD";
+        [Tooltip("Seconds the black screen stays after a resolved or a finished conversation.")]
+        [SerializeField, Min(1f)] private float _shortCardSeconds = 3.5f;
+        [SerializeField] private string _criticalTitle = "CRITICAL ERROR";
+        [SerializeField] private string _escalatedTitle = "CONVERSATION ESCALATED";
         [TextArea, SerializeField] private string _escalatedText =
-            "De patiënt wil niet meer met je praten. Bij de dokter lees je wat er misliep.";
+            "The patient does not want to talk to you any more. The doctor will go through what went wrong.";
+        [SerializeField] private string _resolvedTitle = "CONVERSATION FINISHED";
+        [TextArea, SerializeField] private string _resolvedText = "He agreed to try a small step. The doctor wants to hear how it went.";
+        [SerializeField] private string _stoppedTitle = "CONVERSATION ENDED";
+        [TextArea, SerializeField] private string _stoppedText = "You ended the conversation. The doctor wants to hear how it went.";
+
+        [Header("Shift")]
+        [Tooltip("The conversation only starts after the shift has started (AiShift sets Allow Conversation).")]
+        [SerializeField] private bool _waitForShiftStart;
 
         [Header("Finish the conversation")]
         [Tooltip("Hold this long (seconds) to finish the conversation yourself.")]
@@ -87,6 +97,22 @@ namespace ProCommVR.AiTalk
         private string _endReason;
 
         public Stage Current { get; private set; } = Stage.Briefing;
+
+        /// <summary>False until the shift starts (with Wait For Shift Start): near the patient nothing happens yet.</summary>
+        public bool AllowConversation { get; set; } = true;
+
+        /// <summary>Why the last conversation ended (resolved, stopped, escalated, critical_error...).</summary>
+        public string EndReason => _endReason;
+
+        /// <summary>The title of the critical error of the last conversation (empty if there was none).</summary>
+        public string CriticalTitle
+        {
+            get
+            {
+                var critical = _patient != null && _patient.LastTurn != null ? _patient.LastTurn.critical : null;
+                return critical != null && critical.Present ? critical.title : "";
+            }
+        }
         public event Action<Stage> StageChanged;
 
         private void Awake()
@@ -97,6 +123,7 @@ namespace ProCommVR.AiTalk
                 _doctorBubble.gameObject.SetActive(false);
             if (_talkHint != null)
                 _talkHint.gameObject.SetActive(false);
+            AllowConversation = !_waitForShiftStart;
         }
 
         private void OnEnable()
@@ -132,7 +159,7 @@ namespace ProCommVR.AiTalk
             switch (Current)
             {
                 case Stage.Briefing:
-                    if (_patient != null && _bridge != null && _bridge.IsPlayerNear(_startDistance))
+                    if (AllowConversation && _patient != null && _bridge != null && _bridge.IsPlayerNear(_startDistance))
                     {
                         _endHandled = false;
                         SetStage(Stage.Talking);
@@ -192,7 +219,7 @@ namespace ProCommVR.AiTalk
             while (_pov != null && (_pov.Mode == PovMode.Patient || _pov.IsSwitching))
                 yield return null;
 
-            if (_endingCard != null && (_endReason == "critical_error" || _endReason == "escalated"))
+            if (_endingCard != null)
                 yield return BlackScreenToDoctor();
             else
                 yield return Move(_doctorSpot);
@@ -209,22 +236,31 @@ namespace ProCommVR.AiTalk
         }
 
         /// <summary>
-        /// A critical error or an escalated conversation does not just end: the view goes black with what happened, and
-        /// only then the player stands at the doctor.
+        /// A conversation does not just end: the view goes black with what happened (a critical error, escalated,
+        /// resolved or ended by the player), and only then the player stands at the doctor.
         /// </summary>
         private IEnumerator BlackScreenToDoctor()
         {
             if (_fade != null)
                 yield return _fade.FadeTo(1f, _fadeSeconds * 1.5f);
             var critical = _patient != null && _patient.LastTurn != null ? _patient.LastTurn.critical : null;
+            var seconds = _cardSeconds;
             if (_endReason == "critical_error")
                 _endingCard.Show(_criticalTitle, new Color(0.95f, 0.3f, 0.25f),
                     critical != null && critical.Present ? critical.title : "",
                     critical != null && critical.Present ? critical.feedback : "");
-            else
+            else if (_endReason == "escalated")
                 _endingCard.Show(_escalatedTitle, new Color(1f, 0.55f, 0.1f), "", _escalatedText);
+            else
+            {
+                seconds = _shortCardSeconds;
+                var resolved = _endReason == "resolved";
+                _endingCard.Show(resolved ? _resolvedTitle : _stoppedTitle,
+                    resolved ? new Color(0.45f, 0.85f, 0.55f) : new Color(0.85f, 0.85f, 0.9f), "",
+                    resolved ? _resolvedText : _stoppedText);
+            }
             Teleport(_doctorSpot);
-            yield return new WaitForSeconds(_cardSeconds);
+            yield return new WaitForSeconds(seconds);
             _endingCard.Hide();
             if (_fade != null)
                 yield return _fade.FadeTo(0f, _fadeSeconds);

@@ -192,6 +192,16 @@ def list_scenarios():
     return out
 
 
+@app.get("/scenarios/{scenario_id}/meta")
+def scenario_meta(scenario_id: str):
+    """The case, guide and progress limits of a scenario (the same "meta" as in the opening), before any session, so a
+    client can show the briefing in the lobby."""
+    try:
+        return engine.scenario_meta(engine.scenario(scenario_id))
+    except FileNotFoundError:
+        raise HTTPException(404, f"unknown scenario {scenario_id}")
+
+
 @app.post("/session/{session_id}/event")
 def session_event(session_id: str, req: EventRequest):
     """A non-verbal action from Unity (no speech, no reply): only the effect from the scenario's "events"."""

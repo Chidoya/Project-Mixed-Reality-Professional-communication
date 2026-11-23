@@ -22,7 +22,7 @@ namespace ProCommVR.Editor
     /// Builds Prototype1 (Assets/_Project/Scenes/Prototype1.unity): one patient, free speech through Liam's AI server,
     /// in Liam's U-ward (Assets/Scenes/liam_u_afdeling.unity, built by his UWardBuilder; his scene on disk stays as it is).
     /// <list type="bullet">
-    /// <item>The player starts in the left corridor in front of room 1A, with a briefing sign.</item>
+    /// <item>The player starts in the lobby at the reception desk and starts the shift at its computer (AiShift, one task).</item>
     /// <item>Room 1A: Liam's patient (Patient_1A, lying in bed) gets Liam's AiNpc (scenario disappointed_patient), our
     /// emotions, the trust (reputation) and the AI bridge; Y switches to his eyes (patient view, emotion HUD with the
     /// trust meter, the room reacts to his emotion: plants, sun, fire, darkness, rain inside and puddles).</item>
@@ -43,7 +43,6 @@ namespace ProCommVR.Editor
 
         // Plan points (UWardLayout: x from left to right, y from top to bottom, in meters).
         // Room 1A: x 0..6, y 7.20..12.13, door in the corridor wall x = 6 between y 10.58 and 11.88.
-        private static readonly Vector2 StartPlan = new Vector2(7.4f, 11.23f);
         private static readonly Vector2 DoorPlan = new Vector2(6.0f, 11.23f);
         // Briefing room: inner x 25.1..33.5, y 12.7..19.5; table 4.6 x 1.8 m in the middle, whiteboard on the north wall.
         // The player stands between the whiteboard and the north row of chairs, looking at the whiteboard; the doctor stands
@@ -88,8 +87,13 @@ namespace ProCommVR.Editor
             var places = new GameObject("Places").transform;
             places.SetParent(prototype, false);
 
-            // ---- Player ----
-            var start = Spot(places, "Start (corridor, door 1A)", OnFloor(Plan(StartPlan)), room.forward);
+            // ---- Player: starts in the lobby, in front of the reception desk (the shift starts at its computer) ----
+            var station = hospital.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "StaffStation");
+            var deskAnchor = station != null ? station.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Anchor_Clipboard") : null;
+            if (deskAnchor == null)
+                throw new System.InvalidOperationException("[ProCommVR] No Lobby/StaffStation/Anchor_Clipboard: the shift needs the reception desk.");
+            var visitorSide = Flat(deskAnchor.forward).normalized;
+            var start = Spot(places, "Start (lobby, reception desk)", OnFloor(deskAnchor.position + visitorSide * 0.95f), -visitorSide);
             var rig = (GameObject)PrefabUtility.InstantiatePrefab(rigVariant, scene);
             rig.transform.SetPositionAndRotation(start.position, start.rotation);
             var origin = rig.GetComponent<XROrigin>();
@@ -122,7 +126,8 @@ namespace ProCommVR.Editor
             Set(progress, "_imageMaterial", AssetDatabase.LoadAssetAtPath<Material>(EmotionHudSetup.ImageMaterialPath));
             Set(progress, "_textMaterial", AssetDatabase.LoadAssetAtPath<Material>(EmotionHudSetup.TextMaterialPath));
             // The ward map at the lobby entrance and the murmur of people in the lobby and the corridors.
-            WardMapAndAmbienceSetup.AddMap(prototype, new Vector2(15.0f, 20.3f));
+            var map = WardMapAndAmbienceSetup.AddMap(prototype, new Vector2(15.0f, 20.3f));
+            var mapTask = WardMapAndAmbienceSetup.AddMapNote(map, new Vector2(3.0f, 9.7f), "TASK 1");
             WardMapAndAmbienceSetup.AddAmbience(prototype);
 
             var emotions = patient.gameObject.AddComponent<EmotionHolder>();
@@ -160,11 +165,22 @@ namespace ProCommVR.Editor
 
             var hud = EmotionHudSetup.AddToScene(emotions, pov, reputation);
             hud.transform.SetParent(prototype, true);
+            // What the last sentence did: an arrow next to Trust and the dominant emotion (only in the patient view).
+            SetBool(hud, "_showLastChange", true);
             // The player as the patient sees him: a white figure with an aura from the trust (black waves to wings).
             var aura = ReputationAuraSetup.AddToScene(reputation, rig.GetComponentInChildren<ProCommVR.Player.PlayerAvatar>(true));
             aura.transform.SetParent(prototype, true);
+            // Every change of the trust shows in the aura, not only a change of tier.
+            SetFloat(aura, "_edgeStrength", 0.35f);
+            // A wider range of strength, so the room follows the tension (the rain gets heavier or lighter).
+            SetFloat(bridge, "_minStrength", 0.2f);
+            SetFloat(bridge, "_maxStrength", 1f);
             // The clipboard on the lobby desk: a task template and the dev controls (emotion, trust slider).
-            var devClipboard = DevClipboardSetup.AddToScene(hospital, emotions, reputation, bridge, pov, rig, origin.Camera, voice);
+            // The case and the guide of the scenario, from the AI server (scenario file), for the clipboard.
+            var briefingData = new GameObject("Scenario Briefing (case, guide)").AddComponent<ScenarioBriefing>();
+            briefingData.transform.SetParent(prototype, false);
+            Set(briefingData, "_npc", npc);
+            var devClipboard = DevClipboardSetup.AddToScene(hospital, emotions, reputation, bridge, pov, rig, origin.Camera, voice, briefingData);
             devClipboard.transform.SetParent(prototype, true);
             var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
             var world = EmotionWorldSetup.AddToScene(emotions, pov, LightsReaching(room, sun, bed));
@@ -189,9 +205,10 @@ namespace ProCommVR.Editor
             signs.SetParent(prototype, false);
             // Above the open door of 1A: Liam's patient card next to the door already tells who the patient is.
             var briefing = CreateSign(signs, "Briefing Sign",
-                "<b>Prototype 1: talk to the patient in room 1A</b>\n" +
-                "Mr. X has a leg infection and must stay a few more days. He misses his granddaughter's birthday.\n" +
-                "Read the case on your clipboard (<b>X</b>). Just talk, in English.  <b>Y</b>: patient view.",
+                "<b>Room 1A: Mr. X, 51</b>\n" +
+                "Leg infection, antibiotics through a drip for a few more days. Only the doctor decides about discharge.\n" +
+                "Today he misses his granddaughter's birthday.\n" +
+                "Read <b>Case</b> and <b>Guide</b> on your clipboard. Talk in English.  <b>Y</b>: see through his eyes.",
                 DoorTop(room) + Vector3.up * 0.35f - room.forward * 0.12f, room.forward, 2.2f);
             briefing.fontSize = 0.42f;
             var talkHint = CreateSign(signs, "Talk Hint", "",
@@ -220,7 +237,55 @@ namespace ProCommVR.Editor
             Set(endingCard, "_camera", origin.Camera);
             Set(endingCard, "_textMaterial", AssetDatabase.LoadAssetAtPath<Material>(EmotionHudSetup.TextMaterialPath));
             serializedFlow.FindProperty("_endingCard").objectReferenceValue = endingCard;
+            serializedFlow.FindProperty("_waitForShiftStart").boolValue = true; // nothing runs before the shift starts
             serializedFlow.ApplyModifiedPropertiesWithoutUndo();
+
+            // ---- The shift: one task (data in the inspector of AiShift), started at the reception desk ----
+            var doorTask = CreateSign(signs, "Door Task Sign",
+                "<b>TASK 1: Mr. X</b>\n<size=70%>your patient is in here</size>",
+                DoorTop(room) - Vector3.up * 0.55f - room.forward * 0.12f + room.right * 0.95f, room.forward, 1.2f);
+            doorTask.fontSize = 0.6f;
+            doorTask.color = WardMapAndAmbienceSetup.Orange;
+            // Above Liam's debrief panel (it fills the view straight ahead), in front of the whiteboard.
+            var report = CreateSign(signs, "Shift Report",
+                "", doctorSpot.position + Flat(doctorSpot.forward).normalized * 1.6f + Vector3.up * 2.3f, doctorSpot.forward, 1.6f);
+            report.fontSize = 0.32f;
+            report.alignment = TextAlignmentOptions.Center;
+            report.rectTransform.sizeDelta = new Vector2(1.6f, 0.42f);
+            SetLabels(debrief, "Try again (A / R)", "Finish shift (B / Enter)");
+
+            var shift = new GameObject("AI Shift (one task)").AddComponent<AiShift>();
+            shift.transform.SetParent(prototype, false);
+            var serializedShift = new SerializedObject(shift);
+            serializedShift.FindProperty("_flow").objectReferenceValue = flow;
+            serializedShift.FindProperty("_debrief").objectReferenceValue = debrief;
+            serializedShift.FindProperty("_clipboard").objectReferenceValue = devClipboard;
+            serializedShift.FindProperty("_endingCard").objectReferenceValue = endingCard;
+            serializedShift.FindProperty("_fade").objectReferenceValue = origin.Camera.GetComponentInChildren<ScreenFade>(true);
+            serializedShift.FindProperty("_report").objectReferenceValue = report;
+            var running = serializedShift.FindProperty("_showWhenRunning");
+            running.arraySize = 2;
+            running.GetArrayElementAtIndex(0).objectReferenceValue = doorTask.gameObject;
+            running.GetArrayElementAtIndex(1).objectReferenceValue = mapTask;
+            serializedShift.ApplyModifiedPropertiesWithoutUndo();
+
+            // The computer on the reception desk: point and pull the trigger to start the shift.
+            var computer = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            computer.name = "Shift Computer (start shift)";
+            computer.transform.SetParent(prototype, false);
+            computer.transform.SetPositionAndRotation(deskAnchor.position + Vector3.up * 0.22f - visitorSide * 0.15f,
+                Quaternion.LookRotation(-visitorSide));
+            computer.transform.localScale = new Vector3(0.42f, 0.28f, 0.03f);
+            computer.GetComponent<MeshRenderer>().sharedMaterial = SignMaterial();
+            computer.AddComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable>();
+            var button = computer.AddComponent<AiShiftStartButton>();
+            var buttonLabel = CreateSign(signs, "Shift Computer Label", "",
+                deskAnchor.position + Vector3.up * 0.62f - visitorSide * 0.15f, -visitorSide, 0.9f);
+            buttonLabel.fontSize = 0.55f;
+            var serializedButton = new SerializedObject(button);
+            serializedButton.FindProperty("_shift").objectReferenceValue = shift;
+            serializedButton.FindProperty("_label").objectReferenceValue = buttonLabel;
+            serializedButton.ApplyModifiedPropertiesWithoutUndo();
 
             // Saved under a new path, last in the Build Settings: a headset build still starts with the shift.
             ScenarioTestSceneBuilder.SaveSceneInBuild(scene, ScenePath);
@@ -526,6 +591,40 @@ namespace ProCommVR.Editor
         }
 
         private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        private static void SetLabels(AiDebriefPanel debrief, string retry, string done)
+        {
+            var serialized = new SerializedObject(debrief);
+            serialized.FindProperty("_retryLabel").stringValue = retry;
+            serialized.FindProperty("_doneLabel").stringValue = done;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>A light grey material for the computer screen (URP Lit, created once).</summary>
+        private static Material SignMaterial()
+        {
+            const string path = "Assets/_Project/Materials/ShiftComputer.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material != null)
+                return material;
+            material = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.82f, 0.88f, 0.95f) };
+            AssetDatabase.CreateAsset(material, path);
+            return material;
+        }
+
+        private static void SetBool(Object target, string field, bool value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(field).boolValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetFloat(Object target, string field, float value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(field).floatValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
 
         private static void Set(Object target, string field, Object value)
         {

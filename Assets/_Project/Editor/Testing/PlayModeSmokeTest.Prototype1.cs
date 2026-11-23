@@ -56,7 +56,42 @@ namespace ProCommVR.Editor.Testing
             Check(flow.Current == PrototypeFlow.Stage.Briefing, $"the prototype starts with the briefing ({flow.Current})");
             Check(!bridge.IsPlaying && pov.WhyNot() == "no conversation", $"no conversation yet, Y is refused ({pov.WhyNot()})");
             Check(hud.Distance < 1.3f, $"the HUD is closer than before ({hud.Distance} m, was 1.6 m)");
-            Screenshot("prototype1-briefing");
+
+            // ---- The shift: lobby, one task on the clipboard, the computer at the reception desk ----
+            var shift = Object.FindAnyObjectByType<AiShift>();
+            var startButton = Object.FindAnyObjectByType<AiShiftStartButton>();
+            var lobbyClipboard = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);
+            Check(shift != null && startButton != null && shift.TaskCount == 1, "Prototype1 has a shift with one task and a start button");
+            if (shift == null || startButton == null)
+                yield break;
+            Check(shift.Stage == AiShift.ShiftStage.Lobby && shift.StatusName(0) == "Waiting", $"the shift starts in the lobby, task 1 waiting ({shift.Stage})");
+            var toComputer = Vector3.Distance(Flat(origin.Camera.transform.position), Flat(startButton.transform.position));
+            Check(toComputer < 1.6f, $"the player starts at the reception desk, next to the start computer ({toComputer:0.0} m)");
+            Check(lobbyClipboard != null && lobbyClipboard.Page == 0 && lobbyClipboard.PageName(0) == "Tasks"
+                  && lobbyClipboard.TasksText.Contains("Task 1: Room 1A, Mr. X") && lobbyClipboard.TasksText.Contains("Waiting")
+                  && lobbyClipboard.TasksText.Contains("Goal:"),
+                $"the clipboard opens on the Tasks page with task 1, waiting, and its goal ({lobbyClipboard?.TasksText})");
+            var doorTask = GameObject.Find("Door Task Sign");
+            Check(doorTask == null, "before the start the door of 1A does not point to a task yet");
+            Screenshot("prototype1-lobby");
+            if (lobbyClipboard != null)
+            {
+                lobbyClipboard.PutDown();
+                ClipboardShot(lobbyClipboard, "prototype1-clipboard-tasks-waiting");
+                lobbyClipboard.Take();
+            }
+
+            // Before the start nothing runs, also next to the patient.
+            flow.Teleport(patientSpot);
+            yield return 4f;
+            Check(!bridge.IsPlaying && flow.Current == PrototypeFlow.Stage.Briefing, "before the shift starts, the patient does not talk");
+            flow.Teleport(serializedFlow.FindProperty("_patientSpot").objectReferenceValue as Transform);
+            startButton.Press();
+            yield return null;
+            doorTask = GameObject.Find("Door Task Sign");
+            Check(shift.Stage == AiShift.ShiftStage.Running && shift.StatusName(0) == "In progress" && lobbyClipboard.TasksText.Contains("In progress"),
+                $"the start button starts the shift: task 1 in progress ({shift.StatusName(0)})");
+            Check(doorTask != null && GameObject.Find("Note TASK 1") != null, "the door of 1A and the floor plan point to the task");
 
             // Near the patient: the conversation starts (the AI server may still be warming up).
             flow.Teleport(patientSpot);
@@ -115,10 +150,17 @@ namespace ProCommVR.Editor.Testing
                 npc.TurnApplied -= OnTurn;
             }
 
-            // The orange conversation bar at the bottom of the view.
+            // The nurse view shows nothing about how the conversation goes: no bar, no HUD, no trust or emotion on the
+            // clipboard. Only the patient view does.
             var progressBar = Object.FindAnyObjectByType<ConversationProgressBar>();
-            Check(progressBar != null && progressBar.IsVisible && progressBar.Color.r > 0.9f && progressBar.Color.g > 0.4f && progressBar.Color.b < 0.2f,
-                "the orange conversation bar is shown during the conversation");
+            Check(progressBar != null && !progressBar.IsVisible, "the nurse view shows no conversation progress bar");
+            Check(!hud.IsShown && !hud.IsCanvasOn, "the nurse view shows no trust and no emotion (the HUD is only in the patient view)");
+            var nurseClipboard = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);
+            Check(nurseClipboard != null && !nurseClipboard.DevMode && nurseClipboard.PageCount == 3
+                  && Enumerable.Range(0, nurseClipboard.PageCount).All(i => nurseClipboard.PageName(i) != "Dev"),
+                "the clipboard has no Dev page (dev flag off): Case, Guide, Tasks");
+            Check(progressBar != null && Mathf.Approximately(progressBar.Targets.x, 55f) && Mathf.Approximately(progressBar.Targets.y, 46f),
+                $"the bar reads its limits from the scenario (trust {progressBar?.Targets.x}, tension {progressBar?.Targets.y})");
             Check(progressBar != null && progressBar.Progress >= 0f && progressBar.Progress < 0.95f,
                 $"the bar shows how far the conversation is ({progressBar?.Progress:0.00}, trust {npc.Trust}, tension {npc.Anger})");
 
@@ -157,6 +199,21 @@ namespace ProCommVR.Editor.Testing
                 Check(hud.IsShown && hud.Reputation == reputation, "the HUD shows, with the trust meter");
                 Check(Mathf.Abs(hud.TrustShown - reputation.Value) < 1f && hud.TrustText == Mathf.RoundToInt(reputation.Value).ToString(),
                     $"the trust meter shows the trust ({hud.TrustText}, {reputation.Value})");
+                // What the last sentence did: an arrow next to Trust (and the dominant emotion).
+                var trustNow = reputation.Value;
+                bridge.HoldTrust = true;
+                reputation.Set(trustNow + 6f);
+                yield return 0.3f;
+                Check(hud.TrustTrend == 1 && hud.TrustLabelText.Contains("+6"), $"a rise of the trust shows an up arrow ({hud.TrustLabelText})");
+                reputation.Set(trustNow - 4f);
+                yield return 0.3f;
+                Check(hud.TrustTrend == -1 && hud.TrustLabelText.Contains("-10"), $"a drop shows a down arrow ({hud.TrustLabelText})");
+                holder.SetTarget(new EmotionState(0.05f, 0.05f, 0.05f, 0.9f));
+                yield return 0.3f;
+                Check(hud.EmotionTrendFor == Emotion.Sadness && hud.EmotionTrend == 1, $"a stronger emotion shows an up arrow next to it ({hud.EmotionTrendFor} {hud.EmotionTrend})");
+                Screenshot("prototype1-hud-arrows");
+                reputation.Set(trustNow);
+                bridge.HoldTrust = false;
                 var rain = Object.FindObjectsByType<EmotionEffectAnchor>(FindObjectsSortMode.None).FirstOrDefault(a => a.name.StartsWith("Rain Inside"));
                 Check(rain != null && rain.IsOn && rain.Particles.Length > 0 && rain.Particles[0].isPlaying, "Sadness: it rains inside the room");
                 var puddles = Object.FindObjectsByType<EmotionEffectAnchor>(FindObjectsSortMode.None).Where(a => a.name.StartsWith("Puddle")).ToList();
@@ -192,6 +249,14 @@ namespace ProCommVR.Editor.Testing
                     var wings = aura.Look(ReputationTier.Radiant).wings;
                     Check(wings.Length == 2 && wings.All(w => w.GetComponent<MeshFilter>().sharedMesh != null && w.localScale.x > 0.9f),
                         "Radiant: the wings are unfolded");
+                    // Inside a tier every change shows: the aura gets stronger the deeper the trust is in it.
+                    reputation.Set(38f);
+                    yield return 0.2f;
+                    var shallow = aura.Depth;
+                    reputation.Set(22f);
+                    yield return 0.2f;
+                    Check(aura.Current == ReputationTier.Liquid && aura.Depth > shallow + 0.4f,
+                        $"the black liquid gets stronger as the trust drops within its tier ({shallow:0.00} at 38, {aura.Depth:0.00} at 22)");
                     reputation.Set(trustBefore);
                 }
 
@@ -207,18 +272,26 @@ namespace ProCommVR.Editor.Testing
                     yield return holder.BlendSeconds + 0.3f;
                     Check(holder.Dominant == Emotion.Fear && Mathf.Approximately(reputation.Value, 85f) && bridge.HoldEmotions && bridge.HoldTrust,
                         $"the dev clipboard sets Fear and trust 85 ({holder.Current}, {reputation.Value})");
-                    Check(clipboard.Page == 0, $"the clipboard starts on the case page ({clipboard.Page})");
-                    ClipboardShot(clipboard, "prototype1-clipboard-case");
-                    clipboard.NextPage();
-                    yield return null;
-                    Check(clipboard.Page == 1, $"> shows the tasks page ({clipboard.Page})");
+                    Check(clipboard.Page == 0 && clipboard.PageName(0) == "Tasks", $"the clipboard starts on the tasks page ({clipboard.Page})");
                     ClipboardShot(clipboard, "prototype1-clipboard-tasks");
                     clipboard.NextPage();
                     yield return null;
-                    Check(clipboard.Page == 2, $"> shows the dev page ({clipboard.Page})");
-                    ClipboardShot(clipboard, "prototype1-clipboard-dev");
+                    Check(clipboard.Page == 1 && clipboard.PageName(1) == "Case", $"> shows the case page ({clipboard.Page})");
+                    // The case and the guide come from the scenario file (via the AI server), not from Unity.
+                    Check(clipboard.CaseText.Contains("GOAL") && clipboard.CaseText.Contains("Be careful with promises")
+                          && !clipboard.CaseText.Contains("Do not:"),
+                        $"the case page is a briefing with a goal list and a subtle warning, without a list of what is not allowed ({clipboard.CaseText})");
+                    Check(!System.Text.RegularExpressions.Regex.IsMatch(clipboard.CaseText + clipboard.GuideText, "walk|stroll|corridor",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase), "the case and the guide never mention walking");
+                    ClipboardShot(clipboard, "prototype1-clipboard-case");
                     clipboard.NextPage();
-                    Check(clipboard.Page == 0, $"the clipboard has 3 pages ({clipboard.Page})");
+                    yield return null;
+                    Check(clipboard.Page == 2 && clipboard.PageName(2) == "Guide", $"> shows the guide page ({clipboard.Page})");
+                    Check(clipboard.GuideText.Contains("Rain") && clipboard.GuideText.Contains("Fire") && clipboard.GuideText.Contains("Plants"),
+                        $"the guide gives hints per patient state, with what to look for in the patient view ({clipboard.GuideText})");
+                    ClipboardShot(clipboard, "prototype1-clipboard-guide");
+                    clipboard.NextPage();
+                    Check(clipboard.Page == 0 && clipboard.PageCount == 3, $"the clipboard has 3 pages without dev mode ({clipboard.PageCount})");
                     clipboard.LetAiDrive();
                     Check(!bridge.HoldEmotions && !bridge.HoldTrust, "AI drives again");
                     clipboard.Take();
@@ -302,8 +375,9 @@ namespace ProCommVR.Editor.Testing
             Check(debrief.State == AiDebriefPanel.PanelState.Ready, $"the debrief is ready ({debrief.State}, {debrief.Result?.error})");
             yield return 0.5f;
             Screenshot("prototype1-doctor-debrief");
+            CheckReport(shift, lobbyClipboard, "Done", "ended the conversation");
 
-            // Retry: back to the patient, a new conversation with a fresh switch count.
+            // Try again (Retry): back to the patient, a new conversation with a fresh switch count, the task in progress.
             debrief.Retry();
             var retryWait = EditorApplication.timeSinceStartup + 60f;
             while ((flow.Current != PrototypeFlow.Stage.Talking || !bridge.IsPlaying) && EditorApplication.timeSinceStartup < retryWait)
@@ -311,10 +385,41 @@ namespace ProCommVR.Editor.Testing
             Check(flow.Current == PrototypeFlow.Stage.Talking && bridge.IsPlaying, $"Retry starts a new conversation ({flow.Current})");
             Check(Vector3.Distance(Flat(origin.Camera.transform.position), Flat(patientSpot.position)) < 0.3f, "Retry brings the player back to the patient");
             Check(pov.SwitchesThisConversation == 0, $"a new conversation has a fresh switch count ({pov.SwitchesThisConversation})");
+            Check(shift.Stage == AiShift.ShiftStage.Running && shift.StatusName(0) == "In progress" && GameObject.Find("Shift Report") == null,
+                $"Try again: the task is in progress again ({shift.StatusName(0)})");
             while (npc.IsSpeaking || npc.Busy)
                 yield return null;
 
-            // A critical error: a black screen with "KRITIEKE FOUT", then the doctor (and Done ends the prototype).
+            // A good conversation, typed (same lines as Tools/AiServer/test_conversation_length.py): it lasts at least
+            // 10 turns before the patient agrees, then the player goes to the doctor.
+            foreach (var step in GoodTextConversation(npc))
+                yield return step;
+            var resolvedCard = "";
+            doctorWait = EditorApplication.timeSinceStartup + 60f;
+            while (flow.Current != PrototypeFlow.Stage.Debrief && EditorApplication.timeSinceStartup < doctorWait)
+            {
+                if (flow.IsEndingCardShown && resolvedCard == "")
+                    resolvedCard = Object.FindAnyObjectByType<EndingCard>().Title;
+                yield return null;
+            }
+            Check(resolvedCard == "CONVERSATION FINISHED", $"a resolved conversation ends on a black screen with the reason ({resolvedCard})");
+            Check(flow.Current == PrototypeFlow.Stage.Debrief, $"after the resolved conversation the player is at the doctor ({flow.Current})");
+            debriefWait = EditorApplication.timeSinceStartup + 90f;
+            while (debrief.State == AiDebriefPanel.PanelState.Waiting && EditorApplication.timeSinceStartup < debriefWait)
+                yield return null;
+            yield return 0.3f;
+            CheckReport(shift, lobbyClipboard, "Done", "small step");
+            Check(shift.Task(0).Score > 0 && shift.ReportText.Contains($"score {shift.Task(0).Score} / {shift.Task(0).MaxScore}"),
+                $"the shift report shows the score of the task ({shift.ReportText})");
+            Screenshot("prototype1-shift-report");
+            debrief.Retry();
+            retryWait = EditorApplication.timeSinceStartup + 60f;
+            while ((flow.Current != PrototypeFlow.Stage.Talking || !bridge.IsPlaying) && EditorApplication.timeSinceStartup < retryWait)
+                yield return null;
+            while (npc.IsSpeaking || npc.Busy)
+                yield return null;
+
+            // A critical error: a black screen with "CRITICAL ERROR", then the doctor; the task fails; Finish shift.
             npc.EndNow("critical_error");
             var cardSeen = false;
             doctorWait = EditorApplication.timeSinceStartup + 60f;
@@ -324,7 +429,7 @@ namespace ProCommVR.Editor.Testing
                 {
                     cardSeen = true;
                     var card = Object.FindAnyObjectByType<EndingCard>();
-                    Check(card != null && card.Title == "KRITIEKE FOUT", $"a critical error shows KRITIEKE FOUT on a black screen ({card?.Title})");
+                    Check(card != null && card.Title == "CRITICAL ERROR", $"a critical error shows CRITICAL ERROR on a black screen ({card?.Title})");
                 }
                 yield return null;
             }
@@ -335,9 +440,79 @@ namespace ProCommVR.Editor.Testing
             while (debrief.State != AiDebriefPanel.PanelState.Ready && debrief.State != AiDebriefPanel.PanelState.Failed
                    && EditorApplication.timeSinceStartup < debriefWait)
                 yield return null;
+            yield return 0.3f;
+            CheckReport(shift, lobbyClipboard, "Failed", "Critical error");
+            // Finish shift (B): the end screen with the total score.
             debrief.Done();
-            yield return 0.5f;
-            Check(flow.Current == PrototypeFlow.Stage.Finished, $"Done ends the prototype ({flow.Current})");
+            yield return 0.8f;
+            Check(flow.Current == PrototypeFlow.Stage.Finished, $"Finish shift ends the prototype ({flow.Current})");
+            var endCard = Object.FindAnyObjectByType<EndingCard>();
+            Check(shift.Stage == AiShift.ShiftStage.Finished && endCard != null && endCard.IsShown && endCard.Title == "SHIFT FINISHED"
+                  && endCard.Subtitle.Contains($"Total score: {shift.TotalScore} / {shift.TotalMax}") && shift.TotalMax > 0,
+                $"Finish shift shows the end screen with the total score ({endCard?.Title}, {endCard?.Subtitle})");
+            Screenshot("prototype1-shift-finished");
+        }
+
+        /// <summary>After a debrief: the task has its new status (on the clipboard too) and the shift report is shown.</summary>
+        private static void CheckReport(AiShift shift, ProCommVR.Testing.DevClipboard clipboard, string status, string reason)
+        {
+            var report = GameObject.Find("Shift Report");
+            Check(shift.Stage == AiShift.ShiftStage.Report && shift.StatusName(0) == status && shift.Task(0).Reason.Contains(reason),
+                $"after the debrief task 1 is {status} ({shift.StatusName(0)}: {shift.Task(0).Reason})");
+            Check(clipboard == null || clipboard.TasksText.Contains(status), $"the clipboard shows the task as {status} ({clipboard?.TasksText})");
+            Check(report != null && shift.ReportText.Contains("SHIFT REPORT") && shift.ReportText.Contains("Try again")
+                  && shift.ReportText.Contains("Finish shift"),
+                $"the shift report shows the task and the two choices ({shift.ReportText})");
+        }
+
+        internal static readonly string[] GoodLines =
+        {
+            "Hello, I'm Jalil, one of the nurses on this ward. How are you feeling today?",
+            "I can see you're really sad and disappointed. That must be hard.",
+            "It sounds like today hurts a lot. What is on your mind?",
+            "What is it about the birthday that matters most to you?",
+            "So missing her party feels like letting her down. Did I get that right?",
+            "You have to stay because the infection in your leg still needs the antibiotics through the drip. Only the doctor decides about going home.",
+            "The doctor comes by this evening, you can ask her about it then.",
+            "I'm here for you. We'll find something that helps you today.",
+            "What if we set up a video call with your granddaughter during the party?",
+            "And shall I help you sit up a little, so you're ready for the call?",
+            "We could also get you something to drink first. How does that sound?",
+            "Then let's do it: I help you sit up and we call her this afternoon.",
+            "Great. I'll bring the tablet and we'll call her together.",
+            "I'm glad you want to try. Shall we sit you up now?",
+            "Okay, I'll help you sit up and then we call her.",
+            "Here we go, slowly. Tell me if it hurts.",
+        };
+
+        /// <summary>
+        /// Types the good lines one by one (AiNpc.SendStudentText) until the AI server ends the conversation. Checks that
+        /// it does not end before turn 10 and that it ends resolved.
+        /// </summary>
+        private static IEnumerable GoodTextConversation(AiNpc npc)
+        {
+            var turns = 0;
+            foreach (var line in GoodLines)
+            {
+                if (npc.HasEnded)
+                    break;
+                var waitIdle = EditorApplication.timeSinceStartup + 120f;
+                while ((npc.Busy || npc.IsSpeaking) && EditorApplication.timeSinceStartup < waitIdle)
+                    yield return null;
+                var task = npc.SendStudentText(line);
+                var replyWait = EditorApplication.timeSinceStartup + 120f;
+                while (!task.GetAwaiter().IsCompleted && EditorApplication.timeSinceStartup < replyWait)
+                    yield return null;
+                turns++;
+                var turn = npc.LastTurn;
+                Log($"text turn {turns}: \"{line}\" -> labels [{string.Join(", ", turn?.labels ?? new string[0])}], " +
+                    $"trust {turn?.trust}, tension {turn?.anger}, phase {turn?.phase}, ended {turn?.ended}: \"{turn?.reply}\"");
+                if (turn != null && turn.HasEnded)
+                    break;
+            }
+            Check(npc.EndReason == "resolved" || npc.LastTurn?.ended == "resolved",
+                $"the typed good conversation ends resolved ({npc.LastTurn?.ended ?? "not ended"} after {turns} turns)");
+            Check(turns >= 10, $"a good conversation takes at least 10 turns before END ({turns})");
         }
 
         /// <summary>A picture from a temporary camera at a point, looking at a target.</summary>

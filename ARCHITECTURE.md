@@ -1105,7 +1105,8 @@ Eén volledige loop met één patiënt, als basis voor de hele gameloop: de feed
 Quest Link**: Liam's AI-server (`Tools/AiServer`, Ollama, Whisper, Piper) draait op de laptop, niet op de Quest.
 
 **Verloop** (`Scripts/AiTalk/PrototypeFlow.cs`):
-1. **Briefing:** de speler start in de linkergang voor de deur van kamer 1A, met een bord naast de deur.
+1. **Briefing:** de speler start in de lobby aan de balie en start daar de shift (sinds 20.6; voordien in de linkergang voor
+   de deur van kamer 1A). Boven de deur hangt een bord met de situatie.
 2. **Gesprek:** binnen 2,6 m van de patiënt zegt die zijn openingszin (Liam's `AiNpc`, scenario `disappointed_patient`).
    **Gewoon praten** (Engels): de microfoon staat altijd aan, geen knop (zie *Handenvrij praten* hieronder). **Y** voor de
    patient view, **B** 1,2 s ingedrukt houden (F in de editor) om het gesprek zelf af te ronden. De AI-server rondt ook zelf af (opgelost of een
@@ -1121,8 +1122,8 @@ De teksten van de dokter, het bord en de hint staan in de inspector van `Prototy
   beide: het veld *Conversation Source* (de brug) of zoals vroeger *Presenter*. Y kan zolang het AI-gesprek loopt; een
   Sinds 2026-11-22 is er geen limiet meer op het aantal switches (*Max Switches Per Conversation* 0 = geen limiet).
 - Na elke beurt: het emotie-label van de AI-server naar onze emoties (Happy: Joy, Angry: Anger, Worried en Surprised: Fear,
-  Sad, Crying en Pain: Sadness; Neutral met spanning vanaf 55 blijft Sadness, vertrouwen vanaf 70 wordt Joy), sterkte uit de
-  spanning (of het vertrouwen bij Joy). Alles aanpasbaar in de inspector. `EmotionHolder.SetTarget` (nieuw) laat het overvloeien.
+  Sad, Crying en Pain: Sadness; Neutral: geen dominante emotie), sterkte uit de spanning (of het vertrouwen bij Joy). Sinds
+  20.2 geen extra drempels meer (vroeger: Neutral vanaf spanning 55 Sadness, vertrouwen vanaf 70 Joy). Alles aanpasbaar in de inspector. `EmotionHolder.SetTarget` (nieuw) laat het overvloeien.
 - Het vertrouwen van de AI-server (0 tot 100) is de **reputatie** van de patiënt (`PatientReputation`, nieuw).
 - De patiënt ligt in bed: zijn ogen kijken naar het voeteneinde (`PovAnchor` > *Look At*, nieuw).
 
@@ -1185,14 +1186,14 @@ blokkeert) en het begin van de zin ging verloren. Nu:
 - Alle waarden staan in de inspector. Test: `VoiceActivityTalk.Feed` voert opgenomen geluid in zonder microfoon.
 
 **Einde op een zwart scherm** (`Scripts/AiTalk/EndingCard.cs`, `PrototypeFlow`): bij een kritieke fout of een geëscaleerd
-gesprek eindigt het niet zomaar. Na de laatste zin van de patiënt gaat het beeld naar zwart met **KRITIEKE FOUT** (rood, met
-de titel en uitleg van de fout uit het scenario, via `AiTurn.critical`, nieuw veld) of **GESPREK GEËSCALEERD** (oranje),
-6 s lang; pas dan staat de speler bij de dokter. Later (als dit scenario goed zit): doorpraten na een kritieke fout, met
+gesprek eindigt het niet zomaar. Na de laatste zin van de patiënt gaat het beeld naar zwart met **CRITICAL ERROR** (rood, met
+de titel en uitleg van de fout uit het scenario, via `AiTurn.critical`, nieuw veld) of **CONVERSATION ESCALATED** (oranje),
+6 s lang; pas dan staat de speler bij de dokter. Sinds 20.6 gaat elk einde langs een zwart scherm, in het Engels. Later (als dit scenario goed zit): doorpraten na een kritieke fout, met
 als gevolg in een volgende shift dat het vertrouwen helemaal wegvalt (keuze van Jalil, 2026-11-23).
 
-**Casus op het klembord:** pagina 1 is nu *Case*: wie de patiënt is (Mr. X, 51), waarom hij moet blijven (intraveneuze
-antibiotica, de arts beslist over ontslag), wat er vandaag speelt (de verjaardag), de taak en wat niet mag (ontslag
-beloven, "alles komt goed"). Zelfde inhoud als Liam's patiëntenkaart (`Hospital/Data/Case_1A.asset`); tekst in de
+**Casus op het klembord:** pagina *Case*: wie de patiënt is (Mr. X, 51), waarom hij moet blijven (intraveneuze
+antibiotica, de arts beslist over ontslag), wat er vandaag speelt (de verjaardag) en de taak. Sinds 20.3 komt de tekst uit het
+scenariobestand, met een GOAL-lijst en zonder de lijst van wat niet mag. Zelfde inhoud als Liam's patiëntenkaart (`Hospital/Data/Case_1A.asset`); tekst in de
 inspector (*Case Text*). Het bord aan de deur vat de situatie samen en verwijst naar het klembord. Pagina's: Case, Tasks,
 Dev.
 
@@ -1209,7 +1210,8 @@ onthouden). Elke 10 s staat in de log hoe luid de microfoon was.
 **Voortgangsbalk van het gesprek** (`Scripts/AiTalk/ConversationProgressBar.cs`): een oranje balk onderaan in het midden van
 het beeld tijdens het gesprek. Ze vult als de patiënt kalmeert (het gemiddelde van vertrouwen naar 66 en spanning naar 36: de
 voorwaarde van de laatste fase; een bereikte fase is een minimum: B2 een derde, B3 twee derde) en sneller als hij boos wordt (spanning naar 92 of vertrouwen naar 5: de escalatie). Tot 92% tot het gesprek
-echt eindigt, dan vol. De doelen staan in de inspector en moeten gelijk blijven aan het scenariobestand.
+echt eindigt, dan vol. Sinds 20.1 leest de balk de doelen uit het scenario (`meta.progress`) en sinds 20.4 is hij verborgen
+(*Show* uit): de patient view is de feedback.
 
 **Langer gesprek en escalatie** (`Tools/AiServer/scenarios/disappointed_patient.json`, data):
 - Een fase meer: B1 (teruggetrokken) naar B2 (opent zich, vertrouwen 38+) naar B3 (overweegt, vertrouwen 52+, een open
@@ -1247,3 +1249,143 @@ krijgen een `TeleportationArea`.
 spraakdetectie is enkel getest met opgenomen spraak, nog niet met de echte Quest-microfoon in een lawaaierige ruimte. De AI-scenario's en de mapping naar emoties zijn nog
 na te kijken door de inhoudsexpert.
 
+
+### 20.1 Scoring: leerbaar en langer gesprek (2026-11-23, stap 1 van de nachtrun)
+
+Nieuwe **optionele** regels in `Tools/AiServer/engine.py` (zonder het veld: het oude gedrag, getest met Liam's scenario's):
+
+| Veld | Standaard | Wat |
+| --- | --- | --- |
+| `rules.max_labels_per_turn` | geen limiet | hoogstens zoveel labels per zin; eerst kritieke, dan labels die vertrouwen kosten, dan de rest (volgorde van de classifier). Eén lange zin kan zo niet alle goede labels tegelijk scoren, en een slecht label valt nooit weg voor een goed. |
+| `phases[].min_turns` | 0 | de student blijft minstens zoveel beurten in die fase, ook als de voorwaarde al klopt (`Session.phase_turns`). |
+| `labels[].drop_if_any` | geen | het label telt niet als een van die woorden in de zin staat (zelfde woordtest als `critical_requires_any`). |
+| `labels[].upgrade_to` | geen | `{"label": ..., "if_any": [...]}`: het label wordt dat (ergere) label als een van die woorden gezegd is. Het 4B-model haalt `false_promise` en `false_discharge_promise` door elkaar. |
+
+De sleutelwoordtest van kritieke labels zit nu samen met deze filters in `Engine._filter_labels` (zelfde gedrag als voordien).
+
+De opening van `/session/start` heeft een nieuw veld **`meta`** (`Engine.scenario_meta`): `progress` (de fasen in volgorde, de
+voorwaarde van de laatste fase, de escalatie en de som van `min_turns`), `case` en `guide` (stap 3). Liam's Unity-code negeert
+het veld; `AiNpc.Meta` (nieuw) bewaart het. `ConversationProgressBar` leest zijn grenzen nu uit `meta.progress` in plaats van
+vaste getallen in de inspector (die blijven enkel als terugval voor een oudere server) en vult niet verder dan het aandeel van
+de beurten in `min_turns_total`.
+
+`disappointed_patient.json`:
+- Kleinere stappen per label (bv. `named_emotion` -6/+5, `asked_open_question` -3/+4), `max_labels_per_turn` 2 en
+  `min_turns` 3 / 4 / 3 voor B1 / B2 / B3: een goed gesprek duurt minstens 10 beurten. Voorwaarden: B1 naar B2 spanning onder
+  64 en vertrouwen 33+, B2 naar B3 spanning onder 54 en vertrouwen 45+, B3 naar END spanning onder 46 en vertrouwen 55+ met
+  een concreet voorstel in die beurt.
+- Nieuw label `gave_concrete_timeline` (-4/+5, uit `labels_common.json`) en het feit "only the doctor decides when I can go
+  home, and the doctor comes by this evening". "The doctor will be here at four o'clock" is geen valse belofte meer
+  (`false_promise` zegt nu uitdrukkelijk dat het niet over ontslag of het tijdstip van de arts gaat).
+- `false_discharge_promise` kost nu echt (spanning +10, vertrouwen -15) vóór het gesprek op een zwart scherm eindigt. De
+  sleutelwoorden zijn nauwer (geen los "go home" meer): de smoke test speelde de zin van de patiënt zelf af ("I just want to
+  stay in bed and go home") en het model gaf die het kritieke label. `false_promise` met ontslagwoorden wordt via
+  `upgrade_to` het kritieke label.
+- **Geen wandelen meer:** een kleine stap is iets in bed (rechtop zitten, iets drinken, de benen strekken onder het laken,
+  een kort telefoontje). `motivated_small_step`, `offered_alternative_connection` en `offered_support` hebben
+  `drop_if_any` met walk, walking, stroll, corridor, hallway, "get out of bed": een wandelvoorstel scoort nooit. Ook de
+  eindfase, de persona, de rubric en de feedback noemen geen wandeling meer.
+- `jargon` zegt nu dat infection, antibiotics, drip en doctor gewone woorden zijn.
+
+Getest met de echte AI (`test_conversation_length.py`, nu met verwachtingen en exitcode): het goede gesprek eindigt
+`resolved` na 10 beurten, een grove zin escaleert, een vals ontslag beëindigt het gesprek en de meters bewegen eerst, een
+wandelvoorstel scoort niet. Zonder AI: `tests/test_engine_rules.py` (nepmodel: standaardgedrag, limiet, `drop_if_any`,
+`min_turns`, alle scenario's laden).
+
+### 20.2 Eén regel voor "blij" (stap 2)
+
+De AI-server beslist de emotie; `AiPatientBridge` vertaalt die enkel (Happy naar Joy, Sad naar Sadness...). De extra regels
+in de brug (*Neutral Tension* 55: Neutral blijft Sadness; *Joy Trust* 70: vanaf vertrouwen 70 altijd Joy) zijn weg: ze lieten
+het gezicht en de kamer iets anders zeggen dan de stem. De server laat enkel emoties toe die bij de band passen (in
+`disappointed_patient` kan Happy alleen bij spanning onder 30) en nooit Happy na een zin die vertrouwen kostte: voor de acteur
+was dat er al (`Engine._lost_trust`), nu ook voor vaste zinnen (een kritieke reactie of een reservezin, `Engine._finish`). De
+reactie op een vals ontslag is niet meer "Thank you, thank you!" (Happy) maar twijfelend ("Home? For the party? Can you even
+promise me that?", Surprised). Spanning en vertrouwen bepalen enkel nog hoe sterk de emotie is.
+
+### 20.3 Leerbaar: Case en Guide op het klembord (stap 3)
+
+Optionele secties in een scenariobestand (`Tools/AiServer/scenarios/<id>.json`), als data zodat elk scenario ze kan invullen:
+- `case`: `{"title": ..., "lines": [...]}`: de briefing. Voor `disappointed_patient`: wie Mr. X is, waarom hij blijft
+  (antibiotica via een infuus, enkel de arts beslist over ontslag, ze komt vanavond), de taak en een **GOAL**-lijst met
+  richtingen (jezelf voorstellen, benoemen wat je ziet, open vragen, samenvatten, uitleggen waarom hij blijft, steun, een
+  andere manier om bij de verjaardag te zijn, een kleine stap in bed). Geen lijst meer van wat niet mag, enkel: "Only the
+  doctor can decide about discharge. Be careful with promises."
+- `guide`: `[{"when", "title", "text"}]`: tips per toestand van de patiënt. De titel zegt wat je **in de patient view** ziet
+  (regen en zwarte vloeistof, vuur, een donkere kamer, de pijl van het vertrouwen omhoog en goud, planten en zon); de
+  verpleegkundige moet dus kijken (Y) om te weten welke tip geldt. Unity kiest de tip niet zelf.
+
+De server stuurt ze in `meta` (opening) en via `GET /scenarios/{id}/meta` (nieuw, zonder sessie), zodat het klembord ze
+al in de lobby toont. `Scripts/AiTalk/ScenarioBriefing.cs` (nieuw) haalt ze op (opnieuw elke 2 s tot de server klaar is) en
+`AiTalkClient.GetScenarioMeta` (nieuw in Liam's client). `DevClipboard` toont ze op **Case** en **Guide** (nieuwe pagina,
+tekst met *auto size*); pagina's nu Case, Guide, Tasks, Dev. Het klembord ververst in `Update` zodra de briefing nieuwe meta
+heeft (een event bleek in de test niet aan te komen; navragen bij een volgende sessie). Het bord aan de deur is een korte,
+praktische samenvatting en verwijst naar Case en Guide.
+
+Liam's patiëntenkaart `Hospital/Data/Case_1A.asset`: in de beste keuze stond "a short walk together"; nu "help you sit up a
+little and get you something to drink" (enkel tekst, zijn code en andere velden zijn ongewijzigd).
+
+### 20.4 De patient view is de feedback (stap 4)
+
+In de **nurse view** staat niets meer over hoe het gesprek loopt: de oranje balk (`ConversationProgressBar`) is verborgen
+(*Show* uit; hij rekent nog wel voor de tests), de Dev-pagina van het klembord (emotie, vertrouwen, microfoon) bestaat enkel
+met *Dev Mode* aan (`DevClipboard._devMode`, standaard uit; de pagina's zijn dan Case, Guide, Tasks). Stem en gezicht van
+de patiënt blijven (dat is realistisch). Enkel de **patient view** toont de emotie-HUD, de vertrouwensmeter, de effecten in
+de kamer en de aura van de speler.
+
+Wat de laatste zin deed (`EmotionHud`, *Show Last Change*, aan in Prototype1): naast **TRUST IN YOU** een groene ▲ of rode
+▼ met het verschil (bv. "▼ -10"), en vóór het getal van de emotie van de laatste verandering een pijl omhoog of omlaag. De HUD
+onthoudt de laatste verandering ook terwijl hij verborgen is, zodat de pijl na Y meteen zegt wat de vorige zin deed. De
+pijlen komen uit de dynamische fallback-font (zonder glyph: + en -).
+
+Zichtbaar binnen enkele seconden: de vertrouwensbalk volgt in 0,6 s, de emotie vloeit in 1,5 s over en de kamer in 2 s
+(bestaande waarden). Nieuw:
+- `ReputationAura` *Edge Strength* (in Prototype1 0,35, standaard 1 = zoals voordien): een niveau is zwakker aan de rand naast
+  Neutral en sterker naarmate het vertrouwen dieper in dat niveau zit (`Depth`). Zo toont elke verandering van een paar
+  punten zich in de aura, niet enkel een sprong van niveau (de niveaus liggen 20 punten uit elkaar).
+- `AiPatientBridge` sterkte van de emotie van 0,2 tot 1 (was 0,4 tot 0,9) in Prototype1: de regen en de andere effecten
+  worden duidelijk zwaarder of lichter met de spanning.
+
+### 20.5 Tests (stap 5)
+
+- `Tools/AiServer/tests/disappointed_patient.jsonl`: 24 zinnen met de verwachte labels (`expect`, `allow`, `forbid`,
+  `unsafe`): de zin over de arts, een vals ontslag, wandelvoorstellen die niet mogen scoren, lege zinnen ("Can you hear me?"),
+  empathie, een grove zin. `tests/run_label_tests.py` speelt ze met het echte model (elke zin de eerste beurt van een nieuwe
+  sessie, dus met alle filters) en meldt welke fout zijn. Resultaat op 2026-11-23: 23/24. Fout: "Stop whining, nobody cares
+  about your stupid party." als eerste zin krijgt `dismissive` + `invalidated_feeling` in plaats van `unsafe` (wel spanning
+  +18, vertrouwen -18; in een gesprek na "Hi." herkende het model hem wel als unsafe).
+- `tests/test_engine_rules.py`: de regels zonder model (nepmodel).
+- `test_conversation_length.py`: goede, grove, vals-ontslag- en wandelgesprekken met het echte model, met verwachtingen.
+- `PlayModeSmokeTest.RunPrototype1`: nurse view zonder balk, vertrouwen of emotie (en zonder Dev-pagina); de patient view
+  toont ze, met de pijlen; Case en Guide komen uit het scenario; een getypt goed gesprek (`AiNpc.SendStudentText`, nieuw,
+  via `/turn/text`, `AiTalkClient.SendText`) eindigt `resolved` na minstens 10 beurten (in de test: 10).
+
+### 20.6 Gameloop rond één scenario (stap 6)
+
+Minimaal, met wat al bestond (Liam's U-afdeling, `PrototypeFlow`, het klembord, de dokter en zijn nabespreking, het idee van
+`ShiftStartButton`). Nieuw: `Scripts/AiTalk/AiShift.cs` en `AiShiftStartButton.cs`.
+
+1. **Lobby:** de speler start aan de balie van de lobby (Liam's `StaffStation`), het klembord in de linkerhand opent op
+   **Tasks**: "Task 1: Room 1A, Mr. X", status *Waiting* en een doel in één zin. Case en Guide (stap 3) volgen.
+2. **Start:** laser + trigger op de computer op de balie (`AiShiftStartButton`, `XRSimpleInteractable`, zelfde idee als
+   `ShiftStartButton`). Daarvoor loopt er niets: `PrototypeFlow` *Wait For Shift Start* (de patiënt praat niet, ook niet als je
+   naast hem staat; er is geen timer).
+3. **Na de start:** de taak staat op *In progress*, aan de deur van 1A hangt een oranje bord "TASK 1: Mr. X" en op de
+   plattegrond staat "TASK 1" bij kamer 1A (`WardMapAndAmbienceSetup.AddMapNote`, nieuw). Wandelen of teleporteren (bestaande
+   teleport-zones).
+4. **Gesprek:** start als de speler dicht bij de patiënt komt (zoals voordien). Y werkt zoals in stap 4.
+5. **Einde** (opgelost, geëscaleerd, kritieke fout of zelf afgerond met B): **altijd** een zwart scherm met de reden
+   (`EndingCard`): CONVERSATION FINISHED, CONVERSATION ENDED (3,5 s), CRITICAL ERROR of CONVERSATION ESCALATED (6 s). Daarna de
+   dokter en de nabespreking. De titels zijn nu Engels (voordien KRITIEKE FOUT, GESPREK GEËSCALEERD).
+6. **Na de nabespreking:** de taak wordt *Done* of *Failed* (kritieke fout, geëscaleerd) met de reden, op het klembord en in
+   een kort **SHIFT REPORT** boven het paneel van de nabespreking (taak, status, score). Twee keuzes, de knoppen van Liam's
+   paneel met een andere tekst (`AiDebriefPanel` *Retry Label* / *Done Label*, nieuw en optioneel): **Try again (A)** (nieuw
+   gesprek, taak weer *In progress*) en **Finish shift (B)** (zwart eindscherm SHIFT FINISHED met de totale score en de taken).
+7. **Data:** de taken staan in de inspector van `AiShift` (*Tasks*: scenario-id, kamer, titel, doel), één nu. De flow speelt
+   enkel de eerste taak (één patiënt): meer kamers en patiënten zijn bewust niet gebouwd (zie `LATER.md`).
+
+De score van een taak is die van de laatste poging; de totale score is de som over de taken.
+
+Test: `RunPrototype1` loopt de hele lus door: lobby, niets voor de start (ook niet naast de patiënt), start, *In progress*,
+deurbord en plattegrond, gesprek, zelf afronden (CONVERSATION ENDED, *Done*, rapport), Try again (*In progress*), een getypt
+goed gesprek (CONVERSATION FINISHED, *Done*, score), Try again, kritieke fout (CRITICAL ERROR, *Failed*), Finish shift
+(SHIFT FINISHED met de totale score).
