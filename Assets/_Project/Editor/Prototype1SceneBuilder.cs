@@ -164,7 +164,11 @@ namespace ProCommVR.Editor
             var aura = ReputationAuraSetup.AddToScene(reputation, rig.GetComponentInChildren<ProCommVR.Player.PlayerAvatar>(true));
             aura.transform.SetParent(prototype, true);
             // The clipboard on the lobby desk: a task template and the dev controls (emotion, trust slider).
-            var devClipboard = DevClipboardSetup.AddToScene(hospital, emotions, reputation, bridge, pov, rig, origin.Camera, voice);
+            // The case and the guide of the scenario, from the AI server (scenario file), for the clipboard.
+            var briefingData = new GameObject("Scenario Briefing (case, guide)").AddComponent<ScenarioBriefing>();
+            briefingData.transform.SetParent(prototype, false);
+            Set(briefingData, "_npc", npc);
+            var devClipboard = DevClipboardSetup.AddToScene(hospital, emotions, reputation, bridge, pov, rig, origin.Camera, voice, briefingData);
             devClipboard.transform.SetParent(prototype, true);
             var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).FirstOrDefault(l => l.type == LightType.Directional);
             var world = EmotionWorldSetup.AddToScene(emotions, pov, LightsReaching(room, sun, bed));
@@ -189,9 +193,10 @@ namespace ProCommVR.Editor
             signs.SetParent(prototype, false);
             // Above the open door of 1A: Liam's patient card next to the door already tells who the patient is.
             var briefing = CreateSign(signs, "Briefing Sign",
-                "<b>Prototype 1: talk to the patient in room 1A</b>\n" +
-                "Mr. X has a leg infection and must stay a few more days. He misses his granddaughter's birthday.\n" +
-                "Read the case on your clipboard (<b>X</b>). Just talk, in English.  <b>Y</b>: patient view.",
+                "<b>Room 1A: Mr. X, 51</b>\n" +
+                "Leg infection, antibiotics through a drip for a few more days. Only the doctor decides about discharge.\n" +
+                "Today he misses his granddaughter's birthday.\n" +
+                "Read <b>Case</b> and <b>Guide</b> on your clipboard. Talk in English.  <b>Y</b>: see through his eyes.",
                 DoorTop(room) + Vector3.up * 0.35f - room.forward * 0.12f, room.forward, 2.2f);
             briefing.fontSize = 0.42f;
             var talkHint = CreateSign(signs, "Talk Hint", "",

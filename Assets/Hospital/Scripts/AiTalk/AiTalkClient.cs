@@ -33,6 +33,28 @@ namespace ProCommVR.Hospital.AiTalk
         private string Url(string path) => _settings.serverUrl.TrimEnd('/') + path;
         private int Timeout => Mathf.CeilToInt(_settings.requestTimeoutSeconds);
 
+        /// <summary>
+        /// Case, guide en grenzen van het scenario (GET /scenarios/{id}/meta), zonder sessie: voor de briefing in de lobby.
+        /// Null bij een fout (bv. de server draait nog niet).
+        /// </summary>
+        public async Awaitable<AiScenarioMeta> GetScenarioMeta()
+        {
+            using var request = UnityWebRequest.Get(Url($"/scenarios/{_scenarioId}/meta"));
+            request.timeout = Timeout;
+            var (ok, _) = await Send(request);
+            if (!ok)
+                return null;
+            try
+            {
+                return JsonUtility.FromJson<AiScenarioMeta>(request.downloadHandler.text);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"{LogPrefix}JSON van /scenarios/{_scenarioId}/meta onleesbaar: {e.Message}");
+                return null;
+            }
+        }
+
         /// <summary>Start een sessie. Geeft de openingszin terug, of een lokaal antwoord bij een fout.</summary>
         public async Awaitable<AiTurn> StartSession()
         {

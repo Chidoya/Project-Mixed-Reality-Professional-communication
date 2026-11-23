@@ -207,18 +207,30 @@ namespace ProCommVR.Editor.Testing
                     yield return holder.BlendSeconds + 0.3f;
                     Check(holder.Dominant == Emotion.Fear && Mathf.Approximately(reputation.Value, 85f) && bridge.HoldEmotions && bridge.HoldTrust,
                         $"the dev clipboard sets Fear and trust 85 ({holder.Current}, {reputation.Value})");
-                    Check(clipboard.Page == 0, $"the clipboard starts on the case page ({clipboard.Page})");
+                    Check(clipboard.Page == 0 && clipboard.PageName(0) == "Case", $"the clipboard starts on the case page ({clipboard.Page})");
+                    // The case and the guide come from the scenario file (via the AI server), not from Unity.
+                    Check(clipboard.CaseText.Contains("GOAL") && clipboard.CaseText.Contains("Be careful with promises")
+                          && !clipboard.CaseText.Contains("Do not:"),
+                        $"the case page is a briefing with a goal list and a subtle warning, without a list of what is not allowed ({clipboard.CaseText})");
+                    Check(!System.Text.RegularExpressions.Regex.IsMatch(clipboard.CaseText + clipboard.GuideText, "walk|stroll|corridor",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase), "the case and the guide never mention walking");
                     ClipboardShot(clipboard, "prototype1-clipboard-case");
                     clipboard.NextPage();
                     yield return null;
-                    Check(clipboard.Page == 1, $"> shows the tasks page ({clipboard.Page})");
+                    Check(clipboard.Page == 1 && clipboard.PageName(1) == "Guide", $"> shows the guide page ({clipboard.Page})");
+                    Check(clipboard.GuideText.Contains("Rain") && clipboard.GuideText.Contains("Fire") && clipboard.GuideText.Contains("Plants"),
+                        $"the guide gives hints per patient state, with what to look for in the patient view ({clipboard.GuideText})");
+                    ClipboardShot(clipboard, "prototype1-clipboard-guide");
+                    clipboard.NextPage();
+                    yield return null;
+                    Check(clipboard.Page == 2, $"> shows the tasks page ({clipboard.Page})");
                     ClipboardShot(clipboard, "prototype1-clipboard-tasks");
                     clipboard.NextPage();
                     yield return null;
-                    Check(clipboard.Page == 2, $"> shows the dev page ({clipboard.Page})");
+                    Check(clipboard.Page == 3, $"> shows the dev page ({clipboard.Page})");
                     ClipboardShot(clipboard, "prototype1-clipboard-dev");
                     clipboard.NextPage();
-                    Check(clipboard.Page == 0, $"the clipboard has 3 pages ({clipboard.Page})");
+                    Check(clipboard.Page == 0 && clipboard.PageCount == 4, $"the clipboard has 4 pages ({clipboard.PageCount})");
                     clipboard.LetAiDrive();
                     Check(!bridge.HoldEmotions && !bridge.HoldTrust, "AI drives again");
                     clipboard.Take();

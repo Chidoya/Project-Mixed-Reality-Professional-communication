@@ -1299,3 +1299,25 @@ het gezicht en de kamer iets anders zeggen dan de stem. De server laat enkel emo
 was dat er al (`Engine._lost_trust`), nu ook voor vaste zinnen (een kritieke reactie of een reservezin, `Engine._finish`). De
 reactie op een vals ontslag is niet meer "Thank you, thank you!" (Happy) maar twijfelend ("Home? For the party? Can you even
 promise me that?", Surprised). Spanning en vertrouwen bepalen enkel nog hoe sterk de emotie is.
+
+### 20.3 Leerbaar: Case en Guide op het klembord (stap 3)
+
+Optionele secties in een scenariobestand (`Tools/AiServer/scenarios/<id>.json`), als data zodat elk scenario ze kan invullen:
+- `case`: `{"title": ..., "lines": [...]}`: de briefing. Voor `disappointed_patient`: wie Mr. X is, waarom hij blijft
+  (antibiotica via een infuus, enkel de arts beslist over ontslag, ze komt vanavond), de taak en een **GOAL**-lijst met
+  richtingen (jezelf voorstellen, benoemen wat je ziet, open vragen, samenvatten, uitleggen waarom hij blijft, steun, een
+  andere manier om bij de verjaardag te zijn, een kleine stap in bed). Geen lijst meer van wat niet mag, enkel: "Only the
+  doctor can decide about discharge. Be careful with promises."
+- `guide`: `[{"when", "title", "text"}]`: tips per toestand van de patiënt. De titel zegt wat je **in de patient view** ziet
+  (regen en zwarte vloeistof, vuur, een donkere kamer, de pijl van het vertrouwen omhoog en goud, planten en zon); de
+  verpleegkundige moet dus kijken (Y) om te weten welke tip geldt. Unity kiest de tip niet zelf.
+
+De server stuurt ze in `meta` (opening) en via `GET /scenarios/{id}/meta` (nieuw, zonder sessie), zodat het klembord ze
+al in de lobby toont. `Scripts/AiTalk/ScenarioBriefing.cs` (nieuw) haalt ze op (opnieuw elke 2 s tot de server klaar is) en
+`AiTalkClient.GetScenarioMeta` (nieuw in Liam's client). `DevClipboard` toont ze op **Case** en **Guide** (nieuwe pagina,
+tekst met *auto size*); pagina's nu Case, Guide, Tasks, Dev. Het klembord ververst in `Update` zodra de briefing nieuwe meta
+heeft (een event bleek in de test niet aan te komen; navragen bij een volgende sessie). Het bord aan de deur is een korte,
+praktische samenvatting en verwijst naar Case en Guide.
+
+Liam's patiëntenkaart `Hospital/Data/Case_1A.asset`: in de beste keuze stond "a short walk together"; nu "help you sit up a
+little and get you something to drink" (enkel tekst, zijn code en andere velden zijn ongewijzigd).

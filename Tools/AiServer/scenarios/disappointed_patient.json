@@ -47,6 +47,54 @@
   },
   "time_limit_seconds": 0,
   "time_up_line": "",
+  "case": {
+    "title": "CASE: ROOM 1A",
+    "lines": [
+      "<b>Patient:</b> Mr. X, 51, lies in bed in room 1A.",
+      "<b>Why he stays:</b> a leg infection that needs antibiotics through a drip for a few more days. Only the doctor decides when he can go home. She comes by this evening.",
+      "<b>Today:</b> his granddaughter's birthday. He cannot be there, feels useless and wants to stay in bed.",
+      "<b>Your task:</b> talk with him at his bedside and help him find a little courage.",
+      "",
+      "<b>GOAL: what a good nurse does</b>",
+      "- Introduce yourself: who you are and why you came.",
+      "- Say what you see in him: sad? disappointed?",
+      "- Ask open questions about what matters to him today.",
+      "- Summarize what you heard, so he knows you listened.",
+      "- Explain simply and honestly why he still has to stay.",
+      "- Let him know you are there for him.",
+      "- Think of another way to be part of the birthday (a call? a photo?).",
+      "- Suggest one small thing he can do in bed (sit up? a drink?).",
+      "",
+      "<i>Only the doctor can decide about discharge. Be careful with promises.</i>"
+    ]
+  },
+  "guide": [
+    {
+      "when": "sad_low_trust",
+      "title": "Rain in his room, dark liquid around you",
+      "text": "He is sad and trusts you little. Slow down. Name the feeling you see before anything else, and give him time to answer."
+    },
+    {
+      "when": "angry",
+      "title": "Fire in his room",
+      "text": "He is angry. Do not argue or explain yet. Say that you notice he is upset and that it makes sense."
+    },
+    {
+      "when": "afraid",
+      "title": "His room goes dark",
+      "text": "He is worried or afraid. Use a calm voice. Explain what is happening and what comes next."
+    },
+    {
+      "when": "trust_rising",
+      "title": "The trust arrow goes up, gold around you",
+      "text": "He starts to trust you. Now you can explain why he has to stay, and offer one small step in bed."
+    },
+    {
+      "when": "joy",
+      "title": "Plants and sunlight in his room",
+      "text": "He feels a bit better. A good moment to suggest another way to be part of the birthday."
+    }
+  ],
   "facts": [
     {
       "text": "I have an infection in my leg and I have to stay a few more days",

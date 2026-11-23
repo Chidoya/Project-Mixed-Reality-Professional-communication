@@ -58,6 +58,11 @@ def main() -> None:
         check(bool(meta.get("progress", {}).get("phases")), f"{path.stem} loads and sends meta.progress")
         check(isinstance(meta.get("guide"), list) and "case" in meta, f"{path.stem} sends meta.case and meta.guide")
 
+    meta = Engine.scenario_meta(eng.scenario("disappointed_patient"))
+    check("GOAL" in meta["case"]["text"] and "promises" in meta["case"]["text"], "disappointed_patient has a case with a goal list")
+    check(len(meta["guide"]) >= 5 and all(g["title"] and g["text"] for g in meta["guide"]), "disappointed_patient has 5 guide hints")
+    check(Engine.scenario_meta(eng.scenario("angry_daughter"))["case"]["text"] == "", "a scenario without a case sends an empty one")
+
     # 2. defaults: Liam's angry_daughter has no max_labels_per_turn and no min_turns
     sc = eng.scenario("angry_daughter")
     check("max_labels_per_turn" not in sc.rules and all("min_turns" not in p for p in sc.phases),
