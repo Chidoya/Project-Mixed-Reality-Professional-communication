@@ -1247,3 +1247,45 @@ krijgen een `TeleportationArea`.
 spraakdetectie is enkel getest met opgenomen spraak, nog niet met de echte Quest-microfoon in een lawaaierige ruimte. De AI-scenario's en de mapping naar emoties zijn nog
 na te kijken door de inhoudsexpert.
 
+
+### 20.1 Scoring: leerbaar en langer gesprek (2026-11-23, stap 1 van de nachtrun)
+
+Nieuwe **optionele** regels in `Tools/AiServer/engine.py` (zonder het veld: het oude gedrag, getest met Liam's scenario's):
+
+| Veld | Standaard | Wat |
+| --- | --- | --- |
+| `rules.max_labels_per_turn` | geen limiet | hoogstens zoveel labels per zin; eerst kritieke, dan labels die vertrouwen kosten, dan de rest (volgorde van de classifier). Eén lange zin kan zo niet alle goede labels tegelijk scoren, en een slecht label valt nooit weg voor een goed. |
+| `phases[].min_turns` | 0 | de student blijft minstens zoveel beurten in die fase, ook als de voorwaarde al klopt (`Session.phase_turns`). |
+| `labels[].drop_if_any` | geen | het label telt niet als een van die woorden in de zin staat (zelfde woordtest als `critical_requires_any`). |
+| `labels[].upgrade_to` | geen | `{"label": ..., "if_any": [...]}`: het label wordt dat (ergere) label als een van die woorden gezegd is. Het 4B-model haalt `false_promise` en `false_discharge_promise` door elkaar. |
+
+De sleutelwoordtest van kritieke labels zit nu samen met deze filters in `Engine._filter_labels` (zelfde gedrag als voordien).
+
+De opening van `/session/start` heeft een nieuw veld **`meta`** (`Engine.scenario_meta`): `progress` (de fasen in volgorde, de
+voorwaarde van de laatste fase, de escalatie en de som van `min_turns`), `case` en `guide` (stap 3). Liam's Unity-code negeert
+het veld; `AiNpc.Meta` (nieuw) bewaart het. `ConversationProgressBar` leest zijn grenzen nu uit `meta.progress` in plaats van
+vaste getallen in de inspector (die blijven enkel als terugval voor een oudere server) en vult niet verder dan het aandeel van
+de beurten in `min_turns_total`.
+
+`disappointed_patient.json`:
+- Kleinere stappen per label (bv. `named_emotion` -6/+5, `asked_open_question` -3/+4), `max_labels_per_turn` 2 en
+  `min_turns` 3 / 4 / 3 voor B1 / B2 / B3: een goed gesprek duurt minstens 10 beurten. Voorwaarden: B1 naar B2 spanning onder
+  64 en vertrouwen 33+, B2 naar B3 spanning onder 54 en vertrouwen 45+, B3 naar END spanning onder 46 en vertrouwen 55+ met
+  een concreet voorstel in die beurt.
+- Nieuw label `gave_concrete_timeline` (-4/+5, uit `labels_common.json`) en het feit "only the doctor decides when I can go
+  home, and the doctor comes by this evening". "The doctor will be here at four o'clock" is geen valse belofte meer
+  (`false_promise` zegt nu uitdrukkelijk dat het niet over ontslag of het tijdstip van de arts gaat).
+- `false_discharge_promise` kost nu echt (spanning +10, vertrouwen -15) vóór het gesprek op een zwart scherm eindigt. De
+  sleutelwoorden zijn nauwer (geen los "go home" meer): de smoke test speelde de zin van de patiënt zelf af ("I just want to
+  stay in bed and go home") en het model gaf die het kritieke label. `false_promise` met ontslagwoorden wordt via
+  `upgrade_to` het kritieke label.
+- **Geen wandelen meer:** een kleine stap is iets in bed (rechtop zitten, iets drinken, de benen strekken onder het laken,
+  een kort telefoontje). `motivated_small_step`, `offered_alternative_connection` en `offered_support` hebben
+  `drop_if_any` met walk, walking, stroll, corridor, hallway, "get out of bed": een wandelvoorstel scoort nooit. Ook de
+  eindfase, de persona, de rubric en de feedback noemen geen wandeling meer.
+- `jargon` zegt nu dat infection, antibiotics, drip en doctor gewone woorden zijn.
+
+Getest met de echte AI (`test_conversation_length.py`, nu met verwachtingen en exitcode): het goede gesprek eindigt
+`resolved` na 10 beurten, een grove zin escaleert, een vals ontslag beëindigt het gesprek en de meters bewegen eerst, een
+wandelvoorstel scoort niet. Zonder AI: `tests/test_engine_rules.py` (nepmodel: standaardgedrag, limiet, `drop_if_any`,
+`min_turns`, alle scenario's laden).

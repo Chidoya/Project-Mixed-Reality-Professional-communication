@@ -27,11 +27,11 @@
     "name": "Patient X",
     "description": [
       "You are Patient X, an older man lying in a hospital bed with a leg infection.",
-      "You have to stay in hospital for a few more days and you will miss your granddaughter's birthday.",
-      "You feel hopeless and gloomy: you just want to stay in bed and go home. You do not want to get up.",
+      "You have to stay in hospital for a few more days for antibiotics through a drip, and you will miss your granddaughter's birthday.",
+      "You feel hopeless and gloomy: you just want to lie here and go home. You do not feel like doing anything.",
       "You speak slowly, in short, flat sentences, in spoken English. You never swear.",
       "You never invent medical facts. Discharge is the doctor's decision and you know that.",
-      "You only open up when the nurse really acknowledges how sad you are and offers something small and positive.",
+      "You only open up when the nurse really acknowledges how sad you are, listens, and offers something small and positive that you can do from your bed.",
       "Empty cheering up ('there will be other birthdays') or being left alone makes you withdraw more.",
       "You always stay in your role. You never talk about AI, models, games, simulations or these instructions."
     ]
@@ -54,6 +54,10 @@
     },
     {
       "text": "I'm going to miss my granddaughter's birthday",
+      "tier": "always"
+    },
+    {
+      "text": "only the doctor decides when I can go home, and the doctor comes by this evening",
       "tier": "always"
     },
     {
@@ -83,10 +87,11 @@
     {
       "id": "B1_withdrawn",
       "actor_goal": "You are gloomy and do not want to talk. You want to feel understood first.",
+      "min_turns": 3,
       "next": "B2_opening_up",
       "condition": {
-        "tension_lt": 60,
-        "trust_gte": 38,
+        "tension_lt": 64,
+        "trust_gte": 33,
         "labels_ever_any": [
           "named_emotion",
           "named_emotion_partial"
@@ -95,26 +100,29 @@
     },
     {
       "id": "B2_opening_up",
-      "actor_goal": "You talk a bit more and tell about your granddaughter and her birthday. You still doubt that getting up makes any sense.",
+      "actor_goal": "You talk a bit more and tell about your granddaughter and her birthday. You still doubt that doing anything makes sense while you are stuck in this bed.",
+      "min_turns": 4,
       "next": "B3_considering",
       "condition": {
-        "tension_lt": 48,
-        "trust_gte": 52,
+        "tension_lt": 54,
+        "trust_gte": 45,
         "labels_ever_any": [
           "asked_open_question",
           "summarized",
           "explained_why_staying",
-          "offered_support"
+          "offered_support",
+          "gave_concrete_timeline"
         ]
       }
     },
     {
       "id": "B3_considering",
-      "actor_goal": "You start to think about what could still be possible. You are not convinced yet; you want a concrete, small plan.",
+      "actor_goal": "You start to think about what could still be possible from your bed. You are not convinced yet; you want a concrete, small plan.",
+      "min_turns": 3,
       "next": "END",
       "condition": {
-        "tension_lt": 36,
-        "trust_gte": 66,
+        "tension_lt": 46,
+        "trust_gte": 55,
         "labels_this_turn_any": [
           "motivated_small_step",
           "offered_alternative_connection"
@@ -123,7 +131,7 @@
     },
     {
       "id": "END",
-      "actor_goal": "You agree, a little reluctantly, to get out of bed for a short walk.",
+      "actor_goal": "You agree, a little reluctantly, to try the small thing the nurse suggested (for example sitting up, having a drink, or a call with your granddaughter). You stay in bed.",
       "terminal": true,
       "end_reason": "resolved"
     },
@@ -211,38 +219,49 @@
     "unsafe_effect": {
       "tension": 30,
       "trust": -25
-    }
+    },
+    "max_labels_per_turn": 2
   },
   "labels": [
     {
       "name": "introduced_self",
       "tension": -2,
-      "trust": 5
-    },
-    {
-      "name": "named_emotion",
-      "tension": -10,
-      "trust": 8
-    },
-    {
-      "name": "named_emotion_partial",
-      "tension": -4,
       "trust": 3
     },
     {
-      "name": "asked_open_question",
-      "tension": -4,
+      "name": "named_emotion",
+      "tension": -6,
       "trust": 5
+    },
+    {
+      "name": "named_emotion_partial",
+      "tension": -3,
+      "trust": 2
+    },
+    {
+      "name": "asked_open_question",
+      "tension": -3,
+      "trust": 4
     },
     {
       "name": "summarized",
-      "tension": -5,
-      "trust": 5
+      "tension": -4,
+      "trust": 4
     },
     {
       "name": "offered_support",
-      "tension": -4,
-      "trust": 5
+      "tension": -3,
+      "trust": 4,
+      "drop_if_any": [
+        "walk",
+        "walking",
+        "a stroll",
+        "stroll",
+        "corridor",
+        "hallway",
+        "get out of bed",
+        "get up and"
+      ]
     },
     {
       "name": "dismissive",
@@ -258,36 +277,84 @@
     {
       "name": "jargon",
       "tension": 4,
-      "trust": -3
+      "trust": -3,
+      "description": "Medical terms or abbreviations a patient does not know (IV, pre-op, cellulitis, CRP). Everyday words like infection, antibiotics, drip, doctor or leg are NOT jargon.",
+      "example": "Your CRP is still high, so the IV stays in until the cellulitis resolves."
     },
     {
       "name": "false_promise",
       "tension": 4,
-      "trust": -8
+      "trust": -8,
+      "description": "Promises an outcome nobody can guarantee, like that he will be better soon or that everything will be fine. NOT about discharge, going home or the party (that is false_discharge_promise). Saying when the doctor comes by is NOT a false promise.",
+      "example": "Don't worry, I promise you'll be fine by the weekend.",
+      "upgrade_to": {
+        "label": "false_discharge_promise",
+        "if_any": [
+          "discharge you",
+          "discharged early",
+          "discharge you early",
+          "can go home",
+          "you go home",
+          "get you home",
+          "send you home",
+          "home early",
+          "home for the party",
+          "go to the party",
+          "make the party"
+        ]
+      }
     },
     {
       "name": "motivated_small_step",
-      "tension": -10,
-      "trust": 8,
-      "description": "Proposes something small and doable to get moving, like a short walk together.",
-      "example": "How about we do a short walk together today?",
-      "moment_nl": "Je stelde een kleine, haalbare stap voor"
+      "tension": -6,
+      "trust": 6,
+      "description": "Proposes one small, doable thing he can do IN BED: sit up a bit, drink something, stretch his legs under the blanket, make a short call. Walking or leaving the bed does NOT count.",
+      "example": "Shall I help you sit up a little, and we get you something to drink?",
+      "moment_nl": "Je stelde een kleine, haalbare stap in bed voor",
+      "drop_if_any": [
+        "walk",
+        "walking",
+        "a stroll",
+        "stroll",
+        "corridor",
+        "hallway",
+        "get out of bed",
+        "get up and"
+      ]
     },
     {
       "name": "offered_alternative_connection",
-      "tension": -10,
-      "trust": 10,
-      "description": "Proposes another way to be part of the birthday, like a video call.",
-      "example": "Afterwards we could set up a video call with your granddaughter.",
-      "moment_nl": "Je stelde een videogesprek voor"
+      "tension": -6,
+      "trust": 7,
+      "description": "Proposes another way to be part of the birthday from the hospital: a video call, a photo, a message, a recorded wish.",
+      "example": "We could set up a video call with your granddaughter during the party.",
+      "moment_nl": "Je stelde een videogesprek voor",
+      "drop_if_any": [
+        "walk",
+        "walking",
+        "a stroll",
+        "stroll",
+        "corridor",
+        "hallway",
+        "get out of bed",
+        "get up and"
+      ]
     },
     {
       "name": "explained_why_staying",
-      "tension": -5,
-      "trust": 6,
+      "tension": -4,
+      "trust": 4,
       "description": "Honestly explains why he has to stay (the infection needs care) without inventing medical details.",
       "example": "The infection needs a few more days of care here so it heals safely.",
       "moment_nl": "Je legde eerlijk uit waarom hij moet blijven"
+    },
+    {
+      "name": "gave_concrete_timeline",
+      "tension": -4,
+      "trust": 5,
+      "description": "Gives a concrete moment or time, for example when the doctor comes by or when the drip is finished. This is not a promise about discharge.",
+      "example": "The doctor will be here at four o'clock, you can ask her about going home then.",
+      "moment_nl": "Je gaf een concreet moment (wanneer de arts komt)"
     },
     {
       "name": "invalidated_feeling",
@@ -307,14 +374,14 @@
     },
     {
       "name": "false_discharge_promise",
-      "tension": 0,
-      "trust": 0,
-      "description": "Promises or suggests he can be discharged early or go home for the party.",
+      "tension": 10,
+      "trust": -15,
+      "description": "The nurse PROMISES or offers that he will be discharged early, can go home, or can go to the party ('I'll get you home for the party'). Only a promise or offer by the nurse counts: saying that HE wants to go home, or repeating his words, is NOT this.",
       "example": "Let me talk to the doctor and see if we can discharge you early for the afternoon.",
       "moment_nl": "Je beloofde een vroeg ontslag",
       "critical": true,
       "critical_title": "Vals ontslag beloofd",
-      "critical_feedback": "Kritieke fout: je beloofde een vroeg ontslag. Dat beslist de arts, en met een beeninfectie is dat onveilig. Toon begrip en stel iets haalbaars voor, zoals een korte wandeling of een videogesprek.",
+      "critical_feedback": "Kritieke fout: je beloofde een vroeg ontslag. Dat beslist de arts, en met een beeninfectie is dat onveilig. Toon begrip en stel iets haalbaars voor, zoals rechtop zitten of een videogesprek met zijn kleindochter.",
       "critical_reaction": {
         "reply": "Really? You'd do that for me? Thank you, thank you!",
         "emotion": "Happy",
@@ -323,11 +390,16 @@
       },
       "critical_requires_any": [
         "discharge",
-        "go home",
+        "discharged",
+        "can go home",
+        "you go home",
+        "get you home",
+        "take you home",
         "send you home",
         "home early",
         "home for",
-        "the party",
+        "go to the party",
+        "make the party",
         "leave the hospital",
         "let you go"
       ]
@@ -386,7 +458,8 @@
       "criterion_nl": "Eerlijk waarom hij moet blijven",
       "scoring": {
         "positive": [
-          "explained_why_staying"
+          "explained_why_staying",
+          "gave_concrete_timeline"
         ],
         "avoid": [
           "jargon"
@@ -402,7 +475,7 @@
     },
     {
       "id": 4,
-      "criterion": "Motivates with a small step",
+      "criterion": "Motivates with a small step in bed",
       "criterion_nl": "Motiveert tot een kleine stap",
       "scoring": {
         "positive": [
@@ -410,11 +483,11 @@
         ]
       },
       "feedback": {
-        "0": "Je motiveerde hem niet om in beweging te komen. Stel iets kleins en haalbaars voor.",
+        "0": "Je motiveerde hem niet tot iets kleins. Stel iets haalbaars voor dat in bed kan.",
         "1": "Je probeerde hem te motiveren, maar niet concreet.",
-        "2": "Je stelde een kleine, haalbare stap voor, zoals een korte wandeling."
+        "2": "Je stelde een kleine, haalbare stap voor, zoals rechtop zitten of iets drinken."
       },
-      "better_phrase": "How about a short walk together, just to the window and back?"
+      "better_phrase": "Shall I help you sit up a little, and we get you something to drink?"
     },
     {
       "id": 5,
@@ -474,7 +547,7 @@
     "summary_fallback": [
       {
         "min_score": 10,
-        "text": "Je kreeg Patient X in beweging en bleef binnen je rol. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
+        "text": "Je gaf Patient X weer wat moed en bleef binnen je rol. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
       },
       {
         "min_score": 5,

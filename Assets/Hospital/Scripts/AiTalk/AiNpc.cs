@@ -81,6 +81,8 @@ namespace ProCommVR.Hospital.AiTalk
         public string Band { get; private set; } = "";
         public string Phase { get; private set; } = "";
         public AiTurn LastTurn { get; private set; }
+        /// <summary>Case, guide en grenzen van het scenario (uit de opening); null voor de start of zonder server.</summary>
+        public AiScenarioMeta Meta { get; private set; }
         public AiTalkSettings Settings => _settings;
         public string EndReason { get; private set; }
         /// <summary>Seconden sinds de openingszin (0 voor de start).</summary>
@@ -182,6 +184,7 @@ namespace ProCommVR.Hospital.AiTalk
                 _timeLimit = opening.time_limit_seconds;
                 // Rusthouding uit het scenario (bv. Laying in bed, Sitting op een stoel), standaard Idle
                 _restState = string.IsNullOrEmpty(opening.rest_animation) ? "Idle" : opening.rest_animation;
+                Meta = opening.meta;
                 _conversationStart = Time.time;
             }
             Apply(opening);
