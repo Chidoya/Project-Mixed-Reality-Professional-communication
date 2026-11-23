@@ -196,6 +196,13 @@ namespace ProCommVR.Hospital.AiTalk
     }
 
     [Serializable]
+    internal class AiTextRequest
+    {
+        public string session_id;
+        public string text;
+    }
+
+    [Serializable]
     internal class AiStartRequest
     {
         public string scenario_id;

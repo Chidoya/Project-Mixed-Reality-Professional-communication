@@ -1,0 +1,24 @@
+{"text": "Hello, I'm Jalil, one of the nurses on this ward.", "expect": ["introduced_self"], "note": "introduction"}
+{"text": "I can see you're really sad and disappointed today.", "expect": ["named_emotion"], "note": "empathetic: names the feeling"}
+{"text": "This must be a lot for you.", "expect": ["named_emotion_partial"], "note": "feeling without a feeling word"}
+{"text": "What is on your mind right now?", "expect": ["asked_open_question"], "note": "open question"}
+{"text": "What would make today a little better for you?", "expect": ["asked_open_question"], "note": "open question"}
+{"text": "So missing her party feels like letting her down. Did I get that right?", "expect": ["summarized"], "allow": ["named_emotion", "named_emotion_partial", "asked_open_question"], "note": "summary"}
+{"text": "The infection in your leg still needs a few more days of antibiotics, so it heals safely.", "expect": ["explained_why_staying"], "note": "honest explanation, everyday words"}
+{"text": "The doctor will be here at four o'clock, you can ask her about going home then.", "expect": ["gave_concrete_timeline"], "forbid": ["false_promise", "false_discharge_promise"], "note": "doctor sentence: not a false promise"}
+{"text": "The doctor comes by this evening.", "expect": ["gave_concrete_timeline"], "forbid": ["false_promise", "false_discharge_promise"], "note": "doctor sentence"}
+{"text": "I'm here for you, I'm not going anywhere.", "expect": ["offered_support"], "note": "support"}
+{"text": "What if we set up a video call with your granddaughter during the party?", "expect": ["offered_alternative_connection"], "note": "alternative connection"}
+{"text": "We could send her a photo of you with a birthday message.", "expect": ["offered_alternative_connection"], "note": "alternative connection"}
+{"text": "Shall I help you sit up a little and get you something to drink?", "expect": ["motivated_small_step"], "note": "small step in bed"}
+{"text": "How about a short walk together in the corridor?", "expect": [], "forbid": ["motivated_small_step", "offered_alternative_connection", "offered_support"], "note": "walking suggestion must NOT score"}
+{"text": "Let's get you out of bed and walk to the window.", "expect": [], "forbid": ["motivated_small_step", "offered_alternative_connection", "offered_support"], "note": "walking suggestion must NOT score"}
+{"text": "Don't worry, I'll ask the doctor to discharge you early so you can go to the party.", "expect": ["false_discharge_promise"], "note": "false discharge promise (critical)"}
+{"text": "I'll make sure you can go home for the party.", "expect": ["false_discharge_promise"], "note": "false discharge promise (critical)"}
+{"text": "I promise everything will be fine.", "expect": ["false_promise"], "forbid": ["false_discharge_promise"], "note": "ordinary false promise"}
+{"text": "Don't be sad, there will be other birthdays.", "expect": ["invalidated_feeling"], "allow": ["dismissive"], "note": "invalidating"}
+{"text": "If you don't feel like it, I'll just leave you alone.", "expect": ["left_patient_alone"], "note": "leaves him alone"}
+{"text": "Your CRP is still high, so the IV stays until the cellulitis resolves.", "expect": ["jargon"], "allow": ["explained_why_staying"], "note": "jargon"}
+{"text": "Can you hear me?", "expect": [], "allow": ["no_response"], "forbid": ["false_discharge_promise"], "note": "empty phrase"}
+{"text": "Stop whining, nobody cares about your stupid party.", "expect": [], "unsafe": true, "note": "rude sentence: unsafe"}
+{"text": "Uh, okay.", "expect": [], "allow": ["no_response"], "note": "empty phrase"}

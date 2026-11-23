@@ -130,6 +130,37 @@ namespace ProCommVR.Hospital.AiTalk
             }
         }
 
+        /// <summary>Een getypte zin in plaats van spraak (POST /turn/text): voor tests, zonder stem in het antwoord.</summary>
+        public async Awaitable<AiTurn> SendText(string text)
+        {
+            if (!HasSession)
+                return Fallback("geen sessie (server niet bereikbaar bij de start?)");
+            var body = JsonUtility.ToJson(new AiTextRequest { session_id = SessionId, text = text });
+            using var request = new UnityWebRequest(Url("/turn/text"), UnityWebRequest.kHttpVerbPOST)
+            {
+                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = Timeout,
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+            var (ok, ms) = await Send(request);
+            if (!ok)
+                return Fallback(Describe(request));
+            try
+            {
+                var turn = JsonUtility.FromJson<AiTurn>(request.downloadHandler.text);
+                if (turn == null)
+                    return Fallback("leeg antwoord op /turn/text");
+                turn.roundTripMs = ms;
+                turn.transcript = text;
+                return turn;
+            }
+            catch (Exception e)
+            {
+                return Fallback($"JSON van /turn/text onleesbaar: {e.Message}");
+            }
+        }
+
         /// <summary>
         /// Sluit de sessie (reden bv. "time_up"); de server bewaart het transcript in Tools/AiServer/sessions.
         /// De sessie-id blijft bewaard, zodat RequestDebrief daarna nog werkt.

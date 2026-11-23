@@ -352,6 +352,24 @@ namespace ProCommVR.Editor.Testing
             while (npc.IsSpeaking || npc.Busy)
                 yield return null;
 
+            // A good conversation, typed (same lines as Tools/AiServer/test_conversation_length.py): it lasts at least
+            // 10 turns before the patient agrees, then the player goes to the doctor.
+            foreach (var step in GoodTextConversation(npc))
+                yield return step;
+            doctorWait = EditorApplication.timeSinceStartup + 60f;
+            while (flow.Current != PrototypeFlow.Stage.Debrief && EditorApplication.timeSinceStartup < doctorWait)
+                yield return null;
+            Check(flow.Current == PrototypeFlow.Stage.Debrief, $"after the resolved conversation the player is at the doctor ({flow.Current})");
+            debriefWait = EditorApplication.timeSinceStartup + 90f;
+            while (debrief.State == AiDebriefPanel.PanelState.Waiting && EditorApplication.timeSinceStartup < debriefWait)
+                yield return null;
+            debrief.Retry();
+            retryWait = EditorApplication.timeSinceStartup + 60f;
+            while ((flow.Current != PrototypeFlow.Stage.Talking || !bridge.IsPlaying) && EditorApplication.timeSinceStartup < retryWait)
+                yield return null;
+            while (npc.IsSpeaking || npc.Busy)
+                yield return null;
+
             // A critical error: a black screen with "KRITIEKE FOUT", then the doctor (and Done ends the prototype).
             npc.EndNow("critical_error");
             var cardSeen = false;
@@ -376,6 +394,56 @@ namespace ProCommVR.Editor.Testing
             debrief.Done();
             yield return 0.5f;
             Check(flow.Current == PrototypeFlow.Stage.Finished, $"Done ends the prototype ({flow.Current})");
+        }
+
+        internal static readonly string[] GoodLines =
+        {
+            "Hello, I'm Jalil, one of the nurses on this ward. How are you feeling today?",
+            "I can see you're really sad and disappointed. That must be hard.",
+            "It sounds like today hurts a lot. What is on your mind?",
+            "What is it about the birthday that matters most to you?",
+            "So missing her party feels like letting her down. Did I get that right?",
+            "You have to stay because the infection in your leg still needs the antibiotics through the drip. Only the doctor decides about going home.",
+            "The doctor comes by this evening, you can ask her about it then.",
+            "I'm here for you. We'll find something that helps you today.",
+            "What if we set up a video call with your granddaughter during the party?",
+            "And shall I help you sit up a little, so you're ready for the call?",
+            "We could also get you something to drink first. How does that sound?",
+            "Then let's do it: I help you sit up and we call her this afternoon.",
+            "Great. I'll bring the tablet and we'll call her together.",
+            "I'm glad you want to try. Shall we sit you up now?",
+            "Okay, I'll help you sit up and then we call her.",
+            "Here we go, slowly. Tell me if it hurts.",
+        };
+
+        /// <summary>
+        /// Types the good lines one by one (AiNpc.SendStudentText) until the AI server ends the conversation. Checks that
+        /// it does not end before turn 10 and that it ends resolved.
+        /// </summary>
+        private static IEnumerable GoodTextConversation(AiNpc npc)
+        {
+            var turns = 0;
+            foreach (var line in GoodLines)
+            {
+                if (npc.HasEnded)
+                    break;
+                var waitIdle = EditorApplication.timeSinceStartup + 120f;
+                while ((npc.Busy || npc.IsSpeaking) && EditorApplication.timeSinceStartup < waitIdle)
+                    yield return null;
+                var task = npc.SendStudentText(line);
+                var replyWait = EditorApplication.timeSinceStartup + 120f;
+                while (!task.GetAwaiter().IsCompleted && EditorApplication.timeSinceStartup < replyWait)
+                    yield return null;
+                turns++;
+                var turn = npc.LastTurn;
+                Log($"text turn {turns}: \"{line}\" -> labels [{string.Join(", ", turn?.labels ?? new string[0])}], " +
+                    $"trust {turn?.trust}, tension {turn?.anger}, phase {turn?.phase}, ended {turn?.ended}: \"{turn?.reply}\"");
+                if (turn != null && turn.HasEnded)
+                    break;
+            }
+            Check(npc.EndReason == "resolved" || npc.LastTurn?.ended == "resolved",
+                $"the typed good conversation ends resolved ({npc.LastTurn?.ended ?? "not ended"} after {turns} turns)");
+            Check(turns >= 10, $"a good conversation takes at least 10 turns before END ({turns})");
         }
 
         /// <summary>A picture from a temporary camera at a point, looking at a target.</summary>

@@ -255,6 +255,20 @@ namespace ProCommVR.Hospital.AiTalk
             return turn;
         }
 
+        /// <summary>Een getypte zin van de student (zonder microfoon), bv. voor tests. Het antwoord heeft geen stem.</summary>
+        public async Awaitable<AiTurn> SendStudentText(string text)
+        {
+            if (Busy || HasEnded)
+                return null;
+            Busy = true;
+            var turn = await _client.SendText(text);
+            if (this == null)
+                return turn;
+            Busy = false;
+            Apply(turn);
+            return turn;
+        }
+
         private bool CanRecord() => !Busy && !HasEnded && _client != null && _client.HasSession;
 
         private void OnRecordingStarted()

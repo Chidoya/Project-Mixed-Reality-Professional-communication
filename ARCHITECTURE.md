@@ -1342,3 +1342,17 @@ Zichtbaar binnen enkele seconden: de vertrouwensbalk volgt in 0,6 s, de emotie v
   punten zich in de aura, niet enkel een sprong van niveau (de niveaus liggen 20 punten uit elkaar).
 - `AiPatientBridge` sterkte van de emotie van 0,2 tot 1 (was 0,4 tot 0,9) in Prototype1: de regen en de andere effecten
   worden duidelijk zwaarder of lichter met de spanning.
+
+### 20.5 Tests (stap 5)
+
+- `Tools/AiServer/tests/disappointed_patient.jsonl`: 24 zinnen met de verwachte labels (`expect`, `allow`, `forbid`,
+  `unsafe`): de zin over de arts, een vals ontslag, wandelvoorstellen die niet mogen scoren, lege zinnen ("Can you hear me?"),
+  empathie, een grove zin. `tests/run_label_tests.py` speelt ze met het echte model (elke zin de eerste beurt van een nieuwe
+  sessie, dus met alle filters) en meldt welke fout zijn. Resultaat op 2026-11-23: 23/24. Fout: "Stop whining, nobody cares
+  about your stupid party." als eerste zin krijgt `dismissive` + `invalidated_feeling` in plaats van `unsafe` (wel spanning
+  +18, vertrouwen -18; in een gesprek na "Hi." herkende het model hem wel als unsafe).
+- `tests/test_engine_rules.py`: de regels zonder model (nepmodel).
+- `test_conversation_length.py`: goede, grove, vals-ontslag- en wandelgesprekken met het echte model, met verwachtingen.
+- `PlayModeSmokeTest.RunPrototype1`: nurse view zonder balk, vertrouwen of emotie (en zonder Dev-pagina); de patient view
+  toont ze, met de pijlen; Case en Guide komen uit het scenario; een getypt goed gesprek (`AiNpc.SendStudentText`, nieuw,
+  via `/turn/text`, `AiTalkClient.SendText`) eindigt `resolved` na minstens 10 beurten (in de test: 10).
