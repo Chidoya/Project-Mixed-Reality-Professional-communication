@@ -1105,7 +1105,8 @@ Eén volledige loop met één patiënt, als basis voor de hele gameloop: de feed
 Quest Link**: Liam's AI-server (`Tools/AiServer`, Ollama, Whisper, Piper) draait op de laptop, niet op de Quest.
 
 **Verloop** (`Scripts/AiTalk/PrototypeFlow.cs`):
-1. **Briefing:** de speler start in de linkergang voor de deur van kamer 1A, met een bord naast de deur.
+1. **Briefing:** de speler start in de lobby aan de balie en start daar de shift (sinds 20.6; voordien in de linkergang voor
+   de deur van kamer 1A). Boven de deur hangt een bord met de situatie.
 2. **Gesprek:** binnen 2,6 m van de patiënt zegt die zijn openingszin (Liam's `AiNpc`, scenario `disappointed_patient`).
    **Gewoon praten** (Engels): de microfoon staat altijd aan, geen knop (zie *Handenvrij praten* hieronder). **Y** voor de
    patient view, **B** 1,2 s ingedrukt houden (F in de editor) om het gesprek zelf af te ronden. De AI-server rondt ook zelf af (opgelost of een
@@ -1121,8 +1122,8 @@ De teksten van de dokter, het bord en de hint staan in de inspector van `Prototy
   beide: het veld *Conversation Source* (de brug) of zoals vroeger *Presenter*. Y kan zolang het AI-gesprek loopt; een
   Sinds 2026-11-22 is er geen limiet meer op het aantal switches (*Max Switches Per Conversation* 0 = geen limiet).
 - Na elke beurt: het emotie-label van de AI-server naar onze emoties (Happy: Joy, Angry: Anger, Worried en Surprised: Fear,
-  Sad, Crying en Pain: Sadness; Neutral met spanning vanaf 55 blijft Sadness, vertrouwen vanaf 70 wordt Joy), sterkte uit de
-  spanning (of het vertrouwen bij Joy). Alles aanpasbaar in de inspector. `EmotionHolder.SetTarget` (nieuw) laat het overvloeien.
+  Sad, Crying en Pain: Sadness; Neutral: geen dominante emotie), sterkte uit de spanning (of het vertrouwen bij Joy). Sinds
+  20.2 geen extra drempels meer (vroeger: Neutral vanaf spanning 55 Sadness, vertrouwen vanaf 70 Joy). Alles aanpasbaar in de inspector. `EmotionHolder.SetTarget` (nieuw) laat het overvloeien.
 - Het vertrouwen van de AI-server (0 tot 100) is de **reputatie** van de patiënt (`PatientReputation`, nieuw).
 - De patiënt ligt in bed: zijn ogen kijken naar het voeteneinde (`PovAnchor` > *Look At*, nieuw).
 
@@ -1185,14 +1186,14 @@ blokkeert) en het begin van de zin ging verloren. Nu:
 - Alle waarden staan in de inspector. Test: `VoiceActivityTalk.Feed` voert opgenomen geluid in zonder microfoon.
 
 **Einde op een zwart scherm** (`Scripts/AiTalk/EndingCard.cs`, `PrototypeFlow`): bij een kritieke fout of een geëscaleerd
-gesprek eindigt het niet zomaar. Na de laatste zin van de patiënt gaat het beeld naar zwart met **KRITIEKE FOUT** (rood, met
-de titel en uitleg van de fout uit het scenario, via `AiTurn.critical`, nieuw veld) of **GESPREK GEËSCALEERD** (oranje),
-6 s lang; pas dan staat de speler bij de dokter. Later (als dit scenario goed zit): doorpraten na een kritieke fout, met
+gesprek eindigt het niet zomaar. Na de laatste zin van de patiënt gaat het beeld naar zwart met **CRITICAL ERROR** (rood, met
+de titel en uitleg van de fout uit het scenario, via `AiTurn.critical`, nieuw veld) of **CONVERSATION ESCALATED** (oranje),
+6 s lang; pas dan staat de speler bij de dokter. Sinds 20.6 gaat elk einde langs een zwart scherm, in het Engels. Later (als dit scenario goed zit): doorpraten na een kritieke fout, met
 als gevolg in een volgende shift dat het vertrouwen helemaal wegvalt (keuze van Jalil, 2026-11-23).
 
-**Casus op het klembord:** pagina 1 is nu *Case*: wie de patiënt is (Mr. X, 51), waarom hij moet blijven (intraveneuze
-antibiotica, de arts beslist over ontslag), wat er vandaag speelt (de verjaardag), de taak en wat niet mag (ontslag
-beloven, "alles komt goed"). Zelfde inhoud als Liam's patiëntenkaart (`Hospital/Data/Case_1A.asset`); tekst in de
+**Casus op het klembord:** pagina *Case*: wie de patiënt is (Mr. X, 51), waarom hij moet blijven (intraveneuze
+antibiotica, de arts beslist over ontslag), wat er vandaag speelt (de verjaardag) en de taak. Sinds 20.3 komt de tekst uit het
+scenariobestand, met een GOAL-lijst en zonder de lijst van wat niet mag. Zelfde inhoud als Liam's patiëntenkaart (`Hospital/Data/Case_1A.asset`); tekst in de
 inspector (*Case Text*). Het bord aan de deur vat de situatie samen en verwijst naar het klembord. Pagina's: Case, Tasks,
 Dev.
 
@@ -1209,7 +1210,8 @@ onthouden). Elke 10 s staat in de log hoe luid de microfoon was.
 **Voortgangsbalk van het gesprek** (`Scripts/AiTalk/ConversationProgressBar.cs`): een oranje balk onderaan in het midden van
 het beeld tijdens het gesprek. Ze vult als de patiënt kalmeert (het gemiddelde van vertrouwen naar 66 en spanning naar 36: de
 voorwaarde van de laatste fase; een bereikte fase is een minimum: B2 een derde, B3 twee derde) en sneller als hij boos wordt (spanning naar 92 of vertrouwen naar 5: de escalatie). Tot 92% tot het gesprek
-echt eindigt, dan vol. De doelen staan in de inspector en moeten gelijk blijven aan het scenariobestand.
+echt eindigt, dan vol. Sinds 20.1 leest de balk de doelen uit het scenario (`meta.progress`) en sinds 20.4 is hij verborgen
+(*Show* uit): de patient view is de feedback.
 
 **Langer gesprek en escalatie** (`Tools/AiServer/scenarios/disappointed_patient.json`, data):
 - Een fase meer: B1 (teruggetrokken) naar B2 (opent zich, vertrouwen 38+) naar B3 (overweegt, vertrouwen 52+, een open
