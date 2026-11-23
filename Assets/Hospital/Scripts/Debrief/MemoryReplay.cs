@@ -148,9 +148,10 @@ namespace ProCommVR.Hospital.Debrief
             if (!Skip() && betterPhrase != null)
             {
                 yield return speaker.Say(script.Line("memory_better"));
-                if (_patient.Face != null)
+                var ownFace = !_patient.FaceFollowsEmotions; // else the EmotionHolder drives the face (EmotionFaceDriver)
+                if (ownFace && _patient.Face != null)
                     _patient.Face.SetExpression(script.BetterAimExpression, script.BetterAimIntensity, 2f);
-                if (_patient.FaceFromAnimator != null)
+                if (ownFace && _patient.FaceFromAnimator != null)
                     _patient.FaceFromAnimator.RestExpression = script.BetterAimExpression;
                 if (_holder != null)
                     _holder.SetTarget(script.BetterAim);
@@ -233,19 +234,20 @@ namespace ProCommVR.Hospital.Debrief
                 if (turn != null)
                     _holder.SetImmediate(turn.Emotion);
             }
-            if (_patient.Face != null)
+            var ownFace = !_patient.FaceFollowsEmotions;
+            if (ownFace && _patient.Face != null)
             {
                 _savedExpression = _patient.Face.Expression;
                 if (turn != null && Enum.TryParse(turn.AiEmotion, true, out FaceExpression expression))
                     _patient.Face.SetExpression(expression, Mathf.Max(0.4f, turn.Anger / 100f), 0.05f);
             }
-            if (_patient.FaceFromAnimator != null)
+            if (ownFace && _patient.FaceFromAnimator != null)
             {
                 _savedRest = _patient.FaceFromAnimator.RestExpression;
                 if (turn != null && Enum.TryParse(turn.AiEmotion, true, out FaceExpression rest))
                     _patient.FaceFromAnimator.RestExpression = rest;
             }
-            if (_patient.HeadLook != null)
+            if (ownFace && _patient.HeadLook != null)
             {
                 _savedLook = _patient.HeadLook.Mode;
                 _patient.HeadLook.Mode = HeadLookAt.LookMode.LookAtPlayer;
@@ -303,12 +305,15 @@ namespace ProCommVR.Hospital.Debrief
                 _cameraData.renderPostProcessing = _savedPost;
             if (_holder != null)
                 _holder.SetImmediate(_savedEmotion);
-            if (_patient.Face != null)
-                _patient.Face.SetExpression(_savedExpression, _patient.Face.Intensity, 0.05f);
-            if (_patient.FaceFromAnimator != null)
-                _patient.FaceFromAnimator.RestExpression = _savedRest;
-            if (_patient.HeadLook != null)
-                _patient.HeadLook.Mode = _savedLook;
+            if (!_patient.FaceFollowsEmotions)
+            {
+                if (_patient.Face != null)
+                    _patient.Face.SetExpression(_savedExpression, _patient.Face.Intensity, 0.05f);
+                if (_patient.FaceFromAnimator != null)
+                    _patient.FaceFromAnimator.RestExpression = _savedRest;
+                if (_patient.HeadLook != null)
+                    _patient.HeadLook.Mode = _savedLook;
+            }
             foreach (var clock in _stoppedClocks)
                 if (clock != null)
                     clock.enabled = true;

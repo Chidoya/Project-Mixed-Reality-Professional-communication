@@ -287,7 +287,7 @@ namespace ProCommVR.Editor
             serializedButton.FindProperty("_label").objectReferenceValue = buttonLabel;
             serializedButton.ApplyModifiedPropertiesWithoutUndo();
 
-            ProCommVR.Hospital.Debrief.Editor.DebriefSetup.AddToScene(prototype); // Liam: doctor-led debrief (head doctor, table, memory)
+            ProCommVR.Hospital.Prototype1.Editor.LiamPrototype1Setup.AddToScene(prototype); // Liam: patient X with the infected leg, patient POV plus, doctor-led debrief
 
             // Saved under a new path, last in the Build Settings: a headset build still starts with the shift.
             ScenarioTestSceneBuilder.SaveSceneInBuild(scene, ScenePath);

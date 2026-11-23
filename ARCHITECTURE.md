@@ -1499,6 +1499,25 @@ de dokter voor een whiteboard, elke zin afspelen met P / Enter / N of de ballonn
 - Niet getest op de Quest 3 of via Quest Link (72 fps, leesbaarheid in de headset, de eigen stem via de echte microfoon).
   De GC-meting in de editor zegt weinig (de editor zelf alloceert); profileer op een development build.
 - De Engelse feedback en de zinnen van de dokter moeten nog nagelezen worden (docent verpleegkunde).
+### 21.1 Scenario 1 in één scene: de man met het geïnfecteerde been (Liam, 2026-11-23)
+
+Prototype1 is nu de plek voor scenario 1: de U-afdeling, het AI-gesprek met open microfoon (`VoiceActivityTalk`, geen
+push-to-talk), de patient view (Y) met Patient POV plus (sectie 22) en de nabespreking bij de hoofddokter (sectie 21).
+De ene regel in `Prototype1SceneBuilder` roept nu `LiamPrototype1Setup.AddToScene(prototype)` aan
+(`Assets/Hospital/Editor/Prototype1/`), die drie dingen doet:
+1. **Patient X is de man met het verband** (`PatientX_Scenario1`, prefab variant van `Patient_Male_Old`) in plaats van
+   `Patient_Male`: zelfde plek en houding (Laying). `SwapCharacter` kopieert de componenten die de builders op de patiënt
+   zetten (AiNpc, EmotionHolder, PatientReputation, AiPatientBridge, PovAnchor, CharacterPose) en zet elke verwijzing in de
+   scene om naar het nieuwe personage (botten via het humanoid-skelet). Liam's U-afdeling op schijf blijft ongewijzigd.
+2. **Patient POV plus in kamer 1A** (`PatientPovSetup.AddToWardRoom`): het gezicht en de blik volgen dezelfde
+   `EmotionHolder` als de kamer (`AiNpc` *Face Follows Emotions* aan: de AI-beurt zet de emotie, de emotie het gezicht),
+   de kaart, foto en ballon van de kleindochter, de feestklok, hartslag, gedempt geluid en de innerlijke stem. Zonder
+   `PerceivedNurse`: in Prototype1 is de speler in de patient view Jalils witte figuur met de trust-aura.
+3. **De nabespreking** (`DebriefSetup`).
+
+Test: `RunScenario1Patient` (Prototype1, zonder AI-server): de man met het verband ligt in bed, alle componenten en
+verwijzingen zijn mee, verdriet en boosheid in de kamer staan ook op zijn gezicht, de kaart, foto en ballon staan er.
+
 ## 22. Patient POV plus (Liam)
 
 **Wat:** bouwt verder op de patient view van Jalil (sectie 14 tot 19). Eén `EmotionHolder` per patiënt blijft de enige

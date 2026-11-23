@@ -35,6 +35,9 @@ namespace ProCommVR.Hospital.AiTalk
         [SerializeField] private Animator _animator;
         [Tooltip("Leeg = een 3D AudioSource op het Head-bot.")]
         [SerializeField] private AudioSource _voice;
+        [Tooltip("Aan: gezicht en blik volgen de emoties (EmotionFaceDriver op de EmotionHolder), niet elke AI-beurt apart. " +
+                 "De mond (praten) blijft van dit personage.")]
+        [SerializeField] private bool _faceFollowsEmotions;
 
         [Header("Wachten")]
         [Tooltip("Korte geluidjes ('hmm') terwijl de server rekent. Optioneel.")]
@@ -98,6 +101,12 @@ namespace ProCommVR.Hospital.AiTalk
         public FaceFromAnimator FaceFromAnimator => _faceFromAnimator;
         public HeadLookAt HeadLook => _headLook;
         public AudioSource VoiceSource => _voice;
+        /// <summary>Gezicht en blik volgen de emoties (EmotionFaceDriver), niet de AI-beurten.</summary>
+        public bool FaceFollowsEmotions
+        {
+            get => _faceFollowsEmotions;
+            set => _faceFollowsEmotions = value;
+        }
 
         private void Awake()
         {
@@ -314,12 +323,12 @@ namespace ProCommVR.Hospital.AiTalk
         private void ShowListening()
         {
             SetStatus("Thinking...");
-            if (_face != null)
+            if (_face != null && !_faceFollowsEmotions)
             {
                 var expression = Band is "HIGH" or "VERY_HIGH" ? FaceExpression.Angry : FaceExpression.Worried;
                 _face.SetExpression(expression, 0.5f, 0.25f);
             }
-            if (_headLook != null)
+            if (_headLook != null && !_faceFollowsEmotions)
                 _headLook.Mode = HeadLookAt.LookMode.LookAtPlayer;
             if (_listeningClips.Length > 0 && UnityEngine.Random.value < _listeningClipChance && !IsSpeaking)
             {
@@ -350,14 +359,14 @@ namespace ProCommVR.Hospital.AiTalk
             if (changed)
                 OnMoodChanged.Invoke(Anger, Trust);
 
-            if (Enum.TryParse(turn.emotion, true, out FaceExpression expression) && _face != null)
+            if (!_faceFollowsEmotions && Enum.TryParse(turn.emotion, true, out FaceExpression expression) && _face != null)
             {
                 _face.SetExpression(expression, Mathf.Max(0.4f, Anger / 100f), 0.3f);
                 if (_faceFromAnimator != null)
                     _faceFromAnimator.RestExpression = expression; // blijft na de 5 s van SetExpression
             }
             PlayState(turn.animation);
-            if (_headLook != null)
+            if (_headLook != null && !_faceFollowsEmotions)
             {
                 if (turn.pose is "TurnsAway" or "Withdrawn")
                     _headLook.Mode = HeadLookAt.LookMode.AvoidGaze;

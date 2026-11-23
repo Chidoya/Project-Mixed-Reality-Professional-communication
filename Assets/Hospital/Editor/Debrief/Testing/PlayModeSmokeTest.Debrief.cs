@@ -47,6 +47,9 @@ namespace ProCommVR.Editor.Testing
         [MenuItem("ProCommVR/Tests/Debrief: memory replay (Prototype1)")]
         public static void RunMemoryReplay() => LaunchDebrief("memory", Prototype1SceneBuilder.ScenePath);
 
+        [MenuItem("ProCommVR/Tests/Scenario 1: the patient in Prototype1 (face, story, bed)")]
+        public static void RunScenario1Patient() => LaunchDebrief("patient", Prototype1SceneBuilder.ScenePath);
+
         [MenuItem("ProCommVR/Tests/Debrief: live with the AI server (Prototype1)")]
         public static void RunDebriefLive() => LaunchDebrief("live", Prototype1SceneBuilder.ScenePath);
 
@@ -92,6 +95,7 @@ namespace ProCommVR.Editor.Testing
                 "feedback" => DebriefFlowTest(DebriefPart.Feedback),
                 "memory" => DebriefFlowTest(DebriefPart.Memory),
                 "live" => DebriefLiveTest(),
+                "patient" => Scenario1PatientTest(),
                 _ => Fail($"Unknown debrief test '{test}'."),
             };
             EditorApplication.update += Tick;
@@ -465,6 +469,57 @@ namespace ProCommVR.Editor.Testing
             long Median(List<long> list) => list.Count == 0 ? -1 : list.OrderBy(v => v).ElementAt(list.Count / 2);
             Log($"GC allocated per frame: idle at the table median {Median(idle)} B ({idle.Count} frames), during the memory median {Median(during)} B ({during.Count} frames).");
             Check(Median(during) <= Math.Max(0, Median(idle)) + 512, "the memory adds no garbage per frame (median within 512 B of idle, editor and test included)");
+        }
+
+        // ---- The man with the infected leg in Prototype1 (no AI server needed) ---------------------------------------
+
+        private static IEnumerator Scenario1PatientTest()
+        {
+            var npc = Object.FindAnyObjectByType<AiNpc>();
+            var flow = Object.FindAnyObjectByType<PrototypeFlow>();
+            Check(npc != null && flow != null && Object.FindObjectsByType<AiNpc>(FindObjectsSortMode.None).Length == 1, "one AI patient in Prototype1");
+            if (npc == null)
+                yield break;
+            var patient = npc.gameObject;
+            var driver = patient.GetComponentInChildren<ProCommVR.Hospital.PatientPov.EmotionFaceDriver>();
+            var holder = patient.GetComponent<EmotionHolder>();
+            var animator = patient.GetComponent<Animator>();
+            Check(patient.name == "Patient_1A" && patient.GetComponentsInChildren<Transform>(true).Any(t => t.name.Contains("Bandage")),
+                "Patient_1A is the man with the bandaged (infected) leg");
+            Check(driver != null && npc.FaceFollowsEmotions && driver.Holder == holder, "his face follows the same EmotionHolder as the room");
+            Check(patient.GetComponent<AiPatientBridge>() != null && patient.GetComponent<PatientReputation>() != null
+                  && patient.GetComponent<ProCommVR.Pov.PovAnchor>() != null && patient.GetComponent<ConversationRecorder>() != null,
+                "the AI bridge, the trust, the patient view anchor and the recorder moved to him");
+            var bridge = patient.GetComponent<AiPatientBridge>();
+            var bridgeNpc = new SerializedObject(bridge).FindProperty("_npc").objectReferenceValue;
+            var pov = Object.FindAnyObjectByType<PovController>();
+            var povPatient = new SerializedObject(pov).FindProperty("_conversationSource").objectReferenceValue;
+            Check(bridgeNpc == npc && povPatient == bridge, "the references point to the new patient (bridge, POV)");
+            yield return 2.5f;
+            var hips = animator.GetBoneTransform(HumanBodyBones.Hips).position;
+            var head = animator.GetBoneTransform(HumanBodyBones.Head).position;
+            var bed = GameObject.Find("Room_1A").transform.Find("Furniture/Bed");
+            var bedBounds = bed.GetComponentsInChildren<Renderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+            Check(hips.y > bedBounds.max.y - 0.35f && hips.y < bedBounds.max.y + 0.35f && Mathf.Abs(head.y - hips.y) < 0.5f
+                  && bedBounds.Contains(new Vector3(hips.x, bedBounds.center.y, hips.z)),
+                $"he lies in the bed (hips {hips.y:0.00} m, head {head.y:0.00} m, bed top {bedBounds.max.y:0.00} m)");
+            var story = Object.FindAnyObjectByType<ProCommVR.Hospital.PatientPov.StoryProps>();
+            Check(story != null && GameObject.Find("Birthday Card") != null && GameObject.Find("Photo Frame") != null && GameObject.Find("Balloon") != null,
+                "the granddaughter's card, photo and balloon are in his room");
+            holder.SetImmediate(EmotionState.Zero.With(Emotion.Sadness, 0.7f));
+            yield return 1f;
+            Check(driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Sad) + driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Crying) > 0.3f,
+                $"sad in the room is sad on his face (Sad {driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Sad):0.00}, Crying {driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Crying):0.00})");
+            holder.SetImmediate(EmotionState.Zero.With(Emotion.Anger, 0.7f));
+            yield return 1f;
+            Check(driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Angry) > 0.3f, "angry in the room is angry on his face");
+            var spot = (Transform)new SerializedObject(flow).FindProperty("_patientSpot").objectReferenceValue;
+            flow.Teleport(spot);
+            yield return 0.5f;
+            Screenshot("scenario1-patient-angry");
+            holder.SetImmediate(EmotionState.Zero.With(Emotion.Sadness, 0.7f));
+            yield return 1f;
+            Screenshot("scenario1-patient-sad");
         }
 
         // ---- Live, with the AI server -----------------------------------------------------------------------------------

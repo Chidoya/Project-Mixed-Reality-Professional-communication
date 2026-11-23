@@ -45,20 +45,37 @@ namespace ProCommVR.Hospital.PatientPov
         /// </summary>
         public static GameObject AddToScene(EmotionHolder holder, PovController pov, Transform patient, Transform room, Transform camera)
         {
+            return Add(holder, pov, patient, room, room == null ? Layout.Standalone() : Layout.Of(room), true, true);
+        }
+
+        /// <summary>
+        /// The same for a room of Liam's U-ward (Prototype1): the window is found by name under the hospital
+        /// (Window_1A_1), the clock goes on a side wall (raycast). Without the perceived nurse: in Prototype1 the player
+        /// in the patient view is Jalil's white figure with the trust aura, which already shows how the patient sees him.
+        /// </summary>
+        public static GameObject AddToWardRoom(EmotionHolder holder, PovController pov, Transform patient, Transform room)
+        {
+            return Add(holder, pov, patient, room, Layout.OfWard(room), false, false);
+        }
+
+        private static GameObject Add(EmotionHolder holder, PovController pov, Transform patient, Transform room, Layout layout,
+            bool perceivedNurse, bool debugLabel)
+        {
             if (holder == null || pov == null || patient == null)
                 throw new System.InvalidOperationException("[PatientPov] AddToScene needs the EmotionHolder, the PovController and the patient.");
             EnsureAssets();
             var world = Object.FindObjectsByType<PatientWorldController>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                 .FirstOrDefault(w => new SerializedObject(w).FindProperty("_holder").objectReferenceValue == holder);
-            var layout = room == null ? Layout.Standalone() : Layout.Of(room);
 
             var root = new GameObject(room == null ? "Patient POV Plus" : $"Patient POV Plus ({room.name})");
             if (room != null)
                 root.transform.SetParent(room, true);
 
             var driver = AddFace(holder, pov, world, patient, layout, root.transform);
-            AddDebugLabel(root, driver, world, pov);
-            AddPerceivedNurse(holder, pov, world, patient);
+            if (debugLabel)
+                AddDebugLabel(root, driver, world, pov);
+            if (perceivedNurse)
+                AddPerceivedNurse(holder, pov, world, patient);
             AddStoryProps(holder, pov, world, layout, root.transform);
             var clockSource = AddClock(holder, pov, world, layout, root.transform);
             AddSound(holder, pov, world, patient, root.transform, clockSource);
@@ -118,6 +135,45 @@ namespace ProCommVR.Hospital.PatientPov
                     BalloonAnchor = new Vector3(glass.max.x + 0.7f, glass.min.y - 0.3f, glass.center.z + 0.35f),
                     ClockPosition = new Vector3(insideX - 0.02f, floor + 2.05f, glass.min.z - 0.75f),
                     ClockFront = Vector3.left,
+                    Floor = floor,
+                };
+            }
+
+            /// <summary>
+            /// Liam's U-ward room (Room_1A): origin in the middle of the corridor wall, forward into the room, the bed's
+            /// head against the outer wall with the window (Window_1A_1, under the hospital) in it.
+            /// </summary>
+            public static Layout OfWard(Transform room)
+            {
+                var id = room.name.Replace("Room_", "");
+                var nightstand = Measure(Require(room, "Furniture/Nightstand"));
+                var window = room.root.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == $"Window_{id}_1");
+                var forward = new Vector3(room.forward.x, 0f, room.forward.z).normalized;
+                var right = Vector3.Cross(Vector3.up, forward);
+                var floor = room.position.y;
+                var glass = window != null ? Measure(window.gameObject) : new Bounds(room.position + forward * 5.8f + Vector3.up * 1.5f, Vector3.one);
+                // The clock on the side wall that is free (raycast sideways from the middle of the room).
+                Physics.SyncTransforms();
+                var middle = room.position + forward * 3.2f + Vector3.up * 2.05f;
+                var clock = middle + right * 2f;
+                var front = -right;
+                foreach (var side in new[] { right, -right })
+                    if (Physics.Raycast(middle, side, out var hit, 4f, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        clock = hit.point - side * 0.02f;
+                        front = -side;
+                        break;
+                    }
+                return new Layout
+                {
+                    Nightstand = nightstand,
+                    WindowPoint = glass.center,
+                    Outward = forward,
+                    DoorPoint = room.position + Vector3.up * 1.2f,
+                    BalloonOutside = true,
+                    BalloonAnchor = glass.center + forward * 0.7f - Vector3.up * 0.3f + right * 0.35f,
+                    ClockPosition = clock,
+                    ClockFront = front,
                     Floor = floor,
                 };
             }
