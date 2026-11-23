@@ -1,9 +1,12 @@
-"""Makes the ambience of people talking in the hospital (Assets/_Project/Audio/Ambience/HospitalBabble.wav).
+"""Makes the ambience of people talking in the hospital (Assets/_Project/Audio/Ambience/HospitalBabble_*.wav).
 
 Not a real conversation: several Piper voices (the ones of Tools/AiServer, LibriVox based: kristin and norman) say short
 everyday hospital sentences at the same time, each a little faster or slower and higher or lower, so it sounds like
-different people. The mix is muffled (low pass) and gets some room echo, so single words are hard to follow. The end
-fades into the start, so the clip loops without a click.
+different people (men and women: a wide pitch range). Each person walks closer and farther away (a slow change of
+loudness), there are quieter moments, and short replies ("Okay, thanks.") mix with longer sentences, so it does not
+sound like one repeating loop. The mix is muffled (low pass) and gets some room echo, so single words are hard to
+follow. The end fades into the start, so each clip loops without a click. Several clips (other people, other timing)
+are made, so the sources in the ward never play the same thing.
 
 Run with the Python of the AI server (it has Piper and numpy):
     Tools/AiServer/.venv/Scripts/python.exe Tools/Ambience/make_babble.py
@@ -18,11 +21,11 @@ from piper import PiperVoice, SynthesisConfig
 
 ROOT = Path(__file__).resolve().parents[2]
 VOICES = ROOT / "Tools" / "AiServer" / "models" / "piper"
-OUT = ROOT / "Assets" / "_Project" / "Audio" / "Ambience" / "HospitalBabble.wav"
-RATE = 16000
-SECONDS = 40
-STREAMS = 7
-SEED = 7
+OUT_DIR = ROOT / "Assets" / "_Project" / "Audio" / "Ambience"
+RATE = 11025       # muffled anyway (low pass at 1.4 kHz), so a low rate keeps the files small
+SECONDS = 60
+STREAMS = 5
+CLIPS = {"HospitalBabble_A.wav": 11, "HospitalBabble_B.wav": 23, "HospitalBabble_C.wav": 37}  # file: seed
 
 SENTENCES = [
     "Could you check the chart for room twelve?", "I'll be right back with the forms.",
@@ -35,7 +38,10 @@ SENTENCES = [
     "Her daughter is on the way.", "The night shift starts soon.", "Who has the keys to the cabinet?",
     "That's what the nurse told me.", "Please take a seat over there.", "I can't find my glasses.",
     "We moved him to another room.", "The parking was full again.", "It should be ready tomorrow.",
-    "Let's go over it together.",
+    "Let's go over it together.", "Okay, thanks.", "Yes, that's fine.", "Mm-hm.", "Sure, no problem.",
+    "Where did you put it?", "I'll ask her.", "Not today, I think.", "See you tomorrow.", "Good morning!",
+    "Is someone helping you?", "One moment.", "Room fourteen, on the left.", "That was quick.",
+    "I don't know, maybe after lunch.", "He's sleeping now.", "Right, I'll call them.", "Oh, that's nice.",
 ]
 
 
@@ -65,24 +71,27 @@ def low_pass(x: np.ndarray, cutoff: float) -> np.ndarray:
     return y
 
 
-def main() -> None:
-    random.seed(SEED)
-    voices = [PiperVoice.load(VOICES / f"{name}.onnx") for name in ("en_US-kristin-medium", "en_US-norman-medium")]
+def make(voices: list, seed: int, out: Path) -> None:
+    random.seed(seed)
     total = SECONDS * RATE
     mix = np.zeros(total + RATE * 4, dtype=np.float32)
     for stream in range(STREAMS):
         voice = voices[stream % len(voices)]
-        pitch = random.uniform(0.86, 1.14)   # higher or lower voice (resampled)
-        speed = random.uniform(0.9, 1.15)
-        gain = random.uniform(0.35, 0.8)      # near and far people
-        t = random.randint(0, RATE * 3)
+        pitch = random.uniform(0.78, 1.28)   # a deeper or higher voice (resampled)
+        speed = random.uniform(0.85, 1.2)
+        gain = random.uniform(0.3, 0.8)       # near and far people
+        # This person walks closer and farther: loudness goes slowly up and down.
+        period = random.uniform(9.0, 25.0)
+        phase = random.uniform(0, 2 * np.pi)
+        t = random.randint(0, RATE * 5)
         while t < total:
-            line = synth(voice, random.choice(SENTENCES), speed)
+            line = synth(voice, random.choice(SENTENCES), speed * random.uniform(0.95, 1.05))
             line = resample(line, RATE, RATE / pitch)
             end = min(len(mix), t + len(line))
-            mix[t:end] += line[: end - t] * gain
-            t = end + random.randint(int(RATE * 0.8), int(RATE * 3.5))  # a pause, then the next sentence
-        print(f"stream {stream + 1}/{STREAMS} done")
+            times = np.arange(t, end) / RATE
+            walk = 0.35 + 0.65 * (0.5 + 0.5 * np.sin(2 * np.pi * times / period + phase))
+            mix[t:end] += line[: end - t] * gain * walk
+            t = end + random.randint(int(RATE * 0.6), int(RATE * 5.0))  # a pause, then the next sentence
 
     # Loop: the part after the end fades into the start.
     tail = mix[total: total + RATE * 4]
@@ -90,7 +99,7 @@ def main() -> None:
     mix = mix[:total]
     mix[: len(tail)] = mix[: len(tail)] * (1 - fade) + tail * fade
 
-    mix = low_pass(mix, 1600.0)                      # muffled, as through a room
+    mix = low_pass(mix, 1400.0)                      # muffled, as through a room
     room = mix.copy()
     for delay, amount in ((0.031, 0.35), (0.067, 0.25), (0.113, 0.18), (0.171, 0.12)):
         d = int(delay * RATE)
@@ -98,13 +107,19 @@ def main() -> None:
     room /= np.max(np.abs(room)) + 1e-6
     room *= 0.5                                      # leave room; the volume is set on the AudioSource
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(OUT), "wb") as w:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(out), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(RATE)
         w.writeframes((room * 32767).astype(np.int16).tobytes())
-    print(f"written {OUT} ({SECONDS} s, {RATE} Hz mono)")
+    print(f"written {out} ({SECONDS} s, {RATE} Hz mono)")
+
+
+def main() -> None:
+    voices = [PiperVoice.load(VOICES / f"{name}.onnx") for name in ("en_US-kristin-medium", "en_US-norman-medium")]
+    for name, seed in CLIPS.items():
+        make(voices, seed, OUT_DIR / name)
 
 
 if __name__ == "__main__":

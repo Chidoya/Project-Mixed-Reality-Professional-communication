@@ -12,15 +12,21 @@ namespace ProCommVR.Editor
     /// <list type="bullet">
     /// <item>The map: the floor plan (Art/Map/UWardFloorPlan.png, the same plan as UWardLayout: 42 x 28 m, about 50 pixels
     /// per meter) on the corridor wall next to the entrance of the lobby, with the points of interest in orange.</item>
-    /// <item>The ambience: the murmur of people talking (Audio/Ambience/HospitalBabble.wav, made by
-    /// Tools/Ambience/make_babble.py) from a few places in the lobby and the corridors.</item>
+    /// <item>The ambience: the murmur of people talking (Audio/Ambience/HospitalBabble_A/B/C.wav, made by
+    /// Tools/Ambience/make_babble.py: other people per clip) from a few places in the lobby and the corridors, quiet,
+    /// each place with another clip.</item>
     /// </list>
     /// </summary>
     internal static class WardMapAndAmbienceSetup
     {
         private const string MapTexturePath = "Assets/_Project/Art/Map/UWardFloorPlan.png";
         private const string MapMaterialPath = "Assets/_Project/Materials/Map/UWardMap.mat";
-        private const string BabblePath = "Assets/_Project/Audio/Ambience/HospitalBabble.wav";
+        private static readonly string[] BabblePaths =
+        {
+            "Assets/_Project/Audio/Ambience/HospitalBabble_A.wav",
+            "Assets/_Project/Audio/Ambience/HospitalBabble_B.wav",
+            "Assets/_Project/Audio/Ambience/HospitalBabble_C.wav",
+        };
 
         // The building outline in the image (pixels, measured): plan x 0..42 and y 0..28.
         private static readonly Vector2 ImageSize = new Vector2(2296f, 1598f);
@@ -124,37 +130,44 @@ namespace ProCommVR.Editor
         /// <summary>The murmur of people: a few looping 3D sources in the lobby and the corridors.</summary>
         internal static void AddAmbience(Transform parent)
         {
-            var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(BabblePath);
-            if (clip == null)
+            var clips = new System.Collections.Generic.List<AudioClip>();
+            foreach (var path in BabblePaths)
             {
-                Debug.LogWarning($"[ProCommVR] Ambience missing: {BabblePath} (run Tools/Ambience/make_babble.py).");
+                var importer = AssetImporter.GetAtPath(path) as AudioImporter;
+                if (importer == null)
+                {
+                    Debug.LogWarning($"[ProCommVR] Ambience missing: {path} (run Tools/Ambience/make_babble.py).");
+                    continue;
+                }
+                var settings = importer.defaultSampleSettings;
+                if (settings.loadType != AudioClipLoadType.CompressedInMemory || settings.compressionFormat != AudioCompressionFormat.Vorbis)
+                {
+                    settings.loadType = AudioClipLoadType.CompressedInMemory;
+                    settings.compressionFormat = AudioCompressionFormat.Vorbis;
+                    settings.quality = 0.5f;
+                    importer.defaultSampleSettings = settings;
+                    importer.forceToMono = true;
+                    importer.SaveAndReimport();
+                }
+                clips.Add(AssetDatabase.LoadAssetAtPath<AudioClip>(path));
+            }
+            if (clips.Count == 0)
                 return;
-            }
-            var importer = (AudioImporter)AssetImporter.GetAtPath(BabblePath);
-            var settings = importer.defaultSampleSettings;
-            if (settings.loadType != AudioClipLoadType.CompressedInMemory || settings.compressionFormat != AudioCompressionFormat.Vorbis)
-            {
-                settings.loadType = AudioClipLoadType.CompressedInMemory;
-                settings.compressionFormat = AudioCompressionFormat.Vorbis;
-                settings.quality = 0.5f;
-                importer.defaultSampleSettings = settings;
-                importer.forceToMono = true;
-                importer.SaveAndReimport();
-                clip = AssetDatabase.LoadAssetAtPath<AudioClip>(BabblePath);
-            }
 
             var root = new GameObject("Ambience (people talking)").transform;
             root.SetParent(parent, false);
             (Vector2 plan, float volume, string name)[] places =
             {
-                (new Vector2(21.0f, 8.0f), 0.45f, "Lobby (lifts)"),
-                (new Vector2(21.0f, 14.0f), 0.4f, "Lobby (reception)"),
-                (new Vector2(12.0f, 20.8f), 0.25f, "Corridor bottom (left)"),
-                (new Vector2(30.0f, 20.8f), 0.25f, "Corridor bottom (right)"),
-                (new Vector2(34.8f, 10.0f), 0.2f, "Corridor right"),
+                (new Vector2(21.0f, 8.0f), 0.2f, "Lobby (lifts)"),
+                (new Vector2(21.0f, 14.0f), 0.16f, "Lobby (reception)"),
+                (new Vector2(12.0f, 20.8f), 0.1f, "Corridor bottom (left)"),
+                (new Vector2(30.0f, 20.8f), 0.1f, "Corridor bottom (right)"),
+                (new Vector2(34.8f, 10.0f), 0.08f, "Corridor right"),
             };
+            var index = 0;
             foreach (var (plan, volume, name) in places)
             {
+                var clip = clips[index++ % clips.Count];
                 var go = new GameObject($"Murmur {name}");
                 go.transform.SetParent(root, false);
                 go.transform.position = UWardLayout.ToUnity(plan.x, plan.y, 1.5f);
