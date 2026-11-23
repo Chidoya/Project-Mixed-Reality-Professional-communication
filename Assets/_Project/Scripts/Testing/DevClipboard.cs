@@ -78,6 +78,10 @@ namespace ProCommVR.Testing
         [SerializeField] private ProCommVR.AiTalk.VoiceActivityTalk _voice;
         [SerializeField] private TMP_Text _micLabel;
 
+        [Tooltip("Dev: show the Dev page (emotion, trust, mic). Off: the nurse never sees the trust or the emotion on the " +
+                 "clipboard, only in the patient view. The page must be the last one.")]
+        [SerializeField] private bool _devMode;
+
         [Tooltip("In the left hand from the start (else on the desk in the lobby).")]
         [SerializeField] private bool _startInHand = true;
 
@@ -99,6 +103,12 @@ namespace ProCommVR.Testing
             if (_tasksBody != null)
                 _tasksBody.text = _tasksText;
             ShowBriefing();
+            // Without dev mode the Dev page is not one of the pages.
+            if (!_devMode && _pages.Length > 0 && _pages[_pages.Length - 1] != null && _pages[_pages.Length - 1].name.Contains("Dev"))
+            {
+                _pages[_pages.Length - 1].SetActive(false);
+                System.Array.Resize(ref _pages, _pages.Length - 1);
+            }
             if (_trustSlider != null)
             {
                 _trustSlider.minValue = PatientReputation.Min;
@@ -154,6 +164,7 @@ namespace ProCommVR.Testing
         public string CaseText => _caseBody != null ? _caseBody.text : "";
         public string GuideText => _guideBody != null ? _guideBody.text : "";
         public int PageCount => _pages.Length;
+        public bool DevMode => _devMode;
         public string PageName(int page) => page >= 0 && page < _pageNames.Length ? _pageNames[page] : "";
 
         private void OnCarryPressed(InputAction.CallbackContext context) => ToggleCarry();

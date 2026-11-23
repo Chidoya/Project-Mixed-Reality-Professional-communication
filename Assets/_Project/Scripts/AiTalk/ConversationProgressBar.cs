@@ -39,6 +39,11 @@ namespace ProCommVR.AiTalk
         [Tooltip("Shown at most this far: the last step is a concrete proposal, the bar cannot know when it comes.")]
         [SerializeField, Range(0.5f, 1f)] private float _maxBeforeEnd = 0.92f;
 
+        [Header("Show")]
+        [Tooltip("Dev: show the bar in the nurse view. Off (Prototype1): the patient view is the only feedback on how the " +
+                 "conversation goes; the bar still computes its progress (for tests).")]
+        [SerializeField] private bool _show;
+
         [Header("Look")]
         [SerializeField] private Color _color = new Color(1f, 0.55f, 0.1f);
         [SerializeField] private Vector3 _offset = new Vector3(0f, -0.3f, 1.0f);
@@ -116,7 +121,7 @@ namespace ProCommVR.AiTalk
                     calm = Mathf.Min(calm, (_npc.LastTurn != null ? _npc.LastTurn.turn : 0) / (float)_minTurns);
                 Progress = Mathf.Min(Mathf.Max(calm, angry), _maxBeforeEnd);
             }
-            _root.SetActive(_hideAt < 0f || Time.time < _hideAt);
+            _root.SetActive(_show && (_hideAt < 0f || Time.time < _hideAt));
             _shown = Mathf.SmoothDamp(_shown, Progress, ref _velocity, _smoothSeconds);
             _fill.anchorMax = new Vector2(_shown, 1f);
             _label.text = _npc.HasEnded ? "Conversation finished" : "Conversation";

@@ -115,10 +115,17 @@ namespace ProCommVR.Editor.Testing
                 npc.TurnApplied -= OnTurn;
             }
 
-            // The orange conversation bar at the bottom of the view.
+            // The nurse view shows nothing about how the conversation goes: no bar, no HUD, no trust or emotion on the
+            // clipboard. Only the patient view does.
             var progressBar = Object.FindAnyObjectByType<ConversationProgressBar>();
-            Check(progressBar != null && progressBar.IsVisible && progressBar.Color.r > 0.9f && progressBar.Color.g > 0.4f && progressBar.Color.b < 0.2f,
-                "the orange conversation bar is shown during the conversation");
+            Check(progressBar != null && !progressBar.IsVisible, "the nurse view shows no conversation progress bar");
+            Check(!hud.IsShown && !hud.IsCanvasOn, "the nurse view shows no trust and no emotion (the HUD is only in the patient view)");
+            var nurseClipboard = Object.FindAnyObjectByType<ProCommVR.Testing.DevClipboard>(FindObjectsInactive.Include);
+            Check(nurseClipboard != null && !nurseClipboard.DevMode && nurseClipboard.PageCount == 3
+                  && Enumerable.Range(0, nurseClipboard.PageCount).All(i => nurseClipboard.PageName(i) != "Dev"),
+                "the clipboard has no Dev page (dev flag off): Case, Guide, Tasks");
+            Check(progressBar != null && Mathf.Approximately(progressBar.Targets.x, 55f) && Mathf.Approximately(progressBar.Targets.y, 46f),
+                $"the bar reads its limits from the scenario (trust {progressBar?.Targets.x}, tension {progressBar?.Targets.y})");
             Check(progressBar != null && progressBar.Progress >= 0f && progressBar.Progress < 0.95f,
                 $"the bar shows how far the conversation is ({progressBar?.Progress:0.00}, trust {npc.Trust}, tension {npc.Anger})");
 
@@ -157,6 +164,21 @@ namespace ProCommVR.Editor.Testing
                 Check(hud.IsShown && hud.Reputation == reputation, "the HUD shows, with the trust meter");
                 Check(Mathf.Abs(hud.TrustShown - reputation.Value) < 1f && hud.TrustText == Mathf.RoundToInt(reputation.Value).ToString(),
                     $"the trust meter shows the trust ({hud.TrustText}, {reputation.Value})");
+                // What the last sentence did: an arrow next to Trust (and the dominant emotion).
+                var trustNow = reputation.Value;
+                bridge.HoldTrust = true;
+                reputation.Set(trustNow + 6f);
+                yield return 0.3f;
+                Check(hud.TrustTrend == 1 && hud.TrustLabelText.Contains("+6"), $"a rise of the trust shows an up arrow ({hud.TrustLabelText})");
+                reputation.Set(trustNow - 4f);
+                yield return 0.3f;
+                Check(hud.TrustTrend == -1 && hud.TrustLabelText.Contains("-10"), $"a drop shows a down arrow ({hud.TrustLabelText})");
+                holder.SetTarget(new EmotionState(0.05f, 0.05f, 0.05f, 0.9f));
+                yield return 0.3f;
+                Check(hud.EmotionTrendFor == Emotion.Sadness && hud.EmotionTrend == 1, $"a stronger emotion shows an up arrow next to it ({hud.EmotionTrendFor} {hud.EmotionTrend})");
+                Screenshot("prototype1-hud-arrows");
+                reputation.Set(trustNow);
+                bridge.HoldTrust = false;
                 var rain = Object.FindObjectsByType<EmotionEffectAnchor>(FindObjectsSortMode.None).FirstOrDefault(a => a.name.StartsWith("Rain Inside"));
                 Check(rain != null && rain.IsOn && rain.Particles.Length > 0 && rain.Particles[0].isPlaying, "Sadness: it rains inside the room");
                 var puddles = Object.FindObjectsByType<EmotionEffectAnchor>(FindObjectsSortMode.None).Where(a => a.name.StartsWith("Puddle")).ToList();
@@ -192,6 +214,14 @@ namespace ProCommVR.Editor.Testing
                     var wings = aura.Look(ReputationTier.Radiant).wings;
                     Check(wings.Length == 2 && wings.All(w => w.GetComponent<MeshFilter>().sharedMesh != null && w.localScale.x > 0.9f),
                         "Radiant: the wings are unfolded");
+                    // Inside a tier every change shows: the aura gets stronger the deeper the trust is in it.
+                    reputation.Set(38f);
+                    yield return 0.2f;
+                    var shallow = aura.Depth;
+                    reputation.Set(22f);
+                    yield return 0.2f;
+                    Check(aura.Current == ReputationTier.Liquid && aura.Depth > shallow + 0.4f,
+                        $"the black liquid gets stronger as the trust drops within its tier ({shallow:0.00} at 38, {aura.Depth:0.00} at 22)");
                     reputation.Set(trustBefore);
                 }
 
@@ -223,14 +253,10 @@ namespace ProCommVR.Editor.Testing
                     ClipboardShot(clipboard, "prototype1-clipboard-guide");
                     clipboard.NextPage();
                     yield return null;
-                    Check(clipboard.Page == 2, $"> shows the tasks page ({clipboard.Page})");
+                    Check(clipboard.Page == 2 && clipboard.PageName(2) == "Tasks", $"> shows the tasks page ({clipboard.Page})");
                     ClipboardShot(clipboard, "prototype1-clipboard-tasks");
                     clipboard.NextPage();
-                    yield return null;
-                    Check(clipboard.Page == 3, $"> shows the dev page ({clipboard.Page})");
-                    ClipboardShot(clipboard, "prototype1-clipboard-dev");
-                    clipboard.NextPage();
-                    Check(clipboard.Page == 0 && clipboard.PageCount == 4, $"the clipboard has 4 pages ({clipboard.PageCount})");
+                    Check(clipboard.Page == 0 && clipboard.PageCount == 3, $"the clipboard has 3 pages without dev mode ({clipboard.PageCount})");
                     clipboard.LetAiDrive();
                     Check(!bridge.HoldEmotions && !bridge.HoldTrust, "AI drives again");
                     clipboard.Take();

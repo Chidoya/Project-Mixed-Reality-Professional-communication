@@ -2647,3 +2647,6 @@ MonoBehaviour:
   _maxAngleFromCenter: 40
   _fadeSeconds: 0.2
   _dimmedAlpha: 0.55
+  _showLastChange: 0
+  _upColor: {r: 0.37, g: 0.85, b: 0.5, a: 1}
+  _downColor: {r: 0.98, g: 0.42, b: 0.36, a: 1}

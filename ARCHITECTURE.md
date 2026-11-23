@@ -1321,3 +1321,24 @@ praktische samenvatting en verwijst naar Case en Guide.
 
 Liam's patiëntenkaart `Hospital/Data/Case_1A.asset`: in de beste keuze stond "a short walk together"; nu "help you sit up a
 little and get you something to drink" (enkel tekst, zijn code en andere velden zijn ongewijzigd).
+
+### 20.4 De patient view is de feedback (stap 4)
+
+In de **nurse view** staat niets meer over hoe het gesprek loopt: de oranje balk (`ConversationProgressBar`) is verborgen
+(*Show* uit; hij rekent nog wel voor de tests), de Dev-pagina van het klembord (emotie, vertrouwen, microfoon) bestaat enkel
+met *Dev Mode* aan (`DevClipboard._devMode`, standaard uit; de pagina's zijn dan Case, Guide, Tasks). Stem en gezicht van
+de patiënt blijven (dat is realistisch). Enkel de **patient view** toont de emotie-HUD, de vertrouwensmeter, de effecten in
+de kamer en de aura van de speler.
+
+Wat de laatste zin deed (`EmotionHud`, *Show Last Change*, aan in Prototype1): naast **TRUST IN YOU** een groene ▲ of rode
+▼ met het verschil (bv. "▼ -10"), en vóór het getal van de emotie van de laatste verandering een pijl omhoog of omlaag. De HUD
+onthoudt de laatste verandering ook terwijl hij verborgen is, zodat de pijl na Y meteen zegt wat de vorige zin deed. De
+pijlen komen uit de dynamische fallback-font (zonder glyph: + en -).
+
+Zichtbaar binnen enkele seconden: de vertrouwensbalk volgt in 0,6 s, de emotie vloeit in 1,5 s over en de kamer in 2 s
+(bestaande waarden). Nieuw:
+- `ReputationAura` *Edge Strength* (in Prototype1 0,35, standaard 1 = zoals voordien): een niveau is zwakker aan de rand naast
+  Neutral en sterker naarmate het vertrouwen dieper in dat niveau zit (`Depth`). Zo toont elke verandering van een paar
+  punten zich in de aura, niet enkel een sprong van niveau (de niveaus liggen 20 punten uit elkaar).
+- `AiPatientBridge` sterkte van de emotie van 0,2 tot 1 (was 0,4 tot 0,9) in Prototype1: de regen en de andere effecten
+  worden duidelijk zwaarder of lichter met de spanning.

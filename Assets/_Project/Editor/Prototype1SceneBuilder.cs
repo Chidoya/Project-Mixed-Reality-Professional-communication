@@ -160,9 +160,16 @@ namespace ProCommVR.Editor
 
             var hud = EmotionHudSetup.AddToScene(emotions, pov, reputation);
             hud.transform.SetParent(prototype, true);
+            // What the last sentence did: an arrow next to Trust and the dominant emotion (only in the patient view).
+            SetBool(hud, "_showLastChange", true);
             // The player as the patient sees him: a white figure with an aura from the trust (black waves to wings).
             var aura = ReputationAuraSetup.AddToScene(reputation, rig.GetComponentInChildren<ProCommVR.Player.PlayerAvatar>(true));
             aura.transform.SetParent(prototype, true);
+            // Every change of the trust shows in the aura, not only a change of tier.
+            SetFloat(aura, "_edgeStrength", 0.35f);
+            // A wider range of strength, so the room follows the tension (the rain gets heavier or lighter).
+            SetFloat(bridge, "_minStrength", 0.2f);
+            SetFloat(bridge, "_maxStrength", 1f);
             // The clipboard on the lobby desk: a task template and the dev controls (emotion, trust slider).
             // The case and the guide of the scenario, from the AI server (scenario file), for the clipboard.
             var briefingData = new GameObject("Scenario Briefing (case, guide)").AddComponent<ScenarioBriefing>();
@@ -531,6 +538,20 @@ namespace ProCommVR.Editor
         }
 
         private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        private static void SetBool(Object target, string field, bool value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(field).boolValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetFloat(Object target, string field, float value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(field).floatValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
 
         private static void Set(Object target, string field, Object value)
         {
