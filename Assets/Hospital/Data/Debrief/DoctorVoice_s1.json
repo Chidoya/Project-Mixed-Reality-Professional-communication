@@ -69,6 +69,14 @@
     "s1_item7_score1": "You asked a question, but a closed one.",
     "s1_item7_score2": "You asked an open question about what matters to him.",
     "s1_item7_better": "What would make today a little better for you?",
+    "s1_item8_score0": "By the end he didn't trust you more than at the start. Listen first, and name what you see.",
+    "s1_item8_score1": "His trust grew a little, but not enough for him to really open up.",
+    "s1_item8_score2": "By the end he trusted you. That's why he was open to your idea.",
+    "s1_item8_better": "I'm here for you. Tell me what makes today so hard.",
+    "s1_item9_score0": "He stayed just as gloomy, or got worse. Acknowledge his sadness, then find one small thing together.",
+    "s1_item9_score1": "His mood lifted a little, but he stayed gloomy.",
+    "s1_item9_score2": "He left the conversation in a lighter mood than he started it.",
+    "s1_item9_better": "Shall we set up a video call, so you can still see her blow out the candles?",
     "s1_critical_false_discharge_promise": "You promised him he could go home early. Only the doctor decides that, and with a leg infection it isn't safe. Show that you understand, and offer something he can do, like sitting up or a video call with his granddaughter."
   }
 }

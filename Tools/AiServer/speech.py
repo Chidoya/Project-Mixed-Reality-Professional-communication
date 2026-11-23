@@ -112,16 +112,32 @@ class SpeechToText:
         self.model = model
         log.info("Speech recognition ready: %s on %s (%s)", self.model_name, self.device, self.compute_type)
 
-    def transcribe(self, wav_bytes: bytes) -> str:
+    def transcribe(self, wav_bytes: bytes, hint_words: list[str] | None = None) -> str:
+        return self.transcribe_detailed(wav_bytes, hint_words)[0]
+
+    def transcribe_detailed(self, wav_bytes: bytes, hint_words: list[str] | None = None) -> tuple[str, float]:
+        """Text and confidence (the mean avg_logprob of the segments, about -0.2 = sure, below -1 = guessing).
+
+        hint_words (the scenario's vocabulary and the nurse's name) go in as the initial prompt and as hotwords:
+        Whisper then writes "Jalil" or "antibiotics" instead of a word that only sounds like it."""
         audio = read_wav_mono_16k(wav_bytes)
         if len(audio) < WHISPER_RATE // 4:  # shorter than 0.25 s
-            return ""
+            return "", 0.0
+        words = [w for w in dict.fromkeys(hint_words or []) if w]
+        prompt = ("A nurse talks to a patient in hospital. Words: " + ", ".join(words) + ".") if words else None
         with self._lock:
             segments, _ = self.model.transcribe(
                 audio, language=self.language, vad_filter=True, beam_size=self.beam_size,
-                condition_on_previous_text=False,
+                condition_on_previous_text=False, initial_prompt=prompt,
+                hotwords=" ".join(words) if words else None,
             )
-            return " ".join(s.text.strip() for s in segments).strip()
+            segments = list(segments)
+        text = " ".join(s.text.strip() for s in segments).strip()
+        if not segments:
+            return text, 0.0
+        total = sum(max(1, len(s.text.split())) for s in segments)
+        logprob = sum(s.avg_logprob * max(1, len(s.text.split())) for s in segments) / total
+        return text, round(logprob, 3)
 
 
 class TextToSpeech:

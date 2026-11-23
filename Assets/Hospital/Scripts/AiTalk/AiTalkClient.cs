@@ -62,7 +62,7 @@ namespace ProCommVR.Hospital.AiTalk
             if (_settings.autoStartServerInEditor)
                 await WaitForServer(_settings.serverStartWaitSeconds);
 #endif
-            var body = JsonUtility.ToJson(new AiStartRequest { scenario_id = _scenarioId });
+            var body = JsonUtility.ToJson(new AiStartRequest { scenario_id = _scenarioId, nurse_name = _settings.nurseName });
             using var request = new UnityWebRequest(Url("/session/start"), UnityWebRequest.kHttpVerbPOST)
             {
                 uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),

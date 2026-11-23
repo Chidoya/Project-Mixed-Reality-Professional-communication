@@ -304,12 +304,43 @@ namespace ProCommVR.Hospital.Debrief
 
         public DebriefData Build()
         {
-            Emotion? final = null;
-            if (_holder != null)
-                final = _holder.Target.Dominant;
             var turns = _recorder != null ? _recorder.Turns : null;
+            var final = FeltEmotion.FeltMost(_debrief, turns, _holder);
             var scenario = _recorder != null && _recorder.Npc != null ? _recorder.Npc.ScenarioId : "";
             return DebriefData.Build(_debrief, turns, final, scenario);
+        }
+    }
+
+    public static class FeltEmotion
+    {
+        /// <summary>
+        /// v2: what the patient felt MOST over the whole conversation, for the question "what did he feel?". The AI
+        /// server counts every reply (felt_emotion); without it the recorded turns are counted (a tie: the later one);
+        /// only without both the patient's emotion at the end. Before, only the end counted: one worried or surprised
+        /// last line made a man who was sad the whole time "afraid".
+        /// </summary>
+        public static Emotion? FeltMost(AiDebrief debrief, IReadOnlyList<RecordedTurn> turns, EmotionHolder holder)
+        {
+            var fromServer = debrief?.felt_emotion?.emotion;
+            if (!string.IsNullOrEmpty(fromServer) && Enum.TryParse<Emotion>(fromServer, out var parsed))
+                return parsed;
+            if (turns != null && turns.Count > 0)
+            {
+                var counts = new Dictionary<Emotion, int>();
+                var last = new Dictionary<Emotion, int>();
+                for (var i = 0; i < turns.Count; i++)
+                {
+                    var dominant = turns[i].Dominant;
+                    if (!dominant.HasValue)
+                        continue;
+                    counts.TryGetValue(dominant.Value, out var n);
+                    counts[dominant.Value] = n + 1;
+                    last[dominant.Value] = i;
+                }
+                if (counts.Count > 0)
+                    return counts.Keys.OrderByDescending(e => counts[e]).ThenByDescending(e => last[e]).First();
+            }
+            return holder != null ? holder.Target.Dominant : null;
         }
     }
 

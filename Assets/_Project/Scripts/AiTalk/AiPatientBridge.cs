@@ -52,12 +52,15 @@ namespace ProCommVR.AiTalk
             new LabelMapping { Label = "Happy", Emotion = EmotionChoice.Joy },
             new LabelMapping { Label = "Angry", Emotion = EmotionChoice.Anger },
             new LabelMapping { Label = "Worried", Emotion = EmotionChoice.Fear },
-            new LabelMapping { Label = "Surprised", Emotion = EmotionChoice.Fear },
             new LabelMapping { Label = "Sad", Emotion = EmotionChoice.Sadness },
             new LabelMapping { Label = "Crying", Emotion = EmotionChoice.Sadness },
             new LabelMapping { Label = "Pain", Emotion = EmotionChoice.Sadness },
             new LabelMapping { Label = "Neutral", Emotion = EmotionChoice.None },
         };
+
+        [Tooltip("v2: AI labels that are no feeling of their own (a surprised 'Home? For the party?'): the patient keeps the " +
+                 "emotion he had. Before, Surprised counted as Fear, so a sad man suddenly looked 'afraid'.")]
+        [SerializeField] private string[] _keepPreviousFor = { "Surprised" };
 
         [Tooltip("Strength of the dominant emotion: from Min (tension or trust 0) to Max (100).")]
         [SerializeField, Range(0f, 1f)] private float _minStrength = 0.4f;
@@ -139,8 +142,18 @@ namespace ProCommVR.AiTalk
                 return;
             if (_reputation != null && !HoldTrust)
                 _reputation.Set(turn.trust);
-            if (_holder != null && !HoldEmotions)
+            if (_holder != null && !HoldEmotions && !KeepsPrevious(turn.emotion))
                 _holder.SetTarget(ToEmotions(turn.emotion, turn.anger, turn.trust));
+        }
+
+        private bool KeepsPrevious(string label)
+        {
+            if (_keepPreviousFor == null || string.IsNullOrEmpty(label))
+                return false;
+            foreach (var keep in _keepPreviousFor)
+                if (string.Equals(keep, label, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
         }
 
         /// <summary>

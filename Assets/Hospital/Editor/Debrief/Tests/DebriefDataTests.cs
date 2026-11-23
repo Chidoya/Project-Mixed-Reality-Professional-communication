@@ -216,5 +216,25 @@ namespace ProCommVR.Hospital.Debrief.Tests
             Object.DestroyImmediate(clip);
             Object.DestroyImmediate(library);
         }
+
+        [Test]
+        public void FeltEmotion_IsWhatHeFeltMost_NotOnlyTheLastTurn()
+        {
+            // v2 playtest: sad the whole time, worried (Fear) only in the last turn -> the answer is Sadness
+            var turns = new List<RecordedTurn>
+            {
+                Turn(1, Emotion.Sadness, 20f), Turn(2, Emotion.Sadness, 25f), Turn(3, Emotion.Sadness, 30f), Turn(4, Emotion.Fear, 28f),
+            };
+            Assert.AreEqual(Emotion.Sadness, FeltEmotion.FeltMost(null, turns, null));
+
+            // the AI server's count wins when it is there
+            var server = new AiDebrief { felt_emotion = new AiFeltEmotion { emotion = "Anger", share = 0.6f } };
+            Assert.AreEqual(Emotion.Anger, FeltEmotion.FeltMost(server, turns, null));
+
+            // a tie: the later feeling
+            var tie = new List<RecordedTurn> { Turn(1, Emotion.Sadness, 20f), Turn(2, Emotion.Joy, 60f) };
+            Assert.AreEqual(Emotion.Joy, FeltEmotion.FeltMost(new AiDebrief(), tie, null));
+            Assert.IsNull(FeltEmotion.FeltMost(null, new List<RecordedTurn>(), null));
+        }
     }
 }

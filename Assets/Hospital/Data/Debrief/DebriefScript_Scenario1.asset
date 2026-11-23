@@ -168,6 +168,12 @@ MonoBehaviour:
   - ItemId: 7
     Improve: Ask an open question
     WellDone: Asked what matters to him
+  - ItemId: 8
+    Improve: Earn his trust before advice
+    WellDone: He trusted you by the end
+  - ItemId: 9
+    Improve: Leave him lighter than before
+    WellDone: You lifted his mood
   CriticalNote: Never promise a discharge
   ImproveColor: {r: 1, g: 0.86, b: 0.3, a: 1}
   WellDoneColor: {r: 0.62, g: 0.9, b: 0.55, a: 1}

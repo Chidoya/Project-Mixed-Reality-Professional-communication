@@ -350,7 +350,13 @@
           "go to the party",
           "make the party"
         ]
-      }
+      },
+      "negation_guard_words": [
+        "promise",
+        "guarantee",
+        "will be fine",
+        "be better"
+      ]
     },
     {
       "name": "motivated_small_step",
@@ -434,7 +440,7 @@
       "critical_feedback_en": "You promised him he could go home early. Only the doctor decides that, and with a leg infection it isn't safe. Show that you understand, and offer something he can do, like sitting up or a video call with his granddaughter.",
       "critical_reaction": {
         "reply": "Home? For the party? Can you even promise me that?",
-        "emotion": "Surprised",
+        "emotion": "Sad",
         "animation": "Laying",
         "pose": "Engaged"
       },
@@ -451,8 +457,38 @@
         "go to the party",
         "make the party",
         "leave the hospital",
-        "let you go"
-      ]
+        "let you go",
+        "let you leave",
+        "you can leave",
+        "leave for the party"
+      ],
+      "negated_label": "deferred_to_doctor"
+    },
+    {
+      "name": "deferred_to_doctor",
+      "tension": -2,
+      "trust": 4,
+      "description": "Says honestly that going home or leaving is NOT the nurse's decision but the doctor's, WITHOUT promising or offering anything ('I can't let you go, only the doctor can decide that'). Offering to get him discharged early or home for the party is NOT this (that is false_discharge_promise).",
+      "example": "I'm not allowed to let you go home, only the doctor can decide that. I can ask her to come by.",
+      "moment_nl": "Je zei eerlijk dat de arts over ontslag beslist",
+      "upgrade_to": {
+        "label": "false_discharge_promise",
+        "if_any": [
+          "discharge you",
+          "discharged early",
+          "discharge you early",
+          "can go home",
+          "you go home",
+          "get you home",
+          "send you home",
+          "home early",
+          "home for the party",
+          "go to the party",
+          "make the party",
+          "let you go home",
+          "let you leave"
+        ]
+      }
     }
   ],
   "fallback_lines": [
@@ -495,15 +531,19 @@
       "criterion": "Stays within the nursing role",
       "criterion_nl": "Blijft binnen de rol (geen ontslag beloven)",
       "scoring": {
+        "positive": [
+          "deferred_to_doctor"
+        ],
         "avoid": [
           "false_discharge_promise",
           "false_promise"
-        ]
+        ],
+        "score_if_neither": 2
       },
       "feedback": {
         "0": "Je beloofde iets wat niet aan jou is, zoals een vroeg ontslag. Dat beslist de arts.",
         "1": "Je bleef meestal binnen je rol.",
-        "2": "Je bleef binnen je rol en beloofde niets wat de arts moet beslissen."
+        "2": "Je bleef binnen je rol: je beloofde niets wat de arts moet beslissen."
       },
       "feedback_en": {
         "0": "You promised something that isn't yours to promise, like going home early. Only the doctor decides that.",
@@ -623,6 +663,50 @@
         "2": "You asked an open question about what matters to him."
       },
       "better_phrase": "What would make today a little better for you?"
+    },
+    {
+      "id": 8,
+      "criterion": "Built his trust",
+      "criterion_nl": "Bouwde vertrouwen op",
+      "scoring": {
+        "trust_final": {
+          "two_gte": 55,
+          "one_gain": 10
+        }
+      },
+      "feedback": {
+        "0": "Hij vertrouwde je aan het einde niet meer dan in het begin. Luister eerst en benoem wat je ziet.",
+        "1": "Zijn vertrouwen groeide een beetje, maar nog niet genoeg om echt open te staan.",
+        "2": "Hij vertrouwde je aan het einde. Daardoor stond hij open voor je voorstel."
+      },
+      "feedback_en": {
+        "0": "By the end he didn't trust you more than at the start. Listen first, and name what you see.",
+        "1": "His trust grew a little, but not enough for him to really open up.",
+        "2": "By the end he trusted you. That's why he was open to your idea."
+      },
+      "better_phrase": "I'm here for you. Tell me what makes today so hard."
+    },
+    {
+      "id": 9,
+      "criterion": "Lifted his mood",
+      "criterion_nl": "Verbeterde zijn stemming",
+      "scoring": {
+        "tension_final": {
+          "two_lte": 46,
+          "one_drop": 8
+        }
+      },
+      "feedback": {
+        "0": "Hij bleef even somber of werd somberder. Erken zijn verdriet en zoek samen iets kleins dat kan.",
+        "1": "Zijn stemming werd iets lichter, maar hij bleef somber.",
+        "2": "Hij ging lichter het gesprek uit dan hij erin ging."
+      },
+      "feedback_en": {
+        "0": "He stayed just as gloomy, or got worse. Acknowledge his sadness, then find one small thing together.",
+        "1": "His mood lifted a little, but he stayed gloomy.",
+        "2": "He left the conversation in a lighter mood than he started it."
+      },
+      "better_phrase": "Shall we set up a video call, so you can still see her blow out the candles?"
     }
   ],
   "debrief": {
@@ -631,11 +715,11 @@
     "summary_mode": "template",
     "summary_fallback": [
       {
-        "min_score": 10,
+        "min_score": 13,
         "text": "Je gaf Patient X weer wat moed en bleef binnen je rol. Kijk bij de punten in het oranje of grijs wat je nog sterker kunt maken."
       },
       {
-        "min_score": 5,
+        "min_score": 7,
         "text": "Je deed een aantal dingen goed, maar hij bleef somber. Erken zijn verdriet en stel iets kleins en positiefs voor."
       },
       {
@@ -645,5 +729,21 @@
     ],
     "summary_timeout_seconds": 8,
     "summary_num_predict": 150
-  }
+  },
+  "stt_vocabulary": [
+    "discharge",
+    "antibiotics",
+    "drip",
+    "infection",
+    "granddaughter",
+    "birthday",
+    "party",
+    "video call",
+    "doctor",
+    "nurse",
+    "Emma",
+    "leg",
+    "sit up",
+    "hospital"
+  ]
 }

@@ -249,6 +249,12 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   foto, ballon en klok van de kleindochter, hartslag met haptics, dof geluid en een innerlijke stem (Piper). In Jalils
   builders enkel de capsule vervangen en één regel `PatientPovSetup.AddToScene`. Getest met batchmode en Play mode smoke
   tests (zie het eindrapport); niet op de Quest 3 getest.
+- 2026-11-23: Liam, `feature/liam/full-loop-v2` (vanaf `full-loop-infectedLegSchene`, worktree `Project_v2`, lokaal):
+  v2 van Scenario 1 met de verbeterpunten uit de playtest (`docs/v2_playtest_fixes.md`): vertrouwen en stemming tellen
+  mee in de score (max 18), de vraag "wat voelde hij?" kijkt naar het hele gesprek, "ik mag je niet laten gaan, enkel de
+  dokter" is geen vals ontslag meer, Whisper krijgt woorden en naam als hint, de patiënt noemt de student nooit X, de
+  verjaardagskaart staat dicht tot de student iets positiefs voorstelt. Getest: Python-tests (ook live met Ollama),
+  EditMode 11/11, smoke tests (RunMemoryReplay faalt op de gekende instabiele GC-check). Niet op de Quest 3 getest.
 
 
 ## Beslissingen

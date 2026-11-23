@@ -72,6 +72,7 @@ async def llm_unavailable(_: Request, exc: LlmUnavailableError):
 
 class StartRequest(BaseModel):
     scenario_id: str
+    nurse_name: str = ""  # v2: the student's own name (Unity setting), so the patient never calls them by another
 
 
 class TurnRequest(BaseModel):
@@ -108,7 +109,7 @@ def health():
 @app.post("/session/start")
 def session_start(req: StartRequest):
     try:
-        session, opening = engine.start_session(req.scenario_id)
+        session, opening = engine.start_session(req.scenario_id, req.nurse_name)
     except FileNotFoundError:
         raise HTTPException(404, f"unknown scenario {req.scenario_id}")
     opening["audio_wav_base64"], opening["tts_ms"] = speak(opening["reply"], opening["band"], session)
@@ -143,7 +144,7 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
     if len(wav_bytes) > MAX_AUDIO_BYTES:
         raise HTTPException(413, "audio too long")
     try:
-        transcript, stt_ms = timed(stt.transcribe, wav_bytes)
+        (transcript, confidence), stt_ms = timed(stt.transcribe_detailed, wav_bytes, engine.stt_hints(session))
     except Exception as exc:  # noqa: BLE001 - bad or non-wav upload
         raise HTTPException(400, f"could not read the wav: {exc}")
     finally:
@@ -153,6 +154,11 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
     if len(transcript.split()) < CONFIG.get("stt_min_words", 2):
         log.info("audio turn %s: transcript too short (%r), asking for retry", session_id, transcript)
         return {"retry": True, "transcript": transcript, "timings_ms": {"stt_ms": stt_ms}}
+    # v2: Whisper was guessing (mumbling, noise, a half sentence): the patient asks to say it again instead of
+    # reacting to words the student never said. Nothing in the conversation changes.
+    if confidence < CONFIG.get("stt_min_confidence", -1.0):
+        log.info("audio turn %s: unsure transcript (%r, %.2f), asking for retry", session_id, transcript, confidence)
+        return {"retry": True, "transcript": transcript, "confidence": confidence, "timings_ms": {"stt_ms": stt_ms}}
 
     with session.lock:
         try:
@@ -161,6 +167,7 @@ def turn_audio(session_id: str = Form(...), audio: UploadFile = File(...)):
             raise HTTPException(409, str(exc))
         result["input"] = "audio"
         result["transcript"] = transcript
+        result["stt_confidence"] = confidence
         audio_b64, tts_ms = speak(result["reply"], result["band"], session)
         # result is the same dict that is stored in the session log, so the log gets these too
         timings = result["timings_ms"]

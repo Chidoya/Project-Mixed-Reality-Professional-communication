@@ -39,6 +39,11 @@ class ActorOutput(BaseModel):
     facts_used: list[str]
 
 
+class CriticalVerdict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    nurse_promises_it: bool
+
+
 def make_classifier_model(label_names: list[str]) -> type[BaseModel]:
     """Build the strict classification model with the scenario's labels as a Literal."""
     LabelLiteral = Literal[tuple(label_names)]  # type: ignore[valid-type]
@@ -145,6 +150,7 @@ class Session:
     critical: Optional[dict[str, Any]] = None  # the critical error that ended the scenario
     last_labels: list[str] = field(default_factory=list)  # labels of the student's last sentence (for the actor)
     phase_turns: int = 0  # student turns spent in the current phase (for the optional "min_turns" of a phase)
+    nurse_name: str = ""  # v2: the student's own name (from Unity or from "I'm Jalil"); the only name for the nurse
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -220,14 +226,70 @@ def _name_candidates(text: str) -> list[tuple[str, bool]]:
     return out
 
 
+# Words after "I'm" that are not a name ("I'm sorry", "I'm the nurse", "I'm here"...)
+_NOT_NAME_WORDS = {"sorry", "here", "the", "a", "an", "your", "one", "just", "so", "really", "not", "going", "afraid",
+                   "sure", "glad", "happy", "nurse", "listening", "back", "fine", "very", "also", "still", "only",
+                   "trying", "worried", "sad", "doing", "coming", "staying", "able", "allowed", "with", "on", "in",
+                   "it", "that", "what", "here's", "there", "too", "always", "never", "now", "afraid"}
+
+
 def _nurse_names(student_lines: list[str]) -> set[str]:
-    """The nurse's own name, from how the student introduced themselves ("I'm Tom", "my name is Emma")."""
+    """The nurse's own name, from how the student introduced themselves ("I'm Tom", "my name is Emma",
+    "I'm nurse Jalil", "call me Sam"). Speech recognition often writes the name in lower case, so case is ignored
+    here; the name is returned capitalized."""
     names = set()
+    pattern = (r"\b(?:I'm|I am|my name is|my name's|name is|this is|call me|I'm called|they call me)"
+               r"\s+(?:nurse\s+)?([A-Za-z][a-z]+)")
     for line in student_lines:
-        for m in re.finditer(r"\b(?:I'm|I am|my name is|this is|it's)\s+([A-Z][a-z]+)", line, re.I):
-            if m.group(1)[0].isupper() and m.group(1) not in _NOT_NAMES:
-                names.add(m.group(1))
+        for m in re.finditer(pattern, line, re.I):
+            word = m.group(1)
+            if word.lower() in _NOT_NAME_WORDS or word.capitalize() in _NOT_NAMES:
+                continue
+            names.add(word.capitalize())
     return names
+
+
+def nurse_name_of(session: "Session") -> str:
+    """The nurse's name: the one Unity gave at the start, otherwise the last one the student introduced."""
+    if session.nurse_name:
+        return session.nurse_name
+    lines = [h["text"] for h in session.history if h["speaker"] == "student"]
+    found = [n for line in lines for n in sorted(_nurse_names([line]))]
+    return found[-1] if found else ""
+
+
+# v2: a sentence that says the nurse may NOT do something, or that it is the doctor's decision, is not a promise.
+_NEGATIONS = {"not", "never", "no", "cannot", "cant", "wont", "dont", "unable", "allowed", "nobody", "neither"}
+_DEFER_PHRASES = ["only the doctor", "the doctor decides", "doctor's decision", "doctors decision", "up to the doctor",
+                  "decision of the doctor", "not up to me", "not my decision", "isn't my decision",
+                  "the doctor has to decide", "the doctor will decide", "can't promise", "cannot promise",
+                  "won't promise", "not allowed to", "i'm not allowed", "not able to let", "can't let you",
+                  "cannot let you", "may not let", "mustn't let", "must not let", "you can't go", "you cannot go",
+                  "can't leave", "cannot leave", "can't discharge", "cannot discharge", "can't send you home"]
+
+
+def _canon(text: str) -> str:
+    return " " + _norm(text).replace("can not", "cannot").replace("cannot", "can't") + " "
+
+
+def _negated(text: str, keyword: str) -> bool:
+    """True when every place the keyword is said has a negation in the 5 words before it ("I can't let you go home",
+    "I'm not allowed to discharge you")."""
+    low = _canon(text)
+    key = _norm(keyword)
+    spots = [m.start() for m in re.finditer(r"(?<![a-z])" + re.escape(key) + r"(?![a-z])", low)]
+    if not spots:
+        return False
+    for at in spots:
+        before = low[:at].split()[-5:]
+        if not any(w in _NEGATIONS or w.endswith("n't") for w in before):
+            return False
+    return True
+
+
+def defers_to_doctor(text: str) -> bool:
+    low = _canon(text)
+    return any(_canon(p).strip() in low for p in _DEFER_PHRASES)
 
 
 def _similarity(a: str, b: str) -> float:
@@ -255,7 +317,7 @@ class Engine:
 
     # -- session start
 
-    def start_session(self, scenario_id: str) -> tuple[Session, dict[str, Any]]:
+    def start_session(self, scenario_id: str, nurse_name: str = "") -> tuple[Session, dict[str, Any]]:
         sc = self.scenario(scenario_id)
         op = sc.data["opening"]
         session = Session(
@@ -264,6 +326,7 @@ class Engine:
             anger=_tension(op),
             trust=op["trust"],
             phase=sc.phases[0]["id"],
+            nurse_name=re.sub(r"[^A-Za-z' -]", "", nurse_name or "").strip().title()[:30],
         )
         self._unlock_facts(session)
         session.history.append({"speaker": "character", "text": op["reply"]})
@@ -282,6 +345,15 @@ class Engine:
             "meta": self.scenario_meta(sc),
         }
         return session, opening
+
+    @staticmethod
+    def stt_hints(session: Session) -> list[str]:
+        """Words that speech recognition should expect (v2): the nurse's name, the scenario's "stt_vocabulary" and the
+        character's known names."""
+        sc = session.scenario
+        words = [nurse_name_of(session)] + list(sc.data.get("stt_vocabulary", []))
+        words += [w for n in sc.data.get("known_names", []) for w in re.findall(r"[A-Z][a-z]+", n)]
+        return [w for w in words if w]
 
     @staticmethod
     def scenario_meta(sc: Scenario) -> dict[str, Any]:
@@ -384,6 +456,14 @@ class Engine:
 
         # 2b. critical error: the scenario ends at once, the character reacts with a fixed line
         critical = [l for l in cls["labels"] if l in sc.critical_labels]
+        if critical and not self._confirm_critical(session, text, critical[0], result["notes"], result["tokens"]):
+            cls["labels"] = [l for l in cls["labels"] if l != critical[0]]
+            swap = sc.labels[critical[0]].get("negated_label")
+            if swap in sc.labels and swap not in cls["labels"]:
+                cls["labels"].append(swap)
+            result["labels"] = cls["labels"]
+            session.last_labels = list(cls["labels"])
+            critical = []
         if critical:
             t = time.perf_counter()
             self._apply_labels(session, cls["labels"], result["notes"])
@@ -482,6 +562,33 @@ class Engine:
         data["evidence_quote"] = text
         return data
 
+    # -- step 2a: a critical error ends the scenario, so it is checked twice (v2)
+
+    def _confirm_critical(self, session: Session, text: str, label_name: str, notes: list[str],
+                          tokens: dict) -> bool:
+        """Asks the model one yes/no question about the critical label: did the nurse really promise it? Only runs when
+        a critical label survived the keyword and negation filters AND the sentence has a negation somewhere ("I can't
+        promise, but maybe we can get you to the party"): a plain promise needs no second opinion (the small model
+        took "let me ask the doctor to discharge you early" for deferring). If the model cannot answer, the label stays."""
+        words = _canon(text).split()
+        if not any(w in _NEGATIONS or w.endswith("n't") for w in words):
+            return True
+        label = session.scenario.labels[label_name]
+        system = (
+            "You check one sentence of a nursing student. Answer only with JSON.\n"
+            f"Question: does the nurse PROMISE or OFFER this: {label.get('description', label_name)}\n"
+            "Answer true when the nurse offers to arrange it, also through the doctor ('let me ask the doctor to discharge "
+            "you early'). Answer false only when the nurse says they can NOT do it, that it is not allowed, that only the "
+            "doctor decides without offering it, or when the nurse only repeats what the patient wants."
+        )
+        out = self._call_validated(system, [{"role": "user", "content": f'Sentence: "{text}"'}], CriticalVerdict,
+                                   "classifier", notes, tokens)
+        if out is None:
+            return True
+        if not out.nurse_promises_it:
+            notes.append(f"critical label {label_name} dropped: the check says it was not a promise")
+        return out.nurse_promises_it
+
     # -- step 2: label filters (pure Python, all optional)
 
     @staticmethod
@@ -499,7 +606,8 @@ class Engine:
             # Optional "upgrade_to": {"label": ..., "if_any": [...]}: a label close to a worse one becomes that one when
             # its words are said (the small model mixes up "false promise" and "false discharge promise").
             up = sc.labels[name].get("upgrade_to")
-            if up and up.get("label") in sc.labels and any(_has_word(text, w) for w in up.get("if_any", [])):
+            if up and up.get("label") in sc.labels and any(_has_word(text, w) and not _negated(text, w)
+                                                           for w in up.get("if_any", [])):
                 notes.append(f"label {name} upgraded to {up['label']}")
                 name = up["label"]
             if name not in upgraded:
@@ -511,7 +619,24 @@ class Engine:
             words = label.get("critical_requires_any", []) if label.get("critical") else []
             if words and not any(_has_word(text, w) for w in words):
                 notes.append(f"critical label {name} dropped: none of its keywords in the sentence")
+                swap = label.get("negated_label")
+                if defers_to_doctor(text) and swap in sc.labels and swap not in out and swap not in labels:
+                    out.append(swap)
+                    notes.append(f"label {swap} added instead (left to the doctor)")
                 continue
+            # v2: "I can't let you go home, only the doctor can" is the opposite of a promise. A critical label, or one
+            # with "negation_guard_words", does not count when all its keywords are negated or when the sentence
+            # leaves the decision to the doctor; its "negated_label" (e.g. deferred_to_doctor) counts instead.
+            if label.get("critical") or label.get("negation_guard_words"):
+                guard = words or label.get("negation_guard_words", [])
+                said = [w for w in guard if _has_word(text, w)]
+                if (said and all(_negated(text, w) for w in said)) or defers_to_doctor(text):
+                    notes.append(f"label {name} dropped: negated or left to the doctor")
+                    swap = label.get("negated_label")
+                    if swap in sc.labels and swap not in out and swap not in labels:
+                        out.append(swap)
+                        notes.append(f"label {swap} added instead")
+                    continue
             hit = next((w for w in label.get("drop_if_any", []) if _has_word(text, w)), None)
             if hit:
                 notes.append(f"label {name} dropped: the sentence says {hit!r}")
@@ -667,6 +792,10 @@ class Engine:
             f"from your list of things you know, or from what the nurse said.\n"
             f"Names you know: {', '.join(sc.data.get('known_names', [])) or '(none)'}. Use no other names, except "
             f"names the nurse said. Use the nurse's own name only to address the nurse, never for someone else.\n"
+            + (f"The nurse's name is {nurse_name_of(session)}. If you call the nurse by name, say exactly "
+               f"\"{nurse_name_of(session)}\"; otherwise just say \"nurse\". Never call the nurse X or any other name.\n"
+               if nurse_name_of(session) else
+               "You do not know the nurse's name: call the nurse \"nurse\", never X or a made-up name.\n") +
             f"Your last lines were:\n{last_own}\n"
             f"Do not repeat any earlier line of yours and do not repeat the nurse's question back; say something new.\n\n"
             "Answer as JSON:\n"
@@ -751,6 +880,17 @@ class Engine:
         # address ("Thank you, Tom"), never as the name of someone else.
         student_lines = [h["text"] for h in session.history if h["speaker"] == "student"]
         nurse = _nurse_names(student_lines)
+        own = nurse_name_of(session)
+        if own:
+            nurse.add(own)
+        # v2: "X" is the patient's own placeholder name: never for the nurse ("Thank you, X", "Nurse X")
+        if re.search(r"(?<!Mr\. )(?<!Mr )(?<!Patient )(?<!Mister )\bX\b", reply):
+            return "calls someone X (X is only your own name)"
+        if own:
+            known_words = {w for n in session.scenario.data.get("known_names", []) for w in re.findall(r"[A-Z][a-z]+", n)}
+            for word, vocative in _name_candidates(reply):
+                if vocative and word != own and word not in known_words:
+                    return f"calls the nurse {word}, but the nurse's name is {own}"
         known = {w for n in session.scenario.data.get("known_names", []) for w in re.findall(r"[A-Z][a-z]+", n)}
         said = {w for line in student_lines for w, _ in _name_candidates(line)} | {
             w for line in student_lines for w in re.findall(r"\b[A-Z][a-z]+\b", line)}

@@ -506,6 +506,20 @@ namespace ProCommVR.Editor.Testing
             var story = Object.FindAnyObjectByType<ProCommVR.Hospital.PatientPov.StoryProps>();
             Check(story != null && GameObject.Find("Birthday Card") != null && GameObject.Find("Photo Frame") != null && GameObject.Find("Balloon") != null,
                 "the granddaughter's card, photo and balloon are in his room");
+            // v2: the card is closed ("still closed" on the closing card) until the student offers a video call
+            var card = Object.FindAnyObjectByType<ProCommVR.Hospital.PatientPov.BirthdayCard>();
+            Check(card != null && !card.IsOpen && card.Amount == 0f, "v2: the birthday card starts closed");
+            if (card != null)
+            {
+                var onTurn = typeof(ProCommVR.Hospital.PatientPov.BirthdayCard).GetMethod("OnTurn",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                onTurn.Invoke(card, new object[] { new AiTurn { labels = new[] { "named_emotion" } } });
+                Check(!card.IsOpen, "v2: naming his feeling does not open the card yet");
+                onTurn.Invoke(card, new object[] { new AiTurn { labels = new[] { "offered_alternative_connection" } } });
+                yield return 1.6f;
+                Check(card.IsOpen && card.Amount >= 1f, $"v2: a video call opens the card ({card.Amount:0.00})");
+                card.Close();
+            }
             holder.SetImmediate(EmotionState.Zero.With(Emotion.Sadness, 0.7f));
             yield return 1f;
             Check(driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Sad) + driver.GetMix(ProCommVR.Hospital.Face.FaceExpression.Crying) > 0.3f,

@@ -28,6 +28,10 @@ namespace ProCommVR.Hospital.AiTalk
         [Tooltip("Timeout voor de nabespreking (de beoordelaar draait 2 keer, 20 tot 40 s).")]
         [Range(30f, 600f)] public float debriefTimeoutSeconds = 180f;
 
+        [Tooltip("v2: de naam van de student (bv. Jalil). De patiënt spreekt de student enkel zo aan en de spraakherkenning " +
+                 "verwacht deze naam. Leeg: de naam uit 'I'm ...' in het gesprek.")]
+        public string nurseName = "";
+
         [Tooltip("Lokaal antwoord bij een fout of als de server de opname niet verstond.")]
         public string fallbackReply = "Sorry, what did you say?";
 

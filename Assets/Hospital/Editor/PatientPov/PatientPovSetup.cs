@@ -268,6 +268,11 @@ namespace ProCommVR.Hospital.PatientPov
             var photoPosition = top + side * settings.PhotoOffset.x + toBed * settings.PhotoOffset.y;
 
             var card = BuildCard(props, settings, cardPosition, Quaternion.LookRotation(-toBed));
+            // v2: the card starts closed and opens when the student gives him a reason (BirthdayCard)
+            var opener = card.gameObject.AddComponent<BirthdayCard>();
+            Set(opener, "_npc", holder != null ? holder.GetComponent<ProCommVR.Hospital.AiTalk.AiNpc>() : null);
+            Set(opener, "_front", card.Find("Panel Left"));
+            Set(opener, "_inside", card.Find("Panel Right"));
             var frame = BuildPhoto(props, photoPosition, Quaternion.LookRotation(toBed), out var photoColor);
             var balloon = BuildBalloon(props, layout);
 
@@ -293,18 +298,21 @@ namespace ProCommVR.Hospital.PatientPov
             return holder != null ? holder.transform.position + Vector3.up * 1.2f : layout.Nightstand.center + Vector3.left;
         }
 
-        /// <summary>An open birthday card standing on the nightstand: "HAPPY BIRTHDAY" left, Emma's invitation right.</summary>
+        /// <summary>
+        /// A birthday card standing on the nightstand: "HAPPY BIRTHDAY" on the front, Emma's invitation inside. v2: built
+        /// closed (the inside panel folded behind the front, a narrow tent); <see cref="BirthdayCard"/> opens it.
+        /// </summary>
         private static Transform BuildCard(Transform parent, ScenarioOneStoryProps settings, Vector3 position, Quaternion facing)
         {
             var card = new GameObject("Birthday Card").transform;
             card.SetParent(parent, false);
             card.SetPositionAndRotation(position, facing);
             var paper = MakeMaterial("Card_Paper", new Color(0.98f, 0.95f, 0.86f));
-            const float width = 0.15f, height = 0.2f, open = 25f;
+            const float width = 0.15f, height = 0.2f, front = -8f, inside = 188f;
             // The panels' visible sides face the patient: the card's -z (facing is away from the bed).
-            Panel(card, "Left", paper, new Vector3(-width * 0.5f, height * 0.5f, 0f), Quaternion.Euler(0f, -open, 0f), width, height,
+            Panel(card, "Left", paper, new Vector3(-width * 0.5f, height * 0.5f, 0f), Quaternion.Euler(0f, front, 0f), width, height,
                 settings.CardFront, new Color(0.9f, 0.25f, 0.45f), true);
-            Panel(card, "Right", paper, new Vector3(width * 0.5f, height * 0.5f, 0f), Quaternion.Euler(0f, open, 0f), width, height,
+            Panel(card, "Right", paper, new Vector3(width * 0.5f, height * 0.5f, 0f), Quaternion.Euler(0f, inside, 0f), width, height,
                 settings.CardInside, new Color(0.2f, 0.35f, 0.75f), false);
             return card;
         }

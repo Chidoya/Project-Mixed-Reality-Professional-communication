@@ -104,6 +104,32 @@ MonoBehaviour:
   - Key: s1_item7_better
     Text: What would make today a little better for you?
     Clip: {fileID: 8300000, guid: 6b8b928d31883764987752fbf9461c81, type: 3}
+  - Key: s1_item8_score0
+    Text: By the end he didn't trust you more than at the start. Listen first, and
+      name what you see.
+    Clip: {fileID: 8300000, guid: 927e5a86fac429641ba6c76c4e079fe7, type: 3}
+  - Key: s1_item8_score1
+    Text: His trust grew a little, but not enough for him to really open up.
+    Clip: {fileID: 8300000, guid: 4782ef8c5bb84634cb305c14e75d7d08, type: 3}
+  - Key: s1_item8_score2
+    Text: By the end he trusted you. That's why he was open to your idea.
+    Clip: {fileID: 8300000, guid: 3779fedcc8e6db741ae29d4bfa6ebfd6, type: 3}
+  - Key: s1_item8_better
+    Text: I'm here for you. Tell me what makes today so hard.
+    Clip: {fileID: 8300000, guid: 006a0d1405576da4790bd83958f5c304, type: 3}
+  - Key: s1_item9_score0
+    Text: He stayed just as gloomy, or got worse. Acknowledge his sadness, then find
+      one small thing together.
+    Clip: {fileID: 8300000, guid: 370f2a2a112f52f4a9692c4648a71af6, type: 3}
+  - Key: s1_item9_score1
+    Text: His mood lifted a little, but he stayed gloomy.
+    Clip: {fileID: 8300000, guid: d6c3ca3f1742f24468a32a49a27465d5, type: 3}
+  - Key: s1_item9_score2
+    Text: He left the conversation in a lighter mood than he started it.
+    Clip: {fileID: 8300000, guid: 1024405c2e318214fa6892430b8c70c1, type: 3}
+  - Key: s1_item9_better
+    Text: Shall we set up a video call, so you can still see her blow out the candles?
+    Clip: {fileID: 8300000, guid: a6c8b607ae0b69a429939097e405e999, type: 3}
   - Key: s1_critical_false_discharge_promise
     Text: You promised him he could go home early. Only the doctor decides that,
       and with a leg infection it isn't safe. Show that you understand, and offer

@@ -69,6 +69,33 @@ def build_log(session) -> list[dict[str, Any]]:
     return rows
 
 
+# The character's emotion labels as the four feelings of the debrief question (Unity: Joy, Anger, Fear, Sadness).
+# Surprised and Neutral are no feeling: a surprised "Home? For the party?" must not make a sad man "afraid".
+FEELINGS = {"Happy": "Joy", "Angry": "Anger", "Worried": "Fear", "Sad": "Sadness", "Crying": "Sadness",
+            "Pain": "Sadness"}
+
+
+def felt_emotion(session) -> dict[str, Any]:
+    """v2: what the character felt MOST over the whole conversation (opening + every reply), not only at the end.
+    Each reply counts once; with a tie the feeling that came later wins. The scenario may override the mapping
+    with "emotion_to_feeling"."""
+    mapping = dict(FEELINGS)
+    mapping.update(session.scenario.data.get("emotion_to_feeling", {}))
+    labels = [session.scenario.data["opening"].get("emotion", "")]
+    labels += [t.get("emotion", "") for t in session.turns if t.get("kind") != "event" and t.get("reply")]
+    counts: dict[str, int] = {}
+    last: dict[str, int] = {}
+    for i, label in enumerate(labels):
+        feeling = mapping.get(label)
+        if feeling:
+            counts[feeling] = counts.get(feeling, 0) + 1
+            last[feeling] = i
+    if not counts:
+        return {"emotion": None, "counts": {}, "share": 0.0}
+    best = max(counts, key=lambda f: (counts[f], last[f]))
+    return {"emotion": best, "counts": counts, "share": round(counts[best] / sum(counts.values()), 2)}
+
+
 def _first_hit(log: list[dict], labels: list[str]) -> Optional[dict]:
     """First turn with a label, in the priority order of the scenario list (the first label is the best
     evidence), so e.g. an apology is the evidence for 'shows understanding' rather than 'offered support'."""
@@ -79,7 +106,54 @@ def _first_hit(log: list[dict], labels: list[str]) -> Optional[dict]:
     return None
 
 
-def score_item(item: dict, log: list[dict], phases: list[str], opening_anger: int) -> dict:
+def score_state_item(item: dict, log: list[dict], opening: dict) -> Optional[dict]:
+    """v2: rubric items about where the patient ended up, not about one sentence.
+      "trust_final":   {"two_gte": 55, "one_gain": 10}  2 if the trust ended at 55+, 1 if it rose at least 10
+      "tension_final": {"two_lte": 46, "one_drop": 8}   2 if the tension (his mood) ended at 46 or lower, 1 if it fell 8+
+    The evidence turn is the turn with the biggest gain in trust (or drop in tension)."""
+    rule = item["scoring"]
+    kind = "trust" if "trust_final" in rule else "tension" if "tension_final" in rule else None
+    if kind is None:
+        return None
+    cfg = rule["trust_final" if kind == "trust" else "tension_final"]
+    stat = "trust" if kind == "trust" else "anger"
+    start = opening["trust"] if kind == "trust" else opening["anger"]
+    end = log[-1][stat][1] if log else start
+    sign = 1 if kind == "trust" else -1
+    change = (end - start) * sign
+    if kind == "trust":
+        score = 2 if end >= cfg.get("two_gte", 55) else 1 if change >= cfg.get("one_gain", 10) else 0
+    else:
+        score = 2 if end <= cfg.get("two_lte", 46) else 1 if change >= cfg.get("one_drop", 8) else 0
+    best = max(log, key=lambda r: (r[stat][1] - r[stat][0]) * sign, default=None)
+    hit = best if best is not None and (best[stat][1] - best[stat][0]) * sign > 0 and score > 0 else None
+    worst = min(log, key=lambda r: (r[stat][1] - r[stat][0]) * sign, default=None)
+    if score == 0 and worst is not None and (worst[stat][1] - worst[stat][0]) * sign < 0:
+        hit = worst
+    quote = "" if hit is None else (hit["quote"] if len(hit["labels"]) == 1 and hit["quote"] else hit["student"])
+    return {
+        "id": item["id"],
+        "criterion": item["criterion"],
+        "criterion_nl": item.get("criterion_nl", item["criterion"]),
+        "score": score,
+        "uncertain": False,
+        "evidence_quote": quote,
+        "evidence_turn": hit["turn"] if hit else None,
+        "feedback": item["feedback"][str(score)],
+        "feedback_en": item.get("feedback_en", {}).get(str(score), ""),
+        "better_phrase": item["better_phrase"],
+        "why": f"{kind} {start} -> {end}",
+        "kind": kind,
+        "start_value": start,
+        "end_value": end,
+    }
+
+
+def score_item(item: dict, log: list[dict], phases: list[str], opening_anger: int,
+               opening: Optional[dict] = None) -> dict:
+    state = score_state_item(item, log, opening or {"anger": opening_anger, "trust": 0})
+    if state is not None:
+        return state
     rule = item["scoring"]
     positive, partial, avoid = rule.get("positive", []), rule.get("partial", []), rule.get("avoid", [])
     last_n = rule.get("positive_in_last_turns")
@@ -219,7 +293,7 @@ def run_debrief(llm: LlmClient, session) -> dict[str, Any]:
     log = build_log(session)
     phases = [p["id"] for p in sc.phases]
     opening = sc.data["opening"]
-    items = [score_item(r, log, phases, opening["anger"]) for r in sc.data["rubric"]]
+    items = [score_item(r, log, phases, opening["anger"], opening) for r in sc.data["rubric"]]
     moments = key_moments(sc, log)
     total = sum(i["score"] for i in items)
     t_scores = int((time.perf_counter() - t_start) * 1000)
@@ -278,6 +352,9 @@ def _result(session, sc, log, items, moments, total, summary, source, notes, t_s
         "total_score": total,
         "max_score": 2 * len(items),
         "key_moments": moments,
+        "final_trust": log[-1]["trust"][1] if log else opening["trust"],
+        "final_tension": log[-1]["anger"][1] if log else opening["anger"],
+        "felt_emotion": felt_emotion(session),
         "anger_curve": [opening["anger"]] + [r["anger"][1] for r in log],
         "trust_curve": [opening["trust"]] + [r["trust"][1] for r in log],
         "notes": notes,

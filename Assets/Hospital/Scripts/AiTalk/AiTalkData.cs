@@ -189,6 +189,10 @@ namespace ProCommVR.Hospital.AiTalk
         public AiDebriefTimings timings_ms;
         public string tension_name_nl;
         public AiCritical critical;
+        // v2: the end state (trust and mood are part of the score) and the feeling of the whole conversation
+        public int final_trust;
+        public int final_tension;
+        public AiFeltEmotion felt_emotion;
 
         // Alleen in Unity
         [NonSerialized] public string error;
@@ -213,5 +217,14 @@ namespace ProCommVR.Hospital.AiTalk
     internal class AiStartRequest
     {
         public string scenario_id;
+        public string nurse_name;
+    }
+
+    /// <summary>v2: what the patient felt most over the whole conversation (Joy, Anger, Fear, Sadness or empty).</summary>
+    [Serializable]
+    public class AiFeltEmotion
+    {
+        public string emotion;
+        public float share;
     }
 }
