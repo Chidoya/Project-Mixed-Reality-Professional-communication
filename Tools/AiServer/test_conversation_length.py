@@ -15,7 +15,7 @@ def play(name, lines):
     print(f"=== {name}: tension {s.anger} trust {s.trust}")
     for i, text in enumerate(lines, 1):
         r = eng.run_turn(s, text)
-        print(f"{i}. \"{text}\"\n   labels {r.get('labels')} unsafe {r.get('unsafe')} -> tension {s.anger} trust {s.trust} phase {s.phase} ended {s.ended}\n   patient: {r.get('reply')}")
+        print(f"{i}. \"{text}\"\n   labels {r.get('labels')} unsafe {r.get('unsafe')} -> tension {s.anger} trust {s.trust} phase {s.phase} ended {s.ended}\n   patient ({r.get('emotion')}): {r.get('reply')}")
         if s.ended: break
     print(f"=== {name}: {i} turns, ended {s.ended}\n")
 
@@ -30,10 +30,11 @@ play("good", [
  "And how about a short walk together in the corridor, just five minutes?",
  "Let's start with a short walk now, I'll help you up.",
 ])
-play("playtest 2026-11-23 (should not escalate)", [
+play("playtest 2026-11-23: no escalation on harmless lines, then two dismissive lines escalate", [
  "Can you hear me this test?",
  "Right, alright man, listen.",
  "Okay, so listen, everything will be alright, okay?",
+ "Don't worry, there will be other birthdays.",
 ])
 play("rude", [
  "Hi.",
