@@ -48,7 +48,25 @@ namespace ProCommVR.Hospital.Face
         private float _clock;
         private bool _initialized;
 
+        // Mix van uitdrukkingen (SetMix): gewicht 0..1 per FaceExpression, plus per uitdrukking de shape-indexen en
+        // gewichten uit de presets (eenmalig opgezocht, zodat SetMix elke frame mag zonder te zoeken of te alloceren).
+        private static readonly int ExpressionCount = Enum.GetValues(typeof(FaceExpression)).Length;
+        private readonly float[] _mix = new float[ExpressionCount];
+        private bool _mixActive;
+        private int[][] _presetShape;
+        private float[][] _presetWeight;
+
         public FaceExpression Expression { get; private set; }
+
+        /// <summary>True zolang een mix (SetMix) het gezicht bepaalt.</summary>
+        public bool HasMix => _mixActive;
+
+        /// <summary>De uitdrukking met het grootste gewicht: bij een mix de sterkste (Neutral onder 0,1), anders Expression.</summary>
+        public FaceExpression DominantExpression => Expression;
+
+        /// <summary>Gewicht (0..1) van een uitdrukking in de mix; zonder mix 1 voor Expression.</summary>
+        public float GetMixWeight(FaceExpression expression) =>
+            _mixActive ? _mix[(int)expression] : (expression == Expression ? _intensity : 0f);
 
         /// <summary>Tijdstip (Time.time) van de laatste SetExpression van buitenaf, voor FaceFromAnimator.</summary>
         public float LastExternalSetTime { get; private set; } = float.NegativeInfinity;
@@ -138,7 +156,52 @@ namespace ProCommVR.Hospital.Face
         {
             Initialize();
             LastExternalSetTime = Time.time;
+            _mixActive = false;
             Apply(expression, intensity, blendTime);
+        }
+
+        /// <summary>
+        /// Mengt meerdere uitdrukkingen: weights heeft één gewicht (0..1) per FaceExpression (index = (int)expression).
+        /// Doelgewicht per blendshape = som over de uitdrukkingen van presetgewicht maal mixgewicht, geclampt op 0..100.
+        /// Mag elke frame (geen allocaties); knipperen, micro-beweging en TalkLevel blijven werken.
+        /// Expression wordt de sterkste uitdrukking van de mix (Neutral als alles onder 0,1 ligt).
+        /// </summary>
+        public void SetMix(float[] weights, float blendTime = 0.3f)
+        {
+            Initialize();
+            if (weights == null)
+                return;
+            _mixActive = true;
+            var best = FaceExpression.Neutral;
+            var bestWeight = 0.1f;
+            for (var i = 0; i < _mix.Length; i++)
+            {
+                var w = i < weights.Length ? Mathf.Clamp01(weights[i]) : 0f;
+                _mix[i] = w;
+                if (w > bestWeight)
+                {
+                    bestWeight = w;
+                    best = (FaceExpression)i;
+                }
+            }
+            _blendTime = Mathf.Max(0.01f, blendTime);
+            var changed = best != Expression;
+            Expression = best;
+            RebuildTargets();
+            if (blendTime <= 0f)
+                Array.Copy(_target, _current, _current.Length);
+            if (changed)
+                ExpressionChanged?.Invoke(best);
+        }
+
+        /// <summary>Stopt de mix en vloeit terug naar Neutral (of laat FaceFromAnimator weer toe).</summary>
+        public void ClearMix(float blendTime = 0.3f)
+        {
+            if (!_mixActive)
+                return;
+            _mixActive = false;
+            Array.Clear(_mix, 0, _mix.Length);
+            Apply(FaceExpression.Neutral, _intensity, blendTime);
         }
 
         /// <summary>Voor UnityEvents: de naam van een FaceExpression, bv. "Angry".</summary>
@@ -154,6 +217,8 @@ namespace ProCommVR.Hospital.Face
         public void ApplyAutomatic(FaceExpression expression, float blendTime = 0.4f)
         {
             Initialize();
+            if (_mixActive)
+                return; // een mix (bv. EmotionFaceDriver) wint van de Animator-state
             Apply(expression, _intensity, blendTime);
         }
 
@@ -192,6 +257,23 @@ namespace ProCommVR.Hospital.Face
         private void RebuildTargets()
         {
             Array.Clear(_target, 0, _target.Length);
+            if (_mixActive)
+            {
+                BuildPresetTable();
+                for (var e = 0; e < _mix.Length; e++)
+                {
+                    var m = _mix[e];
+                    if (m <= 0f)
+                        continue;
+                    var shapes = _presetShape[e];
+                    var values = _presetWeight[e];
+                    for (var s = 0; s < shapes.Length; s++)
+                        _target[shapes[s]] += values[s] * m;
+                }
+                for (var i = 0; i < _target.Length; i++)
+                    _target[i] = Mathf.Clamp(_target[i], 0f, 100f);
+                return;
+            }
             var weights = _presets != null
                 ? _presets.Get(Expression)
                 : DefaultTable[(int)Expression];
@@ -200,6 +282,33 @@ namespace ProCommVR.Hospital.Face
                 var i = Array.IndexOf(ShapeNames, w.Shape);
                 if (i >= 0)
                     _target[i] = Mathf.Clamp(w.Weight, 0f, 100f) * _intensity;
+            }
+        }
+
+        /// <summary>Eenmalig: per uitdrukking de shape-indexen en gewichten (0..100) uit de presets.</summary>
+        private void BuildPresetTable()
+        {
+            if (_presetShape != null)
+                return;
+            _presetShape = new int[ExpressionCount][];
+            _presetWeight = new float[ExpressionCount][];
+            var shapes = new System.Collections.Generic.List<int>();
+            var values = new System.Collections.Generic.List<float>();
+            for (var e = 0; e < ExpressionCount; e++)
+            {
+                shapes.Clear();
+                values.Clear();
+                var weights = _presets != null ? _presets.Get((FaceExpression)e) : DefaultTable[e];
+                foreach (var w in weights)
+                {
+                    var i = Array.IndexOf(ShapeNames, w.Shape);
+                    if (i < 0)
+                        continue;
+                    shapes.Add(i);
+                    values.Add(Mathf.Clamp(w.Weight, 0f, 100f));
+                }
+                _presetShape[e] = shapes.ToArray();
+                _presetWeight[e] = values.ToArray();
             }
         }
 

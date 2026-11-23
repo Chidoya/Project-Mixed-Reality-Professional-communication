@@ -353,6 +353,7 @@ namespace ProCommVR.Editor
             var world = EmotionWorldSetup.AddToScene(emotions, pov, LightsReaching(room, sun));
             world.name = $"Patient World ({patientRoom.RoomName})";
             BuildPatientViewEffects(room, origin.Camera.transform);
+            ProCommVR.Hospital.PatientPov.PatientPovSetup.AddToScene(emotions, pov, patient, room, origin.Camera.transform);
         }
 
         /// <summary>

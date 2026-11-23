@@ -243,6 +243,13 @@ compile-check, niet enkel vertrouwen op wat de editor toont:
   geslaagd. Niet getest op de Quest 3 of via Quest Link; werkt enkel in de editor of via Quest Link (AI-server op de
   laptop). PR #25 naar `jalil` staat open en bevat ook Liam's AI-branch. Gewerkt in een aparte worktree
   `Project_prototype1`. Volgende stap: Jalils playtest, daarna de volledige gameloop voor de playtest van de lector.
+- 2026-11-22: Liam, `feature/liam/patient-pov-plus` (vanaf `origin/jalil`, lokaal, niet gepusht): Patient POV plus
+  (`ARCHITECTURE.md` sectie 22). Liam's gezichten overgezet; in Scenario 1 vervangt `Patient_Male_Old` (met verband) de
+  capsule; één `EmotionHolder` stuurt nu ook het gezicht en de blik, de verpleegkundige zoals de patiënt haar ziet, kaart,
+  foto, ballon en klok van de kleindochter, hartslag met haptics, dof geluid en een innerlijke stem (Piper). In Jalils
+  builders enkel de capsule vervangen en één regel `PatientPovSetup.AddToScene`. Getest met batchmode en Play mode smoke
+  tests (zie het eindrapport); niet op de Quest 3 getest.
+
 
 ## Beslissingen
 

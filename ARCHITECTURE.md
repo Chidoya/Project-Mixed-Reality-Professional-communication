@@ -1499,3 +1499,70 @@ de dokter voor een whiteboard, elke zin afspelen met P / Enter / N of de ballonn
 - Niet getest op de Quest 3 of via Quest Link (72 fps, leesbaarheid in de headset, de eigen stem via de echte microfoon).
   De GC-meting in de editor zegt weinig (de editor zelf alloceert); profileer op een development build.
 - De Engelse feedback en de zinnen van de dokter moeten nog nagelezen worden (docent verpleegkunde).
+## 22. Patient POV plus (Liam)
+
+**Wat:** bouwt verder op de patient view van Jalil (sectie 14 tot 19). Eén `EmotionHolder` per patiënt blijft de enige
+bron van waarheid: de verpleegkundige ziet de emotie op het **gezicht** van de patiënt, en in de patient view tonen de
+kamer, de HUD, het **geluid**, de **verhaal-objecten** en de manier waarop de **verpleegkundige eruitziet** dezelfde emotie.
+In de nurse view ziet de kamer er gewoon uit (enkel het gezicht en de blik van de patiënt verraden wat hij voelt).
+Jalils runtime-scripts, events en assets zijn niet veranderd.
+
+**Patiënt (Scenario 1):** de capsule is vervangen door Liam's `Patient_Male_Old` (prefab variant
+`Assets/Hospital/Prefabs/PatientPov/PatientX_Scenario1.prefab`, met een verband rond het rechteronderbeen: het geïnfecteerde
+been). Hij zit op de rand van het bed (animatie `Sitting`, root 0,45 m onder de matras) en kijkt naar het raam. De drie
+poses van de `NpcReactor` draaien hem enkel op de bedrand (naar de verpleegkundige, naar het hoofdeinde, naar het raam);
+zijn hoofd (`HeadLookAt`) doet de rest. De `PovAnchor` gebruikt nu zijn `Head`-bot (geen "POV Eyes" meer).
+Kamer 1A in de shift gebruikt nog `Patient_Male` (zie "Open punten").
+
+| Component (`Assets/Hospital/Scripts/PatientPov/`) | Wat |
+| --- | --- |
+| `EmotionFaceDriver` | Op de patiënt. Luistert naar `EmotionChanged` en zet een **mix** van uitdrukkingen (`FaceController.SetMix`): Joy = Happy, Anger = Angry, Fear = Worried, Sadness = Sad; boven Sadness 0,75 vloeit Sad over in Crying (tranen via `TearDrops`). Sterkte per emotie = smoothstep van de drempel (0,15) tot *Full Strength At* van de `PatientWorldController` (0,6, één keer gelezen): het gezicht is "vol" precies wanneer de kamer vol reageert. Blik (`HeadLookAt`): verdrietig naar het raam en omlaag, boos staart naar de verpleegkundige, bang kijkt af en toe snel naar de deur, blij kijkt naar de verpleegkundige. Zet `FaceFromAnimator` uit zolang hij actief is. In de patient view verbergt hij zijn tranen (de camera zit in zijn hoofd). |
+| `PerceivedNurse` | Op de avatar van de speler (scene-kant, Jalils prefab blijft ongewijzigd). Enkel in de patient view: boos = streng gezicht, x1,08 en licht voorover; bang = donker en grauw, x1,05 (enkel duidelijk in de zaklamp); verdrietig = grijsblauw, x0,95; blij = warm, glimlach. Kleuren via `MaterialPropertyBlock` per materiaal (geen nieuwe materialen). Terug in de nurse view: schaal, pose, kleur en gezicht meteen terug. |
+| `StoryProps` | De kleindochter: een open verjaardagskaart ("HAPPY BIRTHDAY" en "Grandpa, come to my party! Saturday 3 pm. Love, Emma"), een foto (getekend kind met feesthoedje, geen echte foto) en een ballon. In de nurse view staan ze er gewoon. Patient view: boos verfrommelt de kaart; blij maakt de foto helderder en laat de ballon stijgen en wiegen; verdriet maakt de foto grijs (boven Sadness 0,8 valt hij plat) en laat de ballon leeglopen en wegdrijven; bij angst zie je ze enkel in de zaklamp. |
+| `StoryClock` | Liam's `Wall_Clock` met `WallClock`. Nurse view: de echte tijd. Patient view: 2:40 pm (feestje om 3 pm); verdriet laat de tijd kruipen (x0,2), angst en boosheid laten hem jagen (x2,5) met luid tikken. |
+| `HeartbeatFeedback` | Patient view, Fear of Anger dominant: hartslag in de oren (2D) en een korte puls in beide controllers op elke slag, 70 bpm aan de drempel tot 120 bpm op volle sterkte. |
+| `MuffledWorld` | Patient view, Sadness dominant: een `AudioLowPassFilter` op de geluidsbronnen in de buurt (22000 Hz naar 900 Hz, logaritmisch), niet op de eigen geluiden van de patiënt en niet op het emotiegeluid van de kamer. Het project heeft geen AudioMixer. |
+| `InnerVoice` | Bij het binnenstappen (`PovChanged(Patient)`, na de fade) fluistert de patiënt één gedachte voor zijn dominante emotie, met een cursieve ondertitel onder de HUD. Elke gedachte hoogstens één keer per gesprek. |
+| `PatientPovDebugLabel` | Enkel in `PatientViewTest`: een regel onder het testpaneel, bv. "Face: Sad 72% / World: Sadness 72%". |
+| `PatientPovMath` | Gedeelde regels (sterkte, drempels, overvloeien zoals de kamer: eerst terug naar neutraal, dan de nieuwe emotie, ongeveer 2 s). |
+
+`FaceController` (Liam) kreeg `SetMix(float[] weights, blendTime)`, `ClearMix`, `DominantExpression` en `GetMixWeight`;
+`SetExpression` werkt zoals voorheen. `TearDrops.Hidden` en `WallClock.UseDeviceTime` zijn nieuw.
+
+**Data om af te stemmen** (`Assets/Hospital/Data/PatientPov/`, worden enkel aangemaakt als ze ontbreken):
+`EmotionFaceMapping` (uitdrukking per emotie, huilgrens, blik), `PerceivedNurseProfile` (per emotie: gezicht, schaal,
+voorover leunen, tint, grauwheid), `ScenarioOneStoryProps` (teksten, plaatsen, verfrommelen, omvallen, ballon, klok),
+`InnerVoiceLines` (tekst, clip, volume). Geluid: `Assets/Hospital/Audio/PatientPov/` (de 4 gedachten met Piper
+`en_US-norman`, length scale 1,25, zoals patientA; `heartbeat.wav` en `clock_tick.wav` zelf gegenereerd, geen licentie nodig).
+
+**Scenes:** `Editor/PatientPov/PatientPovSetup.AddToScene(holder, pov, patient, room, camera)` zet alles hierboven in de
+scene. Eén regel in `Scenario01SceneBuilder.Build` (`room` = null: `Scenario01_PatientRoom` en `PatientViewTest`) en één in
+`ShiftHospitalSceneBuilder.BuildPatientView` (`room` = `Room_1A`). Plaatsen worden berekend uit de meubels (nachtkastje,
+raam, stoel), niet uit vaste coördinaten. In de standalone kamer heeft het raam een gesloten rolgordijn: de ballon hangt
+daar binnen, vastgemaakt aan de bezoekersstoel; in 1A zweeft hij buiten het raam.
+
+**Budget Quest 3:** geen extra lichten, geen schaduwen (alle props `ShadowCastingMode.Off`), geen extra camera's, geen
+Bloom. Props: kaart 2 x 12 driehoeken plus tekst, foto 12 + 2 x 2, ballon 120 + 12, verband 80. Geen allocaties per frame
+(mix-array en tabellen worden hergebruikt, ondertitel en label met `SetText`). Nog **niet op de Quest 3 gemeten**.
+
+**Tests** (`Editor/PatientPov/Testing/PlayModeSmokeTest.PatientPovPlus.cs`: een eigen launcher in dezelfde partial class,
+Jalils testbestanden zijn niet veranderd):
+
+| Test | Wat |
+| --- | --- |
+| `RunPatientPovPlus` | `PatientViewTest`: de patiënt heeft een gezicht, een Humanoid-rig en een verband, en zit; per emotie (0,8, de rest 0,05) toont het gezicht de juiste uitdrukking en staat de blendshape op de mesh, de kamer blijft normaal in de nurse view; tranen bij verdriet; alles 0 = Neutral; blik (verdriet weg, boos naar de verpleegkundige); Y: één gedachte met ondertitel; per emotie in de patient view: gezicht = kamer = verpleegkundige = label, plus props, klok, hartslag en dof geluid; terug: alles exact hersteld; tweede keer met een andere emotie: één nieuwe gedachte. Screenshots. |
+| `RunPatientPovPlayThrough` | `Scenario01_PatientRoom`: de 4 antwoorden met laser + trigger, na elk antwoord Y en een tabel met de waarden (holder, gezicht, kamer, verpleegkundige, props, geluid, gedachte) in de log; gezicht en kamer zijn het eens; terug alles normaal. |
+| `RunPatientPovPlusShift` | `ShiftHospital`: kamer 1A heeft alles, kaart, foto en klok staan in de kamer, de ballon buiten het raam; het gezicht volgt elke emotie. |
+
+**Een ander scenario:** zet een `EmotionHolder` en de patient view zoals in sectie 14 tot 18, en roep
+`PatientPovSetup.AddToScene` aan met de kamer. Voor andere verhaal-objecten: een eigen `ScriptableObject` zoals
+`ScenarioOneStoryProps` en een component zoals `StoryProps`; gezicht, verpleegkundige en geluid werken zonder aanpassing.
+
+**Open punten:**
+- Kamer 1A gebruikt nog `Patient_Male` (geen grootvader). Overstappen raakt enkel `PatientModels[0]` in
+  `ShiftHospitalSceneBuilder` (kamer 1A is index 0) en de effect-plaatsen niet; eerst met Jalil afspreken.
+- "Valse hoop voelt eerst goed": niet gebouwd (raakt Jalils data). Voorstel: een eigen component die luistert naar
+  `OptionChosen` en voor de valse-hoop-optie na ongeveer 4 s een tweede delta (`EmotionHolder.Apply`) geeft, met de optie en
+  de delta in een eigen ScriptableObject.
+- Jalils placeholder-geluid voor Fear heeft zelf al een zachte hartslag; met `HeartbeatFeedback` erbij kan dat te veel zijn.
+- Niet getest op de Quest 3: fps, leesbaarheid van de kaart in de headset, haptics op echte controllers.

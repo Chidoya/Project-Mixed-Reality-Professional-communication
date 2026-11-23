@@ -119,7 +119,8 @@ namespace ProCommVR.Editor.Testing
                     if (round == 1)
                     {
                         Screenshot("pov-patient-view");
-                        Check(camera.position.y > 1.1f && camera.position.y < 1.6f, $"the eyes of the seated patient are at {camera.position.y:F2} m");
+                        // Liam's old man sits on the edge of the bed (mattress at 0.62 m), so his eyes are higher than the capsule's.
+                        Check(camera.position.y > 1.1f && camera.position.y < 1.95f, $"the eyes of the seated patient are at {camera.position.y:F2} m");
 
                         // Turn the head (as the player would) to see the nurse through the patient's eyes.
                         var lookAhead = _headRotation;

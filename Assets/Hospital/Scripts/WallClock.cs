@@ -19,13 +19,21 @@ namespace ProCommVR.Hospital
         [SerializeField] private Quaternion _restRotation = Quaternion.identity;
         [SerializeField] private bool _smoothSeconds;
 
+        /// <summary>Aan: de wijzers volgen de tijd van het toestel. Uit: iemand anders zet de tijd met SetTime (bv. StoryClock).</summary>
+        public bool UseDeviceTime { get; set; } = true;
+
+        /// <summary>De laatst getoonde tijd.</summary>
+        public DateTime ShownTime { get; private set; }
+
         private void Update()
         {
-            SetTime(DateTime.Now);
+            if (UseDeviceTime)
+                SetTime(DateTime.Now);
         }
 
         public void SetTime(DateTime time)
         {
+            ShownTime = time;
             var seconds = time.Second + (_smoothSeconds ? time.Millisecond / 1000f : 0f);
             var minutes = time.Minute + seconds / 60f;
             var hours = time.Hour % 12 + minutes / 60f;

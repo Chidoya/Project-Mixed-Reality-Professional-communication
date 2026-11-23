@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fe861adb02a03c498e352abeea3fcd9, type: 3}
+  m_Name: PerceivedNurseProfile
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.PatientPov.PerceivedNurseProfile
+  BlendSeconds: 2
+  Looks:
+  - Emotion: 1
+    Face: 3
+    FaceIntensity: 0.45
+    Scale: 1.08
+    LeanDegrees: 4
+    Tint: {r: 1, g: 0.9, b: 0.88, a: 1}
+    Desaturate: 0
+  - Emotion: 2
+    Face: 0
+    FaceIntensity: 0
+    Scale: 1.05
+    LeanDegrees: 0
+    Tint: {r: 0.4, g: 0.42, b: 0.5, a: 1}
+    Desaturate: 0.6
+  - Emotion: 3
+    Face: 0
+    FaceIntensity: 0
+    Scale: 0.95
+    LeanDegrees: 0
+    Tint: {r: 0.72, g: 0.78, b: 0.9, a: 1}
+    Desaturate: 0.5
+  - Emotion: 0
+    Face: 1
+    FaceIntensity: 0.6
+    Scale: 1
+    LeanDegrees: 0
+    Tint: {r: 1.08, g: 1, b: 0.86, a: 1}
+    Desaturate: 0
