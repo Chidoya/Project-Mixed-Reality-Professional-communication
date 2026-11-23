@@ -1,0 +1,60 @@
+{
+  "_comment": "All lines of the head doctor (Dr. Peeters) in the debrief of scenario 1 (disappointed_patient). Edit the text here, then run Tools/AiServer/tools/gen_doctor_lines.py (new voice clips) and ProCommVR > Liam > Debrief > Import Doctor Lines in Unity. The feedback per rubric item and the better phrases come from Tools/AiServer/scenarios/disappointed_patient.json (feedback_en, better_phrase).",
+  "scenario_id": "disappointed_patient",
+  "scenario_prefix": "s1",
+  "doctor_name": "Dr. Peeters",
+  "doctor_voice": "en_US-kristin-medium",
+  "doctor_length_scale": 1.08,
+  "pager_text": "Dr. Peeters\nBriefing room",
+  "steps": ["Greeting", "ReflectionQuestion", "Reveal", "Timeline", "Feedback", "Memory", "Consequence", "Board", "Choice"],
+  "max_points": 3,
+  "good_fraction": 0.7,
+  "lines": {
+    "pager": "Nurse, please come to the briefing room. Doctor Peeters.",
+    "greeting": "Thanks for coming by. Let's look back at your talk with Mister X. Come, stand with me at the table.",
+    "reflection_question": "Before I say anything: how do you think Mister X felt when you left his room? Point at one of the four things on the table.",
+    "timeline_intro": "This is your talk with him, turn by turn. The higher the post, the more he trusted you.",
+    "critical_intro": "Let's start with the hardest moment.",
+    "low_intro": "Here is one thing to work on.",
+    "high_intro": "And here is something you did well.",
+    "better_intro": "You could have said:",
+    "memory_intro": "Let's go back to that moment.",
+    "memory_look": "Look at his face. What did he hear?",
+    "memory_better": "Now listen to this. You could have said:",
+    "memory_back": "Let's go back to the briefing room.",
+    "memory_no_audio": "I don't have the recording of that moment, so read what you said.",
+    "pick_moment": "Pick any moment on the table if you want to look back at it.",
+    "choice": "When you are ready: try again, or finish your shift.",
+    "closing_good": "That was a good talk. He felt heard, and he knows what comes next.",
+    "closing_mixed": "Some things went well, and some can be better. That is how we learn.",
+    "closing_critical": "One promise changed the whole talk. Next time you will know where your role ends.",
+    "retry": "Go ahead, try again. He is still in room one A.",
+    "done": "Thank you. Good work today.",
+    "consequence_critical": "His infection got worse that weekend. He spent the party in bed, here.",
+    "consequence_good_granddaughter": "Grandpa! Look, I'm six! We saved you a piece of cake!"
+  },
+  "reveal": {
+    "same": "You picked {picked}. That's right: he was mostly {real}.",
+    "different": "You picked {picked}. He was mostly {real}.",
+    "neutral": "You picked {picked}. In the end he was fairly calm, without one strong feeling.",
+    "words": {"Joy": "happy", "Anger": "angry", "Fear": "afraid", "Sadness": "sad"},
+    "picked_words": {"Joy": "joy", "Anger": "anger", "Fear": "fear", "Sadness": "sadness"}
+  },
+  "notes": [
+    {"item": 1, "improve": "Name his sadness out loud", "well_done": "You named his sadness"},
+    {"item": 2, "improve": "Discharge is the doctor's decision", "well_done": "Stayed within your role"},
+    {"item": 3, "improve": "Explain simply why he stays", "well_done": "Honest about why he stays"},
+    {"item": 4, "improve": "Offer one small step in bed", "well_done": "A small, doable step"},
+    {"item": 5, "improve": "Offer a video call with family", "well_done": "Offered something positive"},
+    {"item": 6, "improve": "Stay with him, make a plan", "well_done": "You stayed with him"},
+    {"item": 7, "improve": "Ask an open question", "well_done": "Asked what matters to him"}
+  ],
+  "critical_note": "Never promise a discharge",
+  "better_aim": {"expression": "Neutral", "intensity": 0.5, "joy": 0.25, "anger": 0.0, "fear": 0.0, "sadness": 0.3},
+  "consequence": {
+    "title": "Saturday, 3 pm",
+    "good_caption": "A video call from the party.",
+    "mixed_caption": "The birthday card is still closed.",
+    "critical_caption": "An empty chair at the party."
+  }
+}

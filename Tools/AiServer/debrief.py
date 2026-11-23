@@ -132,6 +132,8 @@ def score_item(item: dict, log: list[dict], phases: list[str], opening_anger: in
         "evidence_quote": quote,
         "evidence_turn": hit["turn"] if hit else None,
         "feedback": item["feedback"][str(score)],
+        # English feedback for the doctor in Unity (optional per scenario; the Dutch field stays as it is)
+        "feedback_en": item.get("feedback_en", {}).get(str(score), ""),
         "better_phrase": item["better_phrase"],
         "why": why,
     }

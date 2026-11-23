@@ -134,7 +134,11 @@ namespace ProCommVR.Hospital.AiTalk
         public int[] scores;
         public bool uncertain;
         public string evidence_quote;
+        /// <summary>Beurt van het citaat (0 = geen).</summary>
+        public int evidence_turn;
         public string feedback;
+        /// <summary>De feedback in het Engels (voor de dokter in de nabespreking); leeg bij een oudere server.</summary>
+        public string feedback_en;
         public string better_phrase;
     }
 
@@ -163,6 +167,9 @@ namespace ProCommVR.Hospital.AiTalk
         public string quote;
         public string title;
         public string feedback;
+        /// <summary>Titel en uitleg in het Engels (voor de dokter); leeg bij een oudere server.</summary>
+        public string title_en;
+        public string feedback_en;
 
         public bool Present => !string.IsNullOrEmpty(label);
     }

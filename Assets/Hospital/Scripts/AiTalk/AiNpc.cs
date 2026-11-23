@@ -61,6 +61,10 @@ namespace ProCommVR.Hospital.AiTalk
         public event Action<AiTurn> TurnApplied;
         /// <summary>Korte status voor het debugpaneel: Listening, Thinking, Speaking, Ended...</summary>
         public event Action<string> StatusChanged;
+        /// <summary>De opname van de student (wav, 16 kHz mono) net voor ze naar de server gaat (voor de nabespreking).</summary>
+        public event Action<byte[]> StudentAudioSent;
+        /// <summary>Een nieuw gesprek start (de eerste keer en na Restart), voor de openingszin.</summary>
+        public event Action ConversationStarting;
 
         private AiTalkClient _client;
         private readonly float[] _samples = new float[256];
@@ -89,6 +93,11 @@ namespace ProCommVR.Hospital.AiTalk
         public float ConversationSeconds => _conversationStart > 0f ? Time.time - _conversationStart : 0f;
         /// <summary>Tijdslimiet van het scenario in seconden (0 = geen).</summary>
         public float TimeLimit => _timeLimit;
+        /// <summary>Gezicht, kijkrichting en stem van het personage (voor de herinnering in de nabespreking).</summary>
+        public FaceController Face => _face;
+        public FaceFromAnimator FaceFromAnimator => _faceFromAnimator;
+        public HeadLookAt HeadLook => _headLook;
+        public AudioSource VoiceSource => _voice;
 
         private void Awake()
         {
@@ -174,6 +183,7 @@ namespace ProCommVR.Hospital.AiTalk
         public async Awaitable StartConversation()
         {
             Busy = true;
+            ConversationStarting?.Invoke();
             SetStatus("Connecting...");
             var opening = await _client.StartSession();
             if (this == null)
@@ -237,6 +247,20 @@ namespace ProCommVR.Hospital.AiTalk
                 _headLook.Mode = HeadLookAt.LookMode.LookAtPlayer;
         }
 
+        /// <summary>
+        /// Speelt een eigen clip op de stem van het personage (de mond beweegt mee), bv. een herinnering in de nabespreking.
+        /// Alleen na het gesprek: de clip wordt niet opgeruimd door het personage. Null stopt de stem.
+        /// </summary>
+        public void PlayReplay(AudioClip clip)
+        {
+            if (clip == null)
+            {
+                _voice.Stop();
+                return;
+            }
+            PlayClip(clip);
+        }
+
         /// <summary>Beoordeling van dit gesprek door de server (rubric). Duurt 20 tot 40 s.</summary>
         public Awaitable<AiDebrief> RequestDebrief() => _client.RequestDebrief();
 
@@ -246,6 +270,7 @@ namespace ProCommVR.Hospital.AiTalk
             if (Busy || HasEnded)
                 return null;
             Busy = true;
+            StudentAudioSent?.Invoke(wav);
             ShowListening();
             var turn = await _client.SendAudio(wav);
             if (this == null)

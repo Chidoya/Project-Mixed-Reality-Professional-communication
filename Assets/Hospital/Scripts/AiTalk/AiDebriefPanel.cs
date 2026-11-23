@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ProCommVR.Hospital.Debrief;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -35,6 +36,12 @@ namespace ProCommVR.Hospital.AiTalk
         [Tooltip("Open zodra het gesprek eindigt. Uit: iets anders roept Open() aan (Prototype1: pas bij de dokter).")]
         [SerializeField] private bool _openOnConversationEnd = true;
 
+        [Header("Doctor led (the head doctor gives the debrief, no report)")]
+        [Tooltip("On: Open() asks the debrief as always, shows NO panel and hands the result to the DebriefDirector. When the " +
+                 "doctor is done (Try again or Finish), Retried / Closed fire as always. Off: the report panel as before.")]
+        [SerializeField] private bool _doctorLed;
+        [SerializeField] private DebriefDirector _director;
+
         private static readonly Color Background = new(0.09f, 0.11f, 0.14f, 1f);
         private static readonly Color TextMain = new(0.93f, 0.95f, 0.97f);
         private static readonly Color TextDim = new(0.66f, 0.7f, 0.76f);
@@ -55,6 +62,16 @@ namespace ProCommVR.Hospital.AiTalk
         public PanelState State { get; private set; } = PanelState.Hidden;
         public AiDebrief Result { get; private set; }
 
+        /// <summary>The head doctor gives the debrief (and the panel stays hidden).</summary>
+        public bool DoctorLed
+        {
+            get => _doctorLed && _director != null;
+            set => _doctorLed = value;
+        }
+        public DebriefDirector Director => _director;
+        /// <summary>The doctor is busy with the debrief right now (the A/B buttons of the panel are hers then).</summary>
+        public bool DirectorActive { get; private set; }
+
         /// <summary>Na Klaar.</summary>
         [Tooltip("Optioneel: andere tekst op de knoppen (leeg = Opnieuw proberen / Klaar), bv. in een shift.")]
         [SerializeField] private string _retryLabel = "";
@@ -66,8 +83,8 @@ namespace ProCommVR.Hospital.AiTalk
         public event Action Retried;
 
         // Knoppen zonder XR-ray: A / B op de rechtercontroller (Quest), R / Enter op het toetsenbord (Editor)
-        public const string RetryLabel = "Opnieuw proberen (A / R)";
-        public const string DoneLabel = "Klaar (B / Enter)";
+        public const string RetryLabel = "Try again (A / R)";
+        public const string DoneLabel = "Done (B / Enter)";
         private InputAction _retryAction;
         private InputAction _doneAction;
         private InputAction _endAction;
@@ -125,7 +142,7 @@ namespace ProCommVR.Hospital.AiTalk
             AiNpc.ActiveChanged -= OnActiveChanged;
         }
 
-        private bool ButtonsActive => State is PanelState.Ready or PanelState.Failed;
+        private bool ButtonsActive => State is PanelState.Ready or PanelState.Failed && !DirectorActive;
 
         private void OnRetryPressed(InputAction.CallbackContext _)
         {
@@ -151,7 +168,7 @@ namespace ProCommVR.Hospital.AiTalk
             if (State == PanelState.Waiting && _waitingText != null)
             {
                 var dots = new string('.', 1 + (int)((Time.time - _waitStarted) * 2f) % 3);
-                _waitingText.text = "Even nadenken over je gesprek" + dots;
+                _waitingText.text = "Thinking about your conversation" + dots;
             }
         }
 
@@ -162,6 +179,11 @@ namespace ProCommVR.Hospital.AiTalk
             if (State == PanelState.Waiting)
                 return;
             _npc.SetIdle();
+            if (DoctorLed)
+            {
+                await OpenDoctorLed();
+                return;
+            }
             EnsureCanvas();
             PlaceInFront();
             Clear();
@@ -173,7 +195,7 @@ namespace ProCommVR.Hospital.AiTalk
             box.transform.SetParent(_content, false);
             TopLeft((RectTransform)box.transform, new Vector2(Width / 2f - 330f, -Height + 150f), new Vector2(660f, 80f));
             box.GetComponent<Image>().color = Background;
-            _waitingText = Text((RectTransform)box.transform, "Even nadenken over je gesprek...", 28, TextMain, new Vector2(0f, -18f),
+            _waitingText = Text((RectTransform)box.transform, "Thinking about your conversation...", 28, TextMain, new Vector2(0f, -18f),
                 new Vector2(660f, 50f), TextAlignmentOptions.Center);
             _canvas.gameObject.SetActive(true);
 
@@ -186,7 +208,7 @@ namespace ProCommVR.Hospital.AiTalk
             if (result.Failed)
             {
                 State = PanelState.Failed;
-                Text(_content, "De nabespreking lukte niet.\n<size=70%>" + result.error + "</size>", 26, Mid,
+                Text(_content, "The debrief did not work.\n<size=70%>" + result.error + "</size>", 26, Mid,
                     new Vector2(40f, -300f), new Vector2(Width - 80f, 200f), TextAlignmentOptions.Center);
                 Buttons();
                 return;
@@ -195,8 +217,72 @@ namespace ProCommVR.Hospital.AiTalk
             State = PanelState.Ready;
         }
 
+        /// <summary>
+        /// Doctor led: the debrief is requested as always, but instead of the panel the head doctor gives it. Only when
+        /// the request failed, the panel shows the error with its buttons (fallback).
+        /// </summary>
+        private async Awaitable OpenDoctorLed()
+        {
+            State = PanelState.Waiting;
+            _waitStarted = Time.time;
+            var result = await _npc.RequestDebrief();
+            if (this == null)
+                return;
+            Result = result;
+            if (result.Failed)
+            {
+                EnsureCanvas();
+                PlaceInFront();
+                Clear();
+                _background.SetActive(true);
+                State = PanelState.Failed;
+                Text(_content, "The debrief did not work.\n<size=70%>" + result.error + "</size>", 26, Mid,
+                    new Vector2(40f, -300f), new Vector2(Width - 80f, 200f), TextAlignmentOptions.Center);
+                Buttons();
+                _canvas.gameObject.SetActive(true);
+                return;
+            }
+            State = PanelState.Ready;
+            DirectorActive = true;
+            _director.BeginFromAi(result, OnDirectorDone);
+        }
+
+        /// <summary>
+        /// Doctor led with another source than the AI server (tests, later the button version): the doctor starts at once
+        /// and Retried / Closed fire when she is done. Result stays empty.
+        /// </summary>
+        public void BeginDoctorLed(IDebriefSource source)
+        {
+            if (_director == null || source == null)
+                return;
+            Result = null;
+            State = PanelState.Ready;
+            DirectorActive = true;
+            _director.Begin(source, OnDirectorDone);
+        }
+
+        private void OnDirectorDone(DebriefDirector.Result result)
+        {
+            DirectorActive = false;
+            if (result == DebriefDirector.Result.Retry)
+                Retry();
+            else
+                Done();
+        }
+
+        /// <summary>Stops the doctor when Retry or Done comes from outside (a button, a test) while she still talks.</summary>
+        private void StopDirector()
+        {
+            if (!DirectorActive)
+                return;
+            DirectorActive = false;
+            if (_director != null)
+                _director.Abort();
+        }
+
         public void Retry()
         {
+            StopDirector();
             Hide();
             Retried?.Invoke();
             _ = _npc.Restart();
@@ -204,6 +290,7 @@ namespace ProCommVR.Hospital.AiTalk
 
         public void Done()
         {
+            StopDirector();
             Hide();
             Closed?.Invoke();
         }
@@ -290,13 +377,13 @@ namespace ProCommVR.Hospital.AiTalk
             // Kop: titel, score en einde
             var ending = d.end_reason switch
             {
-                "resolved" => "Gesprek geslaagd",
-                "time_up" => "Tijd op",
-                "critical_error" => "<color=#f2594d>Kritieke fout</color>",
-                "escalated" => "<color=#f2a33a>Gesprek geëscaleerd</color>",
-                _ => "Gesprek gestopt",
+                "resolved" => "Conversation resolved",
+                "time_up" => "Time is up",
+                "critical_error" => "<color=#f2594d>Critical error</color>",
+                "escalated" => "<color=#f2a33a>Conversation escalated</color>",
+                _ => "Conversation stopped",
             };
-            Text(_content, "Nabespreking", 34, TextMain, new Vector2(40f, -24f), new Vector2(500f, 44f));
+            Text(_content, "Debrief", 34, TextMain, new Vector2(40f, -24f), new Vector2(500f, 44f));
             Text(_content, $"{ending}   <b>{d.total_score}/{d.max_score}</b>", 24, TextDim, new Vector2(Width - 540f, -30f),
                 new Vector2(500f, 40f), TextAlignmentOptions.Right);
             if (d.critical != null && d.critical.Present)
@@ -306,7 +393,8 @@ namespace ProCommVR.Hospital.AiTalk
                 bar.transform.SetParent(_content, false);
                 TopLeft((RectTransform)bar.transform, new Vector2(30f, -70f), new Vector2(Width - 60f, 30f));
                 bar.GetComponent<Image>().color = new Color(0.62f, 0.13f, 0.12f);
-                Text((RectTransform)bar.transform, $"<b>Kritieke fout (beurt {d.critical.turn}): {d.critical.title}</b>   \"{d.critical.quote}\"",
+                var criticalTitle = string.IsNullOrEmpty(d.critical.title_en) ? d.critical.title : d.critical.title_en;
+                Text((RectTransform)bar.transform, $"<b>Critical error (turn {d.critical.turn}): {criticalTitle}</b>   \"{d.critical.quote}\"",
                     17, TextMain, new Vector2(10f, -4f), new Vector2(Width - 80f, 24f));
                 Text(_content, d.summary, 16, TextMain, new Vector2(40f, -104f), new Vector2(Width - 80f, 42f));
             }
@@ -335,14 +423,14 @@ namespace ProCommVR.Hospital.AiTalk
         private void Item(AiDebriefItem item, Vector2 pos, float width)
         {
             var colour = item.uncertain ? Grey : item.score == 2 ? Good : item.score == 1 ? Mid : Bad;
-            var title = $"{item.id}. {item.criterion_nl}" + (item.uncertain ? "  <color=#8c9199><size=80%>onzeker</size></color>" : "");
+            var title = $"{item.id}. {item.criterion}" + (item.uncertain ? "  <color=#8c9199><size=80%>uncertain</size></color>" : "");
             Text(_content, title, 16, TextMain, pos, new Vector2(width - 60f, 22f));
             for (var k = 0; k < 2; k++)
                 Dot(_content, pos + new Vector2(width - 40f + k * 22f, -4f), 15f, k < item.score ? colour : Empty);
-            Text(_content, item.feedback, 13, TextDim, pos + new Vector2(0f, -20f), new Vector2(width, 30f));
-            var quote = string.IsNullOrEmpty(item.evidence_quote) ? "<color=#5d636b>(geen citaat)</color>" : $"<i>\"{item.evidence_quote}\"</i>";
+            Text(_content, string.IsNullOrEmpty(item.feedback_en) ? item.feedback : item.feedback_en, 13, TextDim, pos + new Vector2(0f, -20f), new Vector2(width, 30f));
+            var quote = string.IsNullOrEmpty(item.evidence_quote) ? "<color=#5d636b>(no quote)</color>" : $"<i>\"{item.evidence_quote}\"</i>";
             Text(_content, quote, 13, TextMain, pos + new Vector2(0f, -50f), new Vector2(width, 18f));
-            Text(_content, "Beter: " + item.better_phrase, 13, Better, pos + new Vector2(0f, -66f), new Vector2(width, 18f));
+            Text(_content, "Better: " + item.better_phrase, 13, Better, pos + new Vector2(0f, -66f), new Vector2(width, 18f));
         }
 
         /// <summary>Boosheid per beurt als lijn (LineRenderer), met bolletjes op de belangrijke momenten.</summary>
@@ -362,7 +450,7 @@ namespace ProCommVR.Hospital.AiTalk
                 TopLeft((RectTransform)line.transform, new Vector2(0f, -(1f - limit / 100f) * size.y), new Vector2(size.x, 1f));
                 line.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.1f);
             }
-            Text(rt, string.IsNullOrEmpty(d.tension_name_nl) ? "spanning" : d.tension_name_nl, 12, TextDim,
+            Text(rt, "tension", 12, TextDim,
                 new Vector2(6f, -4f), new Vector2(200f, 16f));
 
             var curve = d.anger_curve ?? Array.Empty<int>();
@@ -420,7 +508,7 @@ namespace ProCommVR.Hospital.AiTalk
             // Legende met de momenten rechts onder de grafiek
             var legend = new List<string>();
             for (var m = 0; m < moments.Length; m++)
-                legend.Add($"<color=#ffb840><b>{m + 1}</b></color> beurt {moments[m].turn_index}: {moments[m].what_happened} <color=#8c9199>({moments[m].effect})</color>");
+                legend.Add($"<color=#ffb840><b>{m + 1}</b></color> turn {moments[m].turn_index}: {moments[m].what_happened} <color=#8c9199>({moments[m].effect})</color>");
             Text(_content, string.Join("\n", legend), 13, TextDim, pos + new Vector2(0f, -size.y - 4f), new Vector2(size.x, 56f));
         }
 

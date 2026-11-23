@@ -397,6 +397,8 @@ class Engine:
                 "student_text": text,
                 "title": label.get("critical_title", label["name"]),
                 "feedback": label.get("critical_feedback", ""),
+                "title_en": label.get("critical_title_en", ""),
+                "feedback_en": label.get("critical_feedback_en", ""),
             }
             result["critical"] = session.critical
             result["notes"].append(f"critical label {label['name']}: scenario ends")

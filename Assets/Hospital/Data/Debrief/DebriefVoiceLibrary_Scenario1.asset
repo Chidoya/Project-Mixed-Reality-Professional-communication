@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47854f4ac997cbf4db116fc2f7e655e6, type: 3}
+  m_Name: DebriefVoiceLibrary_Scenario1
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Debrief.DebriefVoiceLibrary
+  Entries:
+  - Key: s1_item1_score0
+    Text: 'You moved past his sadness. Next time, name what you see: that he is disappointed
+      and sad.'
+    Clip: {fileID: 8300000, guid: a96f33b704cf9f94b9335511f9c0d19c, type: 3}
+  - Key: s1_item1_score1
+    Text: You touched on his feelings, but you didn't name them. Say out loud that
+      you can see how hard this is.
+    Clip: {fileID: 8300000, guid: 3526250d7d74b9540a1b243efb9e6465, type: 3}
+  - Key: s1_item1_score2
+    Text: You named his sadness. That made him feel heard.
+    Clip: {fileID: 8300000, guid: 2ad13543666611842abf85b1360cbf5d, type: 3}
+  - Key: s1_item1_better
+    Text: I can see how heartbreaking it is to miss her birthday.
+    Clip: {fileID: 8300000, guid: 3f8902704c3bf8341b453ac25cbdea27, type: 3}
+  - Key: s1_item2_score0
+    Text: You promised something that isn't yours to promise, like going home early.
+      Only the doctor decides that.
+    Clip: {fileID: 8300000, guid: 0ff65d4f0af83e646879c821e9b04f8e, type: 3}
+  - Key: s1_item2_score1
+    Text: You mostly stayed within your role.
+    Clip: {fileID: 8300000, guid: 91f7dd5aa9bbd8a479e4aeb2626f30a4, type: 3}
+  - Key: s1_item2_score2
+    Text: You stayed within your role and didn't promise anything the doctor has
+      to decide.
+    Clip: {fileID: 8300000, guid: 73a8daa4255d0924eb6342e24df27958, type: 3}
+  - Key: s1_item2_better
+    Text: Going home early is the doctor's decision, but I can help you get stronger.
+    Clip: {fileID: 8300000, guid: b08d637102b0be7459e1abac48e9f0bf, type: 3}
+  - Key: s1_item3_score0
+    Text: You used medical jargon. Explain it in plain, simple words.
+    Clip: {fileID: 8300000, guid: c3414fc77d84fbe4da2cdc150c418150, type: 3}
+  - Key: s1_item3_score1
+    Text: You didn't explain why he has to stay. Tell him honestly that the infection
+      still needs care here.
+    Clip: {fileID: 8300000, guid: 7d6047a10c5a07b4f9f0450e4b856bfb, type: 3}
+  - Key: s1_item3_score2
+    Text: You explained honestly and simply why he still has to stay.
+    Clip: {fileID: 8300000, guid: 25d4c8a48a9a9274e92245c49ec48d4f, type: 3}
+  - Key: s1_item3_better
+    Text: The infection needs a few more days of care here so it heals safely.
+    Clip: {fileID: 8300000, guid: 2ab34023ad6802f4a998b9b92b060f13, type: 3}
+  - Key: s1_item4_score0
+    Text: You didn't encourage him to try something small. Suggest one easy step
+      he can do in bed.
+    Clip: {fileID: 8300000, guid: 19187091e5d2df143afe6c7beae15d1e, type: 3}
+  - Key: s1_item4_score1
+    Text: You tried to motivate him, but it wasn't concrete yet.
+    Clip: {fileID: 8300000, guid: 6a05443d4d7242446b470a2af0a55b53, type: 3}
+  - Key: s1_item4_score2
+    Text: You suggested a small, doable step, like sitting up or having a drink.
+    Clip: {fileID: 8300000, guid: 18b60a942b8370b4c9453e4a72f48d3c, type: 3}
+  - Key: s1_item4_better
+    Text: Shall I help you sit up a little, and we get you something to drink?
+    Clip: {fileID: 8300000, guid: 1b2cbc9cf5687584c80dd9148d12710d, type: 3}
+  - Key: s1_item5_score0
+    Text: You didn't offer anything for what he's missing. Think of a video call
+      with his granddaughter.
+    Clip: {fileID: 8300000, guid: 42befcbcb06a1604980ac73eb49fcd20, type: 3}
+  - Key: s1_item5_score1
+    Text: You offered support, but nothing that connects him to the birthday.
+    Clip: {fileID: 8300000, guid: f3a5a75423172644fa44882d7a427918, type: 3}
+  - Key: s1_item5_score2
+    Text: You suggested something positive, like a video call with his granddaughter.
+    Clip: {fileID: 8300000, guid: 7e161b652e8134d4786063e46cd5b940, type: 3}
+  - Key: s1_item5_better
+    Text: We could set up a video call so you can see her on her birthday.
+    Clip: {fileID: 8300000, guid: fa185dee662378341b2d10a7e606d0d5, type: 3}
+  - Key: s1_item6_score0
+    Text: You left him alone without a plan. That makes him feel even more isolated.
+    Clip: {fileID: 8300000, guid: 60fffd7a53a29714fb1dd603cea5e66d, type: 3}
+  - Key: s1_item6_score1
+    Text: You stayed, but without real contact.
+    Clip: {fileID: 8300000, guid: 6c009ec1826ea884cb21725cbedadcc1, type: 3}
+  - Key: s1_item6_score2
+    Text: You stayed with him and kept the conversation going.
+    Clip: {fileID: 8300000, guid: 89de7d9c8bcd31a4493c6f7ddeacbae0, type: 3}
+  - Key: s1_item6_better
+    Text: I'm not going anywhere, let's find something that helps you today.
+    Clip: {fileID: 8300000, guid: e32ac6bcd9c0a9149aa6ee6321ac0301, type: 3}
+  - Key: s1_item7_score0
+    Text: You didn't ask what's on his mind. An open question helps him talk.
+    Clip: {fileID: 8300000, guid: 76492c982d421f6488086f526dbfe9c0, type: 3}
+  - Key: s1_item7_score1
+    Text: You asked a question, but a closed one.
+    Clip: {fileID: 8300000, guid: 273e0b38cd53cb54fa7271e9fcba52f8, type: 3}
+  - Key: s1_item7_score2
+    Text: You asked an open question about what matters to him.
+    Clip: {fileID: 8300000, guid: e19d38e8c749b9645bb36d728d1cbbb3, type: 3}
+  - Key: s1_item7_better
+    Text: What would make today a little better for you?
+    Clip: {fileID: 8300000, guid: 6b8b928d31883764987752fbf9461c81, type: 3}
+  - Key: s1_critical_false_discharge_promise
+    Text: You promised him he could go home early. Only the doctor decides that,
+      and with a leg infection it isn't safe. Show that you understand, and offer
+      something he can do, like sitting up or a video call with his granddaughter.
+    Clip: {fileID: 8300000, guid: 8eb45ad5b3a4cf243a14cc4c16daf16e, type: 3}

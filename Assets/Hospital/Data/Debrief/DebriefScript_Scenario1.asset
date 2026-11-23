@@ -1,0 +1,194 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 694b4773a12bdee47bb7b0bdf0d337f6, type: 3}
+  m_Name: DebriefScript_Scenario1
+  m_EditorClassIdentifier: Assembly-CSharp::ProCommVR.Hospital.Debrief.DebriefScript
+  ScenarioId: disappointed_patient
+  ScenarioPrefix: s1
+  DoctorName: Dr. Peeters
+  PagerText: 'Dr. Peeters
+
+    Briefing room'
+  Steps: 000000000100000002000000030000000400000005000000060000000700000008000000
+  MaxPoints: 3
+  Lines:
+  - Key: greeting
+    Text: Thanks for coming by. Let's look back at your talk with Mister X. Come,
+      stand with me at the table.
+    Clip: {fileID: 8300000, guid: 727154f724961e949a8b9e6d1e119613, type: 3}
+  - Key: reflection_question
+    Text: 'Before I say anything: how do you think Mister X felt when you left his
+      room? Point at one of the four things on the table.'
+    Clip: {fileID: 8300000, guid: df78c08dfbbf3774c8653ca54ba6ddfd, type: 3}
+  - Key: timeline_intro
+    Text: This is your talk with him, turn by turn. The higher the post, the more
+      he trusted you.
+    Clip: {fileID: 8300000, guid: ec0dcfbfd35a1994abf81d70fa5bfde2, type: 3}
+  - Key: critical_intro
+    Text: Let's start with the hardest moment.
+    Clip: {fileID: 8300000, guid: 2763c1fee0e99d0498feabc2f9d53cf2, type: 3}
+  - Key: low_intro
+    Text: Here is one thing to work on.
+    Clip: {fileID: 8300000, guid: 9346b9aaf128f064e89a8e72ece1bb94, type: 3}
+  - Key: high_intro
+    Text: And here is something you did well.
+    Clip: {fileID: 8300000, guid: 041e2c746e74d3146965149cf7515271, type: 3}
+  - Key: better_intro
+    Text: 'You could have said:'
+    Clip: {fileID: 8300000, guid: d49c4077faed2fb46afae4206b814e10, type: 3}
+  - Key: memory_intro
+    Text: Let's go back to that moment.
+    Clip: {fileID: 8300000, guid: a3e1a7e3b4162474bbcc507a3f57d106, type: 3}
+  - Key: memory_look
+    Text: Look at his face. What did he hear?
+    Clip: {fileID: 8300000, guid: c6dd8fef84cc2e941828199688f98ad2, type: 3}
+  - Key: memory_better
+    Text: 'Now listen to this. You could have said:'
+    Clip: {fileID: 8300000, guid: 88fb202686af24d468bb37b10a46ae29, type: 3}
+  - Key: memory_back
+    Text: Let's go back to the briefing room.
+    Clip: {fileID: 8300000, guid: ab8ad814153f0844ab711fffac1b769f, type: 3}
+  - Key: memory_no_audio
+    Text: I don't have the recording of that moment, so read what you said.
+    Clip: {fileID: 8300000, guid: 3f4bb8d3706ad3847b65be8012adb5a8, type: 3}
+  - Key: pick_moment
+    Text: Pick any moment on the table if you want to look back at it.
+    Clip: {fileID: 8300000, guid: 56d1ebf432535624c95a8c768dfd38ad, type: 3}
+  - Key: choice
+    Text: 'When you are ready: try again, or finish your shift.'
+    Clip: {fileID: 8300000, guid: 4b01238e74b2021479264bb73eec0433, type: 3}
+  - Key: closing_good
+    Text: That was a good talk. He felt heard, and he knows what comes next.
+    Clip: {fileID: 8300000, guid: 509769c5971d21b47aa0f79bdab1410e, type: 3}
+  - Key: closing_mixed
+    Text: Some things went well, and some can be better. That is how we learn.
+    Clip: {fileID: 8300000, guid: 2aa48493785f3ce45a12c4bd9090a9bb, type: 3}
+  - Key: closing_critical
+    Text: One promise changed the whole talk. Next time you will know where your
+      role ends.
+    Clip: {fileID: 8300000, guid: 1b089b3e2690f5b41be2b5015994b1f2, type: 3}
+  - Key: retry
+    Text: Go ahead, try again. He is still in room one A.
+    Clip: {fileID: 8300000, guid: 5cb7bd19c31ab364db6f89c8729149fd, type: 3}
+  - Key: done
+    Text: Thank you. Good work today.
+    Clip: {fileID: 8300000, guid: c3b3e9bb251a4904f894b57f1785a3cd, type: 3}
+  - Key: consequence_critical
+    Text: His infection got worse that weekend. He spent the party in bed, here.
+    Clip: {fileID: 8300000, guid: f4f312111f87d8e47ae5957824383445, type: 3}
+  - Key: reveal_Joy_Joy
+    Text: 'You picked joy. That''s right: he was mostly happy.'
+    Clip: {fileID: 8300000, guid: 118a65b680cbf294789fe40e6fe84d77, type: 3}
+  - Key: reveal_Joy_Anger
+    Text: You picked joy. He was mostly angry.
+    Clip: {fileID: 8300000, guid: b22f709550be68645964706473ed5f8a, type: 3}
+  - Key: reveal_Joy_Fear
+    Text: You picked joy. He was mostly afraid.
+    Clip: {fileID: 8300000, guid: 928de2893c8fdbb4fa02fa58d4c6a2a6, type: 3}
+  - Key: reveal_Joy_Sadness
+    Text: You picked joy. He was mostly sad.
+    Clip: {fileID: 8300000, guid: c694656eaa8b1cb4199160bd6845170d, type: 3}
+  - Key: reveal_Joy_None
+    Text: You picked joy. In the end he was fairly calm, without one strong feeling.
+    Clip: {fileID: 8300000, guid: 60f3b62f9364de24d8bf8730378ccf7b, type: 3}
+  - Key: reveal_Anger_Joy
+    Text: You picked anger. He was mostly happy.
+    Clip: {fileID: 8300000, guid: ccb806d8bda76d349bac9538000f1d28, type: 3}
+  - Key: reveal_Anger_Anger
+    Text: 'You picked anger. That''s right: he was mostly angry.'
+    Clip: {fileID: 8300000, guid: 5c3d162846919a447bd7d9a4172c88c7, type: 3}
+  - Key: reveal_Anger_Fear
+    Text: You picked anger. He was mostly afraid.
+    Clip: {fileID: 8300000, guid: ee621e4c0892f934fafe86e00328d5d3, type: 3}
+  - Key: reveal_Anger_Sadness
+    Text: You picked anger. He was mostly sad.
+    Clip: {fileID: 8300000, guid: 4ee7b9822b672b845ade60c7425a0167, type: 3}
+  - Key: reveal_Anger_None
+    Text: You picked anger. In the end he was fairly calm, without one strong feeling.
+    Clip: {fileID: 8300000, guid: d07cb28a6457e9c44af0868509d6f110, type: 3}
+  - Key: reveal_Fear_Joy
+    Text: You picked fear. He was mostly happy.
+    Clip: {fileID: 8300000, guid: 21e81f59ee4b881499dc21c2baac13b2, type: 3}
+  - Key: reveal_Fear_Anger
+    Text: You picked fear. He was mostly angry.
+    Clip: {fileID: 8300000, guid: 49d89aac8c8611a47b6bc0f30abd0f34, type: 3}
+  - Key: reveal_Fear_Fear
+    Text: 'You picked fear. That''s right: he was mostly afraid.'
+    Clip: {fileID: 8300000, guid: 1faa898c224082640a807fa3de72284f, type: 3}
+  - Key: reveal_Fear_Sadness
+    Text: You picked fear. He was mostly sad.
+    Clip: {fileID: 8300000, guid: 534a497f4fe2e2d4eb0603914969d4ff, type: 3}
+  - Key: reveal_Fear_None
+    Text: You picked fear. In the end he was fairly calm, without one strong feeling.
+    Clip: {fileID: 8300000, guid: d6aa66a0fcc9e094cbb211fa840243f7, type: 3}
+  - Key: reveal_Sadness_Joy
+    Text: You picked sadness. He was mostly happy.
+    Clip: {fileID: 8300000, guid: c0c5e45bfa790b145a67f7f14cbf11a2, type: 3}
+  - Key: reveal_Sadness_Anger
+    Text: You picked sadness. He was mostly angry.
+    Clip: {fileID: 8300000, guid: 297716ead0477b543892fe622d682cd2, type: 3}
+  - Key: reveal_Sadness_Fear
+    Text: You picked sadness. He was mostly afraid.
+    Clip: {fileID: 8300000, guid: 5dc504e0d6acd8b49bf98e9acd4cd873, type: 3}
+  - Key: reveal_Sadness_Sadness
+    Text: 'You picked sadness. That''s right: he was mostly sad.'
+    Clip: {fileID: 8300000, guid: 71a6b0b82c3364b4f90ad445c127934e, type: 3}
+  - Key: reveal_Sadness_None
+    Text: You picked sadness. In the end he was fairly calm, without one strong feeling.
+    Clip: {fileID: 8300000, guid: 0e4ca1ed21ede1448b70e622001b4aff, type: 3}
+  Voices: {fileID: 11400000, guid: e4794afd468d60e45a5f9f46dbe85f0c, type: 2}
+  Notes:
+  - ItemId: 1
+    Improve: Name his sadness out loud
+    WellDone: You named his sadness
+  - ItemId: 2
+    Improve: Discharge is the doctor's decision
+    WellDone: Stayed within your role
+  - ItemId: 3
+    Improve: Explain simply why he stays
+    WellDone: Honest about why he stays
+  - ItemId: 4
+    Improve: Offer one small step in bed
+    WellDone: A small, doable step
+  - ItemId: 5
+    Improve: Offer a video call with family
+    WellDone: Offered something positive
+  - ItemId: 6
+    Improve: Stay with him, make a plan
+    WellDone: You stayed with him
+  - ItemId: 7
+    Improve: Ask an open question
+    WellDone: Asked what matters to him
+  CriticalNote: Never promise a discharge
+  ImproveColor: {r: 1, g: 0.86, b: 0.3, a: 1}
+  WellDoneColor: {r: 0.62, g: 0.9, b: 0.55, a: 1}
+  CriticalColor: {r: 1, g: 0.55, b: 0.5, a: 1}
+  BetterAimExpression: 0
+  BetterAimIntensity: 0.5
+  BetterAim:
+    _joy: 0.25
+    _anger: 0
+    _fear: 0
+    _sadness: 0.3
+  GoodFraction: 0.7
+  ConsequenceTitle: Saturday, 3 pm
+  GoodCaption: A video call from the party.
+  MixedCaption: The birthday card is still closed.
+  CriticalCaption: An empty chair at the party.
+  GoodImage: {fileID: 2800000, guid: da4db2eaf7a27db42bea3758d5bb7a20, type: 3}
+  MixedImage: {fileID: 2800000, guid: 38ae523641cf11647b89a179409748bb, type: 3}
+  CriticalImage: {fileID: 2800000, guid: d14e4ed1ff04e264da06223976e3db4d, type: 3}
+  GranddaughterClip: {fileID: 8300000, guid: 23caa1b963344ea49b7d86f301fb176f, type: 3}
+  GranddaughterText: Grandpa! Look, I'm six! We saved you a piece of cake!
+  ConsequenceSeconds: 10
+  PagerClip: {fileID: 8300000, guid: e3698c7a1c99313498b994b0aa924f3e, type: 3}
+  FootstepsClip: {fileID: 8300000, guid: 30d0dcc943139c94e88c2e3243620cae, type: 3}

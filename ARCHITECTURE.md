@@ -1389,3 +1389,113 @@ Test: `RunPrototype1` loopt de hele lus door: lobby, niets voor de start (ook ni
 deurbord en plattegrond, gesprek, zelf afronden (CONVERSATION ENDED, *Done*, rapport), Try again (*In progress*), een getypt
 goed gesprek (CONVERSATION FINISHED, *Done*, score), Try again, kritieke fout (CRITICAL ERROR, *Failed*), Finish shift
 (SHIFT FINISHED met de totale score).
+
+## 21. Nabespreking bij de hoofddokter (Liam, `Assets/Hospital/Scripts/Debrief`)
+
+In Prototype1 krijgt de student zijn feedback niet meer als rapport op een paneel, maar van de hoofddokter (Dr. Peeters,
+`Doctor_Female`), aan de tafel van de briefingruimte, met zijn eigen gesprek als materiaal. **De score en de beoordeling
+veranderen niet**: alles komt uit de bestaande resultaten van de AI-server (`AiDebrief`) en de beurten van het gesprek.
+Namespace `ProCommVR.Hospital.Debrief`, editor-code in `Assets/Hospital/Editor/Debrief`, data in `Assets/Hospital/Data/Debrief`.
+
+**Verloop** (de volgorde van de stappen is data, `DebriefScript.Steps`):
+1. **Pieper** (`PagerCue`): als het gesprek eindigt piept een pieper in de linkerhand, trilt 3 keer (0,1 s) en toont
+   "Dr. Peeters / Briefing room", binnen de 2 s die `PrototypeFlow` wacht. Tijdens de fade zachte voetstappen (2D).
+2. **Begroeting:** zodra de speler na het zwarte scherm bij de dokter staat, begroet ze hem met haar stem. De ballon van
+   `PrototypeFlow` wordt verborgen (ze spreekt zelf). Fade: de speler staat aan de tafel (kant tegenover het whiteboard),
+   de dokter aan de overkant, links van het bord.
+3. **Reflectievraag:** vier objecten op tafel (regenwolkje Sadness, vlammetje Anger, zaklamp Fear, bloempje Joy, met
+   label). "How do you think Mr. X felt when you left his room?" Kiezen met laser + trigger, zonder tijdslimiet.
+4. **Onthulling:** het object van zijn echte dominante emotie (de `EmotionHolder` aan het einde) gloeit, ze wijst ernaar
+   en zegt de zin voor (gekozen, echt), bv. "You picked anger. He was mostly sad."
+5. **Emotielijn** (`EmotionTimeline`): per opgenomen beurt (max. 8) een object op tafel, links naar rechts, op een paaltje
+   waarvan de hoogte het vertrouwen is (0..100 = 2..25 cm), met een lijn over de toppen. Belangrijke momenten een gele ring,
+   de kritieke fout een rode. Wijzen (hover) toont "You: '...'" (wat de student zei).
+6. **Feedback:** max. 3 punten (data): de kritieke fout, het item met de laagste score, het item met de hoogste score als
+   lof. Per punt een korte inleiding, de Engelse feedback van de server (`feedback_en`), een plakbriefje op het whiteboard
+   (rood kritiek, geel werkpunt, groen goed, max. 8 woorden) waar ze naar wijst, en één keer de betere zin (ook op het briefje).
+7. **Herinnering** (`MemoryReplay`): het belangrijkste moment (de kritieke fout, anders het sleutelmoment met het laagste
+   vertrouwen) speelt terug in de echte kamer 1A: grijs (één extra globaal Volume: Color Adjustments saturatie -80, warme
+   tint, Vignette 0,35; geen Bloom of DoF), de klok stil, een witte figuur (`AvatarWhite.mat`) waar de student stond,
+   zijn **eigen opgenomen stem** uit de figuur, dan het echte antwoord van de patiënt met het gezicht van toen. "Look at his
+   face. What did he hear?", de betere zin, en zijn gezicht wordt zachter (enkel gezicht en `EmotionHolder`, geen nieuwe
+   AI-beurt). Daarna wordt alles hersteld (Volume, emotie, gezicht, klok, dokter). B slaat de herinnering over.
+8. **Gevolg** (`ConsequenceCard`, "Saturday, 3 pm"): een kaartje op het bord, gekozen uit de bestaande resultaten: Good
+   (geen kritieke fout en minstens 70% van de max: videogesprek met de kleindochter, haar stem), Critical (een lege stoel
+   naast de taart, de dokter zegt één rustige zin), Mixed (de verjaardagskaart nog dicht). Max. 10 s, B slaat over.
+9. **Bord:** pas nu de score, als stempel op een patiëntendossier op tafel ("8 / 14"). Een slotzin per uitkomst.
+   Het shift report van `AiShift` (met de score) blijft zoals in 20.6 meteen zichtbaar, want `RunPrototype1` verwacht het;
+   wil Jalil de score pas op het einde, sleep dan "Shift Report" in *Hide Until Board* van de regisseur. "Pick any moment on the table": een object kiezen speelt die herinnering.
+10. **Keuze:** twee ballonnen (laser) of A: *Try again* / B: *Finish shift*. Ze zegt haar zin en het paneel geeft zoals
+    altijd `Retried` of `Closed`, dus `PrototypeFlow` en `AiShift` werken ongewijzigd.
+
+A slaat een zin van de dokter over. Alle zinnen hebben een ondertitel (de bestaande `DialogueBubble`).
+
+**Hoe het inhaakt zonder Jalils code te veranderen:**
+- `AiDebriefPanel` (Liam) kreeg **Doctor Led** (+ `DebriefDirector`). Aan: `Open()` vraagt de nabespreking zoals altijd,
+  toont geen paneel en geeft het resultaat aan de regisseur; als die klaar is, roept het paneel zijn eigen `Retry()` /
+  `Done()`. Komt `Retry()` / `Done()` van buiten (een test), dan stopt de dokter en wordt alles opgeruimd. Lukt de
+  aanvraag niet, dan toont het paneel de fout met zijn knoppen (terugval). Uit: het oude paneel, nu in het Engels.
+  `BeginDoctorLed(IDebriefSource)` start de dokter met een andere bron (tests, later de knoppenversie).
+- In `Prototype1SceneBuilder` staat **één regel**: `DebriefSetup.AddToScene(prototype)`. Die zet de hoofddokter (prefab
+  variant `Assets/Hospital/Prefabs/Debrief/HeadDoctor.prefab` van `Doctor_Female` met `DoctorSpeaker` en `DoctorPointer`,
+  het origineel blijft ongewijzigd) op de plek van `Doctor_Female`, een `ConversationRecorder` op de patiënt, de pieper
+  op de linkercontroller en de regisseur met zijn plekken. Tafel en whiteboard worden gevonden op naam en bounds
+  (`BriefingRoom/Furniture/Table`, `Whiteboard/Board`), niet met vaste coördinaten.
+- Liam's `AiNpc` kreeg de events `StudentAudioSent` (de wav van de student vlak voor het versturen) en
+  `ConversationStarting`, `PlayReplay(clip)` (eigen clip op zijn stem, de mond beweegt mee) en getters voor gezicht,
+  kijkrichting en stem. `AiTalkData`: `feedback_en`, `evidence_turn`, `title_en`, `feedback_en` (kritiek).
+
+**Data:**
+- `ConversationRecorder` (op de patiënt) bewaart per beurt: wat de student zei (tekst en eigen opname), het antwoord
+  (tekst en stem), het emotielabel van de AI, onze emotie na de beurt (het target van de `EmotionHolder`, één frame na
+  `TurnApplied`), vertrouwen, spanning en de pose van het hoofd ten opzichte van de patiënt. Enkel in het geheugen, max. 8
+  beurten (de 3 grootste veranderingen van de spanning blijven), gewist (met `Destroy` van de clips) bij een nieuw gesprek.
+- `DebriefData.Build(AiDebrief, beurten, eindemotie)`: sleutelmomenten op `turn_index` gekoppeld aan de beurten, de
+  kritieke fout eerst, de items met Engelse feedback (Nederlands enkel als de server nog geen `feedback_en` heeft), de
+  emotielijn, de uitkomst. `IDebriefSource` met `AiDebriefSource`, `FixedDebriefSource` (tests) en
+  `ScenarioDebriefSource` (de knoppenversie, nog nergens ingebouwd).
+- `DebriefScript_Scenario1.asset`: alle zinnen van de dokter met clip, de volgorde van de stappen, max. punten, de
+  briefjes per rubric-item, kleuren, waar het gezicht naartoe gaat bij de betere zin, het gevolg-kaartje.
+  `DebriefVoiceLibrary_Scenario1.asset`: de stem voor de feedback van de server per item en score (`s1_item2_score0`), de
+  betere zinnen (`s1_item2_better`) en de kritieke fout. Komt de tekst van de server niet overeen met de opgenomen tekst
+  (scenario aangepast, clips niet opnieuw gemaakt), dan toont de dokter de nieuwe tekst zonder de oude clip.
+
+**Tekst en stem aanpassen** (geen code):
+1. Zinnen van de dokter: `Assets/Hospital/Data/Debrief/DebriefLines_Scenario1.json`. Feedback per item:
+   `Tools/AiServer/scenarios/disappointed_patient.json` (`feedback_en`, `critical_feedback_en`; de Nederlandse velden en
+   de scores blijven zoals ze waren).
+2. `Tools/AiServer/.venv/Scripts/python.exe tools/gen_doctor_lines.py` (vanuit `Tools/AiServer`): Piper-stem
+   `en_US-kristin-medium` (anders dan de patiënt, `norman`), 16 kHz, naar `Assets/Hospital/Audio/Debrief/Doctor/<key>.wav`,
+   plus de pieper, de voetstappen en de kleindochter (`amy`, hoger). Er wordt niets live gegenereerd tijdens de nabespreking.
+3. Unity: **ProCommVR > Liam > Debrief > Import Doctor Lines** (of opnieuw Prototype1 bouwen).
+   De plaatjes van het gevolg: `tools/gen_consequence_images.py` (vlakke illustraties, 512x512, ASTC op Android).
+
+**Een ander scenario:** een eigen `DebriefLines_<n>.json` (prefix, briefjes per item) en clips; `feedback_en` in dat
+scenario-JSON; een `DebriefScript` per scenario aan de regisseur geven. **Een stap toevoegen:** een waarde in
+`DebriefStepKind` en een methode in `DebriefDirector.Step`; de volgorde staat in de JSON.
+
+**Quest-budget:** geen extra camera of render texture (de herinnering gebruikt de echte kamer 1A), geen realtime schaduwen,
+geen extra lichten, geen deeltjes; de objecten zijn primitieven in één gedeeld materiaal (`DebriefProp.mat`, Simple Lit)
+met kleur per renderer (`MaterialPropertyBlock`); geen allocaties per frame in de eigen code (de mond leest in een vaste
+buffer). Post-processing staat enkel aan tijdens de herinnering (zoals in de patient view).
+
+**Testscene:** **ProCommVR > Liam > Debrief > Build Doctor Test Scene** (`Assets/Scenes/liam_debrief_doctor_test.unity`):
+de dokter voor een whiteboard, elke zin afspelen met P / Enter / N of de ballonnen.
+
+**Tests:**
+- EditMode `ProCommVR.Hospital.Debrief.Tests` (10): koppeling op `turn_index`, kritieke fout eerst, max. 8 beurten,
+  wissen, Engelse feedback en ongewijzigde scores, emotielijn, uitkomst, elke zin heeft een clip, tekst gewijzigd = geen clip.
+- Play mode (eigen launcher in `Assets/Hospital/Editor/Debrief/Testing`, Jalils bestanden ongewijzigd):
+  `RunDebriefDoctor` (testscene: 69 zinnen spelen, mond, ondertitel, A slaat over, wijzen), `RunDebriefReflection`,
+  `RunDebriefFeedback` en `RunMemoryReplay` (Prototype1 met een nep-gesprek, geen AI-server nodig: laser + trigger op de
+  objecten, onthulling, emotielijn met vormen en hoogtes, hover, 3 briefjes, herinnering in 1A met figuur, eigen stem,
+  emotie van toen en volledig herstel, gevolg, stempel = score, herinnering op aanvraag, Try again wist de recorder, Finish),
+  `RunDebriefLive` (met de AI-server: 3 gesproken beurten, pieper, echte nabespreking, stempel = score van de server).
+
+**Nog niet / later:**
+- De patient view in de herinnering (Y) vraagt dat `PovController` (Jalil) kan wisselen zonder open gesprek.
+- De knoppenversie (`Scenario01_PatientRoom`, shift): `ScenarioDebriefSource` bestaat; er is nog een plek voor de dokter
+  nodig en een manier om `ResultsScreen` over te slaan. Beslissing van Jalil.
+- Niet getest op de Quest 3 of via Quest Link (72 fps, leesbaarheid in de headset, de eigen stem via de echte microfoon).
+  De GC-meting in de editor zegt weinig (de editor zelf alloceert); profileer op een development build.
+- De Engelse feedback en de zinnen van de dokter moeten nog nagelezen worden (docent verpleegkunde).

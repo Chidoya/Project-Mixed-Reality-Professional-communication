@@ -429,7 +429,9 @@
       "moment_nl": "Je beloofde een vroeg ontslag",
       "critical": true,
       "critical_title": "Vals ontslag beloofd",
+      "critical_title_en": "False promise of discharge",
       "critical_feedback": "Kritieke fout: je beloofde een vroeg ontslag. Dat beslist de arts, en met een beeninfectie is dat onveilig. Toon begrip en stel iets haalbaars voor, zoals rechtop zitten of een videogesprek met zijn kleindochter.",
+      "critical_feedback_en": "You promised him he could go home early. Only the doctor decides that, and with a leg infection it isn't safe. Show that you understand, and offer something he can do, like sitting up or a video call with his granddaughter.",
       "critical_reaction": {
         "reply": "Home? For the party? Can you even promise me that?",
         "emotion": "Surprised",
@@ -481,6 +483,11 @@
         "1": "Je verwees naar zijn gevoel, maar noemde het niet bij naam. Zeg letterlijk dat je ziet hoe zwaar dit is.",
         "2": "Je benoemde zijn verdriet. Zo voelde hij zich gehoord."
       },
+      "feedback_en": {
+        "0": "You moved past his sadness. Next time, name what you see: that he is disappointed and sad.",
+        "1": "You touched on his feelings, but you didn't name them. Say out loud that you can see how hard this is.",
+        "2": "You named his sadness. That made him feel heard."
+      },
       "better_phrase": "I can see how heartbreaking it is to miss her birthday."
     },
     {
@@ -497,6 +504,11 @@
         "0": "Je beloofde iets wat niet aan jou is, zoals een vroeg ontslag. Dat beslist de arts.",
         "1": "Je bleef meestal binnen je rol.",
         "2": "Je bleef binnen je rol en beloofde niets wat de arts moet beslissen."
+      },
+      "feedback_en": {
+        "0": "You promised something that isn't yours to promise, like going home early. Only the doctor decides that.",
+        "1": "You mostly stayed within your role.",
+        "2": "You stayed within your role and didn't promise anything the doctor has to decide."
       },
       "better_phrase": "Going home early is the doctor's decision, but I can help you get stronger."
     },
@@ -519,6 +531,11 @@
         "1": "Je legde niet uit waarom hij moet blijven. Zeg eerlijk dat de infectie nog zorg nodig heeft.",
         "2": "Je legde eerlijk en eenvoudig uit waarom hij nog moet blijven."
       },
+      "feedback_en": {
+        "0": "You used medical jargon. Explain it in plain, simple words.",
+        "1": "You didn't explain why he has to stay. Tell him honestly that the infection still needs care here.",
+        "2": "You explained honestly and simply why he still has to stay."
+      },
       "better_phrase": "The infection needs a few more days of care here so it heals safely."
     },
     {
@@ -534,6 +551,11 @@
         "0": "Je motiveerde hem niet tot iets kleins. Stel iets haalbaars voor dat in bed kan.",
         "1": "Je probeerde hem te motiveren, maar niet concreet.",
         "2": "Je stelde een kleine, haalbare stap voor, zoals rechtop zitten of iets drinken."
+      },
+      "feedback_en": {
+        "0": "You didn't encourage him to try something small. Suggest one easy step he can do in bed.",
+        "1": "You tried to motivate him, but it wasn't concrete yet.",
+        "2": "You suggested a small, doable step, like sitting up or having a drink."
       },
       "better_phrase": "Shall I help you sit up a little, and we get you something to drink?"
     },
@@ -552,6 +574,11 @@
         "1": "Je bood steun, maar niets wat hem met de verjaardag verbindt.",
         "2": "Je stelde iets positiefs voor, zoals een videogesprek met zijn kleindochter."
       },
+      "feedback_en": {
+        "0": "You didn't offer anything for what he's missing. Think of a video call with his granddaughter.",
+        "1": "You offered support, but nothing that connects him to the birthday.",
+        "2": "You suggested something positive, like a video call with his granddaughter."
+      },
       "better_phrase": "We could set up a video call so you can see her on her birthday."
     },
     {
@@ -569,6 +596,11 @@
         "1": "Je bleef, maar zonder echt contact.",
         "2": "Je bleef bij hem en hield het gesprek gaande."
       },
+      "feedback_en": {
+        "0": "You left him alone without a plan. That makes him feel even more isolated.",
+        "1": "You stayed, but without real contact.",
+        "2": "You stayed with him and kept the conversation going."
+      },
       "better_phrase": "I'm not going anywhere, let's find something that helps you today."
     },
     {
@@ -584,6 +616,11 @@
         "0": "Je vroeg niet wat hem bezighoudt. Een open vraag helpt hem praten.",
         "1": "Je stelde een vraag, maar een gesloten.",
         "2": "Je stelde een open vraag over wat hem bezighoudt."
+      },
+      "feedback_en": {
+        "0": "You didn't ask what's on his mind. An open question helps him talk.",
+        "1": "You asked a question, but a closed one.",
+        "2": "You asked an open question about what matters to him."
       },
       "better_phrase": "What would make today a little better for you?"
     }
