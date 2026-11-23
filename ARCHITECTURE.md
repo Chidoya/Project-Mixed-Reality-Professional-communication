@@ -1184,6 +1184,21 @@ blokkeert) en het begin van de zin ging verloren. Nu:
   *Hearing you...*, *The patient is thinking...*).
 - Alle waarden staan in de inspector. Test: `VoiceActivityTalk.Feed` voert opgenomen geluid in zonder microfoon.
 
+**Einde op een zwart scherm** (`Scripts/AiTalk/EndingCard.cs`, `PrototypeFlow`): bij een kritieke fout of een geëscaleerd
+gesprek eindigt het niet zomaar. Na de laatste zin van de patiënt gaat het beeld naar zwart met **KRITIEKE FOUT** (rood, met
+de titel en uitleg van de fout uit het scenario, via `AiTurn.critical`, nieuw veld) of **GESPREK GEËSCALEERD** (oranje),
+6 s lang; pas dan staat de speler bij de dokter. Later (als dit scenario goed zit): doorpraten na een kritieke fout, met
+als gevolg in een volgende shift dat het vertrouwen helemaal wegvalt (keuze van Jalil, 2026-11-23).
+
+**Casus op het klembord:** pagina 1 is nu *Case*: wie de patiënt is (Mr. X, 51), waarom hij moet blijven (intraveneuze
+antibiotica, de arts beslist over ontslag), wat er vandaag speelt (de verjaardag), de taak en wat niet mag (ontslag
+beloven, "alles komt goed"). Zelfde inhoud als Liam's patiëntenkaart (`Hospital/Data/Case_1A.asset`); tekst in de
+inspector (*Case Text*). Het bord aan de deur vat de situatie samen en verwijst naar het klembord. Pagina's: Case, Tasks,
+Dev.
+
+**Geen gemengde signalen:** na een zin die vertrouwen kost (som van de labels negatief), mag de acteur geen *Happy* kiezen
+(`Engine._lost_trust`): zijn gezicht en de vertrouwensmeter zeggen hetzelfde.
+
 **Microfoon kiezen:** de Dev-pagina van het klembord toont de microfoon, het niveau (*HEARD* als het als spraak telt) en
 *Next mic*. De keuze wordt onthouden. Geeft de gekozen microfoon 3 s helemaal geen geluid (bv. de Quest-microfoon terwijl
 Quest Link de invoer naar een andere microfoon stuurt), dan schakelt `VoiceActivityTalk` vanzelf naar de volgende (niet
@@ -1192,8 +1207,8 @@ onthouden). Elke 10 s staat in de log hoe luid de microfoon was.
 **Klembord met X:** **X** op de linkercontroller (C in de editor) neemt het klembord in de hand of legt het op de balie.
 
 **Voortgangsbalk van het gesprek** (`Scripts/AiTalk/ConversationProgressBar.cs`): een oranje balk onderaan in het midden van
-het beeld tijdens het gesprek. Ze vult als de patiënt kalmeert (vertrouwen naar 66, spanning naar 36: de voorwaarde van de
-laatste fase) en sneller als hij boos wordt (spanning naar 92 of vertrouwen naar 5: de escalatie). Tot 92% tot het gesprek
+het beeld tijdens het gesprek. Ze vult als de patiënt kalmeert (het gemiddelde van vertrouwen naar 66 en spanning naar 36: de
+voorwaarde van de laatste fase; een bereikte fase is een minimum: B2 een derde, B3 twee derde) en sneller als hij boos wordt (spanning naar 92 of vertrouwen naar 5: de escalatie). Tot 92% tot het gesprek
 echt eindigt, dan vol. De doelen staan in de inspector en moeten gelijk blijven aan het scenariobestand.
 
 **Langer gesprek en escalatie** (`Tools/AiServer/scenarios/disappointed_patient.json`, data):

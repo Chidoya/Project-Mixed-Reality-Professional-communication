@@ -48,6 +48,8 @@ namespace ProCommVR.Hospital.AiTalk
         public string band;
         public string phase;
         public string ended;
+        /// <summary>De kritieke fout die het gesprek in deze beurt beëindigde (anders leeg).</summary>
+        public AiCritical critical;
         public AiStateSnapshot before;
         public AiStateSnapshot after;
         public AiTimings timings_ms;

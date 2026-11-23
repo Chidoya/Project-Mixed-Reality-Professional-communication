@@ -55,6 +55,16 @@ namespace ProCommVR.AiTalk
         [Tooltip("Seconds between the doctor's line and the debrief panel.")]
         [SerializeField, Min(0f)] private float _debriefDelay = 2.5f;
 
+        [Header("Ending on a black screen (critical error, escalated)")]
+        [Tooltip("Shows the text on the black screen. Empty: no card, straight to the doctor.")]
+        [SerializeField] private EndingCard _endingCard;
+        [Tooltip("Seconds the black screen with the text stays before the player stands at the doctor.")]
+        [SerializeField, Min(1f)] private float _cardSeconds = 6f;
+        [SerializeField] private string _criticalTitle = "KRITIEKE FOUT";
+        [SerializeField] private string _escalatedTitle = "GESPREK GEËSCALEERD";
+        [TextArea, SerializeField] private string _escalatedText =
+            "De patiënt wil niet meer met je praten. Bij de dokter lees je wat er misliep.";
+
         [Header("Finish the conversation")]
         [Tooltip("Hold this long (seconds) to finish the conversation yourself.")]
         [SerializeField, Min(0.2f)] private float _finishHoldSeconds = 1.2f;
@@ -74,6 +84,7 @@ namespace ProCommVR.AiTalk
         private InputAction _finishAction;
         private float _finishHeld;
         private bool _endHandled;
+        private string _endReason;
 
         public Stage Current { get; private set; } = Stage.Briefing;
         public event Action<Stage> StageChanged;
@@ -168,6 +179,7 @@ namespace ProCommVR.AiTalk
             if (_endHandled || Current != Stage.Talking)
                 return;
             _endHandled = true;
+            _endReason = reason;
             Debug.Log($"[ProCommVR] Prototype1: conversation ended ({reason}), to the doctor.", this);
             StartCoroutine(ToDoctor());
         }
@@ -180,7 +192,10 @@ namespace ProCommVR.AiTalk
             while (_pov != null && (_pov.Mode == PovMode.Patient || _pov.IsSwitching))
                 yield return null;
 
-            yield return Move(_doctorSpot);
+            if (_endingCard != null && (_endReason == "critical_error" || _endReason == "escalated"))
+                yield return BlackScreenToDoctor();
+            else
+                yield return Move(_doctorSpot);
             if (_doctorBubble != null)
             {
                 _doctorBubble.gameObject.SetActive(true);
@@ -192,6 +207,31 @@ namespace ProCommVR.AiTalk
             if (_debrief != null)
                 _ = _debrief.Open();
         }
+
+        /// <summary>
+        /// A critical error or an escalated conversation does not just end: the view goes black with what happened, and
+        /// only then the player stands at the doctor.
+        /// </summary>
+        private IEnumerator BlackScreenToDoctor()
+        {
+            if (_fade != null)
+                yield return _fade.FadeTo(1f, _fadeSeconds * 1.5f);
+            var critical = _patient != null && _patient.LastTurn != null ? _patient.LastTurn.critical : null;
+            if (_endReason == "critical_error")
+                _endingCard.Show(_criticalTitle, new Color(0.95f, 0.3f, 0.25f),
+                    critical != null && critical.Present ? critical.title : "",
+                    critical != null && critical.Present ? critical.feedback : "");
+            else
+                _endingCard.Show(_escalatedTitle, new Color(1f, 0.55f, 0.1f), "", _escalatedText);
+            Teleport(_doctorSpot);
+            yield return new WaitForSeconds(_cardSeconds);
+            _endingCard.Hide();
+            if (_fade != null)
+                yield return _fade.FadeTo(0f, _fadeSeconds);
+        }
+
+        /// <summary>The ending card is shown (for tests).</summary>
+        public bool IsEndingCardShown => _endingCard != null && _endingCard.IsShown;
 
         private void OnRetried()
         {
