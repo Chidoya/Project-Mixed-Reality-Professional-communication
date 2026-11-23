@@ -164,6 +164,16 @@ namespace ProCommVR.Testing
         public string CaseText => _caseBody != null ? _caseBody.text : "";
         public string GuideText => _guideBody != null ? _guideBody.text : "";
         public int PageCount => _pages.Length;
+
+        /// <summary>The text of the Tasks page (the shift writes its tasks here).</summary>
+        public void SetTasksText(string text)
+        {
+            _tasksText = text;
+            if (_tasksBody != null)
+                _tasksBody.text = text;
+        }
+
+        public string TasksText => _tasksBody != null ? _tasksBody.text : _tasksText;
         public bool DevMode => _devMode;
         public string PageName(int page) => page >= 0 && page < _pageNames.Length ? _pageNames[page] : "";
 

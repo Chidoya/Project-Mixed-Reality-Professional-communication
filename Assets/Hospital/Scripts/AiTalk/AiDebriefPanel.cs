@@ -56,6 +56,10 @@ namespace ProCommVR.Hospital.AiTalk
         public AiDebrief Result { get; private set; }
 
         /// <summary>Na Klaar.</summary>
+        [Tooltip("Optioneel: andere tekst op de knoppen (leeg = Opnieuw proberen / Klaar), bv. in een shift.")]
+        [SerializeField] private string _retryLabel = "";
+        [SerializeField] private string _doneLabel = "";
+
         public event Action Closed;
 
         /// <summary>Na Opnieuw proberen (het gesprek start opnieuw).</summary>
@@ -422,8 +426,8 @@ namespace ProCommVR.Hospital.AiTalk
 
         private void Buttons()
         {
-            Button(RetryLabel, new Vector2(Width / 2f - 300f, -Height + 66f), Retry);
-            Button(DoneLabel, new Vector2(Width / 2f + 20f, -Height + 66f), Done);
+            Button(string.IsNullOrEmpty(_retryLabel) ? RetryLabel : _retryLabel, new Vector2(Width / 2f - 300f, -Height + 66f), Retry);
+            Button(string.IsNullOrEmpty(_doneLabel) ? DoneLabel : _doneLabel, new Vector2(Width / 2f + 20f, -Height + 66f), Done);
         }
 
         // --- Kleine UI-hulp ------------------------------------------------------------------------

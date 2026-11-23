@@ -120,6 +120,28 @@ namespace ProCommVR.Editor
             return map;
         }
 
+        /// <summary>
+        /// A bold note on the map next to a plan point (e.g. "TASK 1" next to room 1A), as its own object so it can be
+        /// shown or hidden.
+        /// </summary>
+        internal static GameObject AddMapNote(Transform map, Vector2 plan, string text)
+        {
+            const float width = 1.5f;
+            var height = width * ImageSize.y / ImageSize.x;
+            var local = MapLocal(plan, width, height);
+            var label = new GameObject($"Note {text}").AddComponent<TextMeshPro>();
+            label.transform.SetParent(map, false);
+            label.rectTransform.sizeDelta = new Vector2(0.6f, 0.1f);
+            label.rectTransform.pivot = new Vector2(0f, 0.5f);
+            label.transform.localPosition = new Vector3(local.x + 0.045f, local.y - 0.07f, -0.006f);
+            label.text = $"<b>{text}</b>";
+            label.fontSize = 0.42f;
+            label.color = new Color(0.8f, 0.1f, 0.05f);
+            label.alignment = TextAlignmentOptions.Left;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            return label.gameObject;
+        }
+
         /// <summary>Plan point (meters) to a point on the map quad (local, meters from its center).</summary>
         private static Vector2 MapLocal(Vector2 plan, float width, float height)
         {

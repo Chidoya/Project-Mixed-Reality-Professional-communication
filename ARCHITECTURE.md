@@ -1356,3 +1356,34 @@ Zichtbaar binnen enkele seconden: de vertrouwensbalk volgt in 0,6 s, de emotie v
 - `PlayModeSmokeTest.RunPrototype1`: nurse view zonder balk, vertrouwen of emotie (en zonder Dev-pagina); de patient view
   toont ze, met de pijlen; Case en Guide komen uit het scenario; een getypt goed gesprek (`AiNpc.SendStudentText`, nieuw,
   via `/turn/text`, `AiTalkClient.SendText`) eindigt `resolved` na minstens 10 beurten (in de test: 10).
+
+### 20.6 Gameloop rond één scenario (stap 6)
+
+Minimaal, met wat al bestond (Liam's U-afdeling, `PrototypeFlow`, het klembord, de dokter en zijn nabespreking, het idee van
+`ShiftStartButton`). Nieuw: `Scripts/AiTalk/AiShift.cs` en `AiShiftStartButton.cs`.
+
+1. **Lobby:** de speler start aan de balie van de lobby (Liam's `StaffStation`), het klembord in de linkerhand opent op
+   **Tasks**: "Task 1: Room 1A, Mr. X", status *Waiting* en een doel in één zin. Case en Guide (stap 3) volgen.
+2. **Start:** laser + trigger op de computer op de balie (`AiShiftStartButton`, `XRSimpleInteractable`, zelfde idee als
+   `ShiftStartButton`). Daarvoor loopt er niets: `PrototypeFlow` *Wait For Shift Start* (de patiënt praat niet, ook niet als je
+   naast hem staat; er is geen timer).
+3. **Na de start:** de taak staat op *In progress*, aan de deur van 1A hangt een oranje bord "TASK 1: Mr. X" en op de
+   plattegrond staat "TASK 1" bij kamer 1A (`WardMapAndAmbienceSetup.AddMapNote`, nieuw). Wandelen of teleporteren (bestaande
+   teleport-zones).
+4. **Gesprek:** start als de speler dicht bij de patiënt komt (zoals voordien). Y werkt zoals in stap 4.
+5. **Einde** (opgelost, geëscaleerd, kritieke fout of zelf afgerond met B): **altijd** een zwart scherm met de reden
+   (`EndingCard`): CONVERSATION FINISHED, CONVERSATION ENDED (3,5 s), CRITICAL ERROR of CONVERSATION ESCALATED (6 s). Daarna de
+   dokter en de nabespreking. De titels zijn nu Engels (voordien KRITIEKE FOUT, GESPREK GEËSCALEERD).
+6. **Na de nabespreking:** de taak wordt *Done* of *Failed* (kritieke fout, geëscaleerd) met de reden, op het klembord en in
+   een kort **SHIFT REPORT** boven het paneel van de nabespreking (taak, status, score). Twee keuzes, de knoppen van Liam's
+   paneel met een andere tekst (`AiDebriefPanel` *Retry Label* / *Done Label*, nieuw en optioneel): **Try again (A)** (nieuw
+   gesprek, taak weer *In progress*) en **Finish shift (B)** (zwart eindscherm SHIFT FINISHED met de totale score en de taken).
+7. **Data:** de taken staan in de inspector van `AiShift` (*Tasks*: scenario-id, kamer, titel, doel), één nu. De flow speelt
+   enkel de eerste taak (één patiënt): meer kamers en patiënten zijn bewust niet gebouwd (zie `LATER.md`).
+
+De score van een taak is die van de laatste poging; de totale score is de som over de taken.
+
+Test: `RunPrototype1` loopt de hele lus door: lobby, niets voor de start (ook niet naast de patiënt), start, *In progress*,
+deurbord en plattegrond, gesprek, zelf afronden (CONVERSATION ENDED, *Done*, rapport), Try again (*In progress*), een getypt
+goed gesprek (CONVERSATION FINISHED, *Done*, score), Try again, kritieke fout (CRITICAL ERROR, *Failed*), Finish shift
+(SHIFT FINISHED met de totale score).

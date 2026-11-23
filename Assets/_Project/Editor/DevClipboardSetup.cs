@@ -85,7 +85,8 @@ namespace ProCommVR.Editor
             // ---- Page 2: Tasks ----
             var tasks = Page(rect, "Page Tasks");
             Label(tasks, "Title", "<b>TODAY'S TASKS</b>", 16f, new Vector2(0f, 128f), new Vector2(204f, 24f), TextAlignmentOptions.Center);
-            var tasksBody = Label(tasks, "Body", "", 9.5f, new Vector2(0f, 10f), new Vector2(204f, 200f), TextAlignmentOptions.TopLeft);
+            var tasksBody = Label(tasks, "Body", "", 9.5f, new Vector2(0f, 4f), new Vector2(204f, 214f), TextAlignmentOptions.TopLeft);
+            AutoSize(tasksBody, 6f);
 
             // ---- Page 3: Dev ----
             var dev = Page(rect, "Page Dev");
@@ -119,13 +120,14 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_bridge").objectReferenceValue = bridge;
             serialized.FindProperty("_pov").objectReferenceValue = pov;
             var pages = serialized.FindProperty("_pages");
+            // The shift's tasks first, then the briefing; Dev only with dev mode (DevClipboard._devMode).
             pages.arraySize = 4;
-            pages.GetArrayElementAtIndex(0).objectReferenceValue = casePage.gameObject;
-            pages.GetArrayElementAtIndex(1).objectReferenceValue = guidePage.gameObject;
-            pages.GetArrayElementAtIndex(2).objectReferenceValue = tasks.gameObject;
+            pages.GetArrayElementAtIndex(0).objectReferenceValue = tasks.gameObject;
+            pages.GetArrayElementAtIndex(1).objectReferenceValue = casePage.gameObject;
+            pages.GetArrayElementAtIndex(2).objectReferenceValue = guidePage.gameObject;
             pages.GetArrayElementAtIndex(3).objectReferenceValue = dev.gameObject;
             var pageNames = serialized.FindProperty("_pageNames");
-            var names = new[] { "Case", "Guide", "Tasks", "Dev" };
+            var names = new[] { "Tasks", "Case", "Guide", "Dev" };
             pageNames.arraySize = names.Length;
             for (var i = 0; i < names.Length; i++)
                 pageNames.GetArrayElementAtIndex(i).stringValue = names[i];
@@ -145,7 +147,7 @@ namespace ProCommVR.Editor
             serialized.FindProperty("_micLabel").objectReferenceValue = micLabel;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             dev.gameObject.SetActive(false);
-            tasks.gameObject.SetActive(false);
+            casePage.gameObject.SetActive(false);
             guidePage.gameObject.SetActive(false);
 
             // On the desk, where Liam's clipboard lies; his own is switched off in this scene.
