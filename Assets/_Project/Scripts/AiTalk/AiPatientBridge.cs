@@ -13,7 +13,8 @@ namespace ProCommVR.AiTalk
     /// <item>It is the <see cref="IPatientConversation"/> of the POV switch: open from the patient's first line until
     /// the AI server ends the conversation (or the player finishes it), with a new count of switches after a restart.</item>
     /// <item>After every turn the AI server's emotion label (Happy, Sad, Angry, Worried...) and tension (0..100) set the
-    /// patient's emotions, so the room in the patient view follows the conversation.</item>
+    /// patient's emotions, so the room in the patient view follows the conversation. The server's emotion is the only
+    /// rule: no extra thresholds here (so the face, the voice and the room always say the same).</item>
     /// <item>The AI server's trust (0..100) is the patient's reputation: the trust meter in the emotion HUD.</item>
     /// </list>
     /// The mapping from the AI labels to our four emotions is in the inspector, so it can be tuned without code.
@@ -57,13 +58,6 @@ namespace ProCommVR.AiTalk
             new LabelMapping { Label = "Pain", Emotion = EmotionChoice.Sadness },
             new LabelMapping { Label = "Neutral", Emotion = EmotionChoice.None },
         };
-
-        [Tooltip("A Neutral label with a tension at or above Neutral Tension still shows this emotion (the patient stays gloomy).")]
-        [SerializeField] private EmotionChoice _neutralTensionEmotion = EmotionChoice.Sadness;
-        [SerializeField, Range(0f, 100f)] private float _neutralTension = 55f;
-
-        [Tooltip("Joy at or above this trust, also with a Neutral label (the patient opens up).")]
-        [SerializeField, Range(0f, 100f)] private float _joyTrust = 70f;
 
         [Tooltip("Strength of the dominant emotion: from Min (tension or trust 0) to Max (100).")]
         [SerializeField, Range(0f, 1f)] private float _minStrength = 0.4f;
@@ -150,7 +144,9 @@ namespace ProCommVR.AiTalk
         }
 
         /// <summary>
-        /// Our four emotions for an AI label, tension and trust (both 0..100).
+        /// Our four emotions for an AI label, tension and trust (both 0..100). One rule: the AI server decides the
+        /// emotion (it only allows emotions that fit the patient's band and never Happy right after a sentence that
+        /// cost trust); here it is only mapped. Tension and trust only set how strong it is.
         /// </summary>
         public EmotionState ToEmotions(string label, float tension, float trust)
         {
@@ -163,11 +159,6 @@ namespace ProCommVR.AiTalk
                     break;
                 }
             }
-            if (choice == EmotionChoice.None && tension >= _neutralTension)
-                choice = _neutralTensionEmotion;
-            if ((choice == EmotionChoice.None || choice == EmotionChoice.Joy) && trust >= _joyTrust)
-                choice = EmotionChoice.Joy;
-
             if (choice == EmotionChoice.None)
             {
                 LastEmotion = null;

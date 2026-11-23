@@ -105,6 +105,14 @@ def main() -> None:
     check(r["ended"] == "critical_error" and s.anger > t0 and s.trust < tr0,
           f"false discharge promise: tension {t0}->{s.anger}, trust {tr0}->{s.trust}, ended {r['ended']}")
 
+    check(r["emotion"] != "Happy", f"no happy face after a false discharge promise ({r['emotion']})")
+    s, _ = eng.start_session("disappointed_patient")
+    s.anger = 10  # LOW band: Happy is allowed there
+    s.last_labels = ["dismissive"]
+    out = eng._finish(s, {"turn": 1, "labels": [], "tokens": {}, "before": s.snapshot()}, {}, 0.0,
+                      reply="Fine.", emotion="Happy", fallback=True)
+    check(out["emotion"] != "Happy", f"a fixed happy line after lost trust is not happy ({out['emotion']})")
+
     # 6b. upgrade_to: a false promise about going home is the critical one
     s, _ = eng.start_session("disappointed_patient")
     llm.next_labels = ["false_promise"]

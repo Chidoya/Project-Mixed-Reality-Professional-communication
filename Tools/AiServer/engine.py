@@ -797,6 +797,10 @@ class Engine:
             result.update(actor.model_dump())
         else:
             emotion = emotion or band.get("fallback_emotion", band["allowed_emotions"][0])
+            # The same rule as for the actor: a fixed line (a critical reaction, a fallback) after a sentence that cost
+            # trust never gets a happy face.
+            if emotion == "Happy" and self._lost_trust(session):
+                emotion = next((e for e in band["allowed_emotions"] if e != "Happy"), "Neutral")
             result.update({
                 "reply": reply,
                 "emotion": emotion,

@@ -1289,3 +1289,13 @@ Getest met de echte AI (`test_conversation_length.py`, nu met verwachtingen en e
 `resolved` na 10 beurten, een grove zin escaleert, een vals ontslag beëindigt het gesprek en de meters bewegen eerst, een
 wandelvoorstel scoort niet. Zonder AI: `tests/test_engine_rules.py` (nepmodel: standaardgedrag, limiet, `drop_if_any`,
 `min_turns`, alle scenario's laden).
+
+### 20.2 Eén regel voor "blij" (stap 2)
+
+De AI-server beslist de emotie; `AiPatientBridge` vertaalt die enkel (Happy naar Joy, Sad naar Sadness...). De extra regels
+in de brug (*Neutral Tension* 55: Neutral blijft Sadness; *Joy Trust* 70: vanaf vertrouwen 70 altijd Joy) zijn weg: ze lieten
+het gezicht en de kamer iets anders zeggen dan de stem. De server laat enkel emoties toe die bij de band passen (in
+`disappointed_patient` kan Happy alleen bij spanning onder 30) en nooit Happy na een zin die vertrouwen kostte: voor de acteur
+was dat er al (`Engine._lost_trust`), nu ook voor vaste zinnen (een kritieke reactie of een reservezin, `Engine._finish`). De
+reactie op een vals ontslag is niet meer "Thank you, thank you!" (Happy) maar twijfelend ("Home? For the party? Can you even
+promise me that?", Surprised). Spanning en vertrouwen bepalen enkel nog hoe sterk de emotie is.

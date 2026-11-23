@@ -383,8 +383,8 @@
       "critical_title": "Vals ontslag beloofd",
       "critical_feedback": "Kritieke fout: je beloofde een vroeg ontslag. Dat beslist de arts, en met een beeninfectie is dat onveilig. Toon begrip en stel iets haalbaars voor, zoals rechtop zitten of een videogesprek met zijn kleindochter.",
       "critical_reaction": {
-        "reply": "Really? You'd do that for me? Thank you, thank you!",
-        "emotion": "Happy",
+        "reply": "Home? For the party? Can you even promise me that?",
+        "emotion": "Surprised",
         "animation": "Laying",
         "pose": "Engaged"
       },
